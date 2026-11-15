@@ -9,6 +9,15 @@ import Preview from "./Preview";
 import StylePicker from "./StylePicker";
 import TotalsBar from "./TotalsBar";
 import { useDocument } from "./state";
+import SendBox from "./SendBox";
+import { conversionsFor } from "@/lib/documents/convert";
+
+/** Which builder page each kind opens in. Credit notes share the invoice builder. */
+const ROUTE_FOR: Record<string, string> = {
+  invoice: "/invoice-generator", proforma: "/invoice-generator", "credit-note": "/invoice-generator",
+  "delivery-note": "/invoice-generator", quote: "/quotation-generator",
+  "purchase-order": "/purchase-order-generator", receipt: "/receipt-generator"
+};
 
 export default function Builder({ kind }: { kind: DocumentKind }) {
   const s = useDocument(kind);
@@ -16,6 +25,7 @@ export default function Builder({ kind }: { kind: DocumentKind }) {
   const [tab, setTab] = useState<"edit" | "preview">("edit");
   const [error, setError] = useState("");
   const [justSaved, setJustSaved] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
 
   /**
    * Downloading is the moment a document stops being a draft, so it saves itself and is marked
@@ -31,6 +41,7 @@ export default function Builder({ kind }: { kind: DocumentKind }) {
       a.href = url; a.download = documentFileName(s.doc);
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 4000);
+      setDownloaded(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "The PDF could not be created.");
     } finally { setBusy(false); }
@@ -80,6 +91,26 @@ export default function Builder({ kind }: { kind: DocumentKind }) {
           <p className="no-print mt-3 text-center text-xs text-ink-faint">
             Downloading also saves this to <Link href="/documents" className="underline">your documents</Link>, so you can mark it paid later.
           </p>
+
+          <div className="mt-6">
+            <SendBox doc={s.doc} totals={s.totals} downloaded={downloaded} onDownload={download} />
+          </div>
+
+          {s.savedId && conversionsFor(s.doc.kind).length ? (
+            <section className="no-print card mt-6 p-5">
+              <h2 className="font-display text-lg">What happens next</h2>
+              <p className="mt-1 text-sm text-ink-soft">
+                Carry everything over rather than typing it again. The new document gets its own number and points back at this one.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {conversionsFor(s.doc.kind).map((c) => (
+                  <Link key={c.to} href={`${ROUTE_FOR[c.to]}?from=${s.savedId}&as=${c.to}`} className="btn-ghost" title={c.describes}>
+                    {c.label}
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ) : null}
         </div>
       </div>
     </div>

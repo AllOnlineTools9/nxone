@@ -1,3 +1,4 @@
+import type { DocumentKind } from "../documents/types";
 import { emptyWorkspace, type CatalogueItem, type Client, type Expense, type Profile, type RecurringTemplate, type SavedDocument, type SavedScenario, type SavedEmployee, type SavedPayRun, type Workspace } from "./types";
 
 /**
@@ -269,6 +270,25 @@ export class Store {
   }
 
   deleteScenario(id: string) { this.tombstone("scenarios", id); }
+
+  /**
+   * Tie a document to the one it was made from — a quotation to the invoice it became. Both ends
+   * are recorded, so either can be opened and the other found, and the quotation can show that it
+   * was taken up rather than looking forgotten.
+   */
+  linkConversion(sourceId: string, made: { id: string; kind: DocumentKind; number: string }) {
+    const ws = this.read();
+    const now = new Date().toISOString();
+    const documents = (ws.documents ?? []).map((d) => {
+      if (d.id === sourceId) return { ...d, madeInto: made, updatedAt: now, version: (d.version ?? 1) + 1 };
+      if (d.id === made.id) {
+        const from = (ws.documents ?? []).find((x) => x.id === sourceId);
+        return from ? { ...d, madeFrom: { id: from.id, number: from.number }, updatedAt: now, version: (d.version ?? 1) + 1 } : d;
+      }
+      return d;
+    });
+    this.write({ ...ws, documents });
+  }
 
   /* ---- the payroll ---- */
 

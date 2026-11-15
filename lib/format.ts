@@ -43,3 +43,17 @@ export function nextNumber(current: string): string {
   const width = m[2].length;
   return `${m[1]}${String(Number(m[2]) + 1).padStart(width, "0")}${m[3]}`;
 }
+
+/**
+ * A WhatsApp link. Indian numbers are given often as ten digits with the country code assumed, so
+ * one is added rather than producing a link that silently goes nowhere.
+ */
+export function whatsappLink(phone: string, message: string): string {
+  const digits = phone.replace(/\D/g, "");
+  const withCountry = digits.length === 10 ? `91${digits}` : digits;
+  return `https://wa.me/${withCountry}?text=${encodeURIComponent(message)}`;
+}
+
+/** A pre-filled mail draft, opened in whatever the person already uses for email. */
+export const mailtoLink = (email: string, subject: string, body: string) =>
+  `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;

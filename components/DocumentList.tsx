@@ -1,5 +1,5 @@
 "use client";
-import { Copy, FileText, Pencil, Quote, Receipt, ShoppingCart, Trash2 } from "lucide-react";
+import { ArrowRight, Copy, FileText, Pencil, Quote, Receipt, ShoppingCart, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { formatDate } from "@/lib/format";
@@ -7,6 +7,7 @@ import { formatMoney, fromMinor } from "@/lib/money";
 import { store } from "@/lib/store/db";
 import type { DocumentStatus, SavedDocument } from "@/lib/store/types";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
+import { conversionsFor } from "@/lib/documents/convert";
 
 const ROUTES: Record<string, string> = {
   invoice: "/invoice-generator", proforma: "/invoice-generator", quote: "/quotation-generator",
@@ -92,6 +93,11 @@ export default function DocumentList({ limit, title }: { limit?: number; title?:
                     <Link href={`${ROUTES[d.kind]}?doc=${d.id}`} className="flex items-center gap-2 font-medium hover:underline">
                       <Icon size={15} className="shrink-0 text-ink-faint" aria-hidden="true" />{d.number}
                     </Link>
+                    {d.madeInto ? (
+                      <span className="mt-0.5 block text-xs text-ink-faint">became {d.madeInto.number}</span>
+                    ) : d.madeFrom ? (
+                      <span className="mt-0.5 block text-xs text-ink-faint">from {d.madeFrom.number}</span>
+                    ) : null}
                   </td>
                   <td className="px-4 py-2.5">{d.clientName}</td>
                   <td className="px-4 py-2.5 tabular text-ink-soft">
@@ -116,6 +122,14 @@ export default function DocumentList({ limit, title }: { limit?: number; title?:
                     <div className="flex items-center justify-end gap-1">
                       <Link href={`${ROUTES[d.kind]}?doc=${d.id}`} className="rounded p-1.5 text-ink-faint hover:bg-canvas hover:text-ink" aria-label={`Open ${d.number}`}><Pencil size={15} /></Link>
                       <Link href={`${ROUTES[d.kind]}?copy=${d.id}`} className="rounded p-1.5 text-ink-faint hover:bg-canvas hover:text-ink" aria-label={`Duplicate ${d.number}`}><Copy size={15} /></Link>
+                      {conversionsFor(d.kind).length && !d.madeInto ? (
+                        <Link
+                          href={`${ROUTES[conversionsFor(d.kind)[0].to]}?from=${d.id}&as=${conversionsFor(d.kind)[0].to}`}
+                          className="rounded p-1.5 text-ink-faint hover:bg-canvas hover:text-ink"
+                          title={conversionsFor(d.kind)[0].describes}
+                          aria-label={`${conversionsFor(d.kind)[0].label} from ${d.number}`}
+                        ><ArrowRight size={15} /></Link>
+                      ) : null}
                       <button type="button" onClick={() => { if (confirm(`Delete ${d.number}? This cannot be undone.`)) store.deleteDocument(d.id); }}
                         className="rounded p-1.5 text-ink-faint hover:bg-canvas hover:text-bad" aria-label={`Delete ${d.number}`}><Trash2 size={15} /></button>
                     </div>

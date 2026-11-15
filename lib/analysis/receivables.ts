@@ -210,11 +210,6 @@ export function reminderText(opts: {
 }
 
 /** Opens WhatsApp with the message ready, which is how most Indian businesses actually chase. */
-export function whatsappLink(phone: string, message: string): string {
-  const digits = phone.replace(/\D/g, "");
-  const withCountry = digits.length === 10 ? `91${digits}` : digits;
-  return `https://wa.me/${withCountry}?text=${encodeURIComponent(message)}`;
-}
-
-export const mailtoLink = (email: string, subject: string, body: string) =>
-  `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+// These live in lib/format now, where documents can reach them too, and are re-exported here
+// so everything that already imports them from this module keeps working.
+export { mailtoLink, whatsappLink } from "../format";

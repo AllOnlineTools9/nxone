@@ -8,6 +8,7 @@ import { kindConfig } from "@/lib/documents/kinds";
 import { store } from "@/lib/store/db";
 import type { DocumentStatus } from "@/lib/store/types";
 import { nextNumber } from "@/lib/format";
+import { canConvert, convertTo } from "@/lib/documents/convert";
 
 const KEY = "nxone.document.v1";
 /** Which saved document the current draft belongs to, so a refresh still updates rather than duplicates. */
@@ -79,6 +80,8 @@ export function useDocument(kind: DocumentKind) {
   const [loaded, setLoaded] = useState(false);
   /** Set once this document exists in the documents list, so saving again updates it. */
   const [savedId, setSavedId] = useState<string | undefined>();
+  /** Where this document was converted from, so the pair can be linked once it is saved. */
+  const [source, setSource] = useState<{ id: string; number: string } | undefined>();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -97,6 +100,25 @@ export function useDocument(kind: DocumentKind) {
     if (openId) {
       const found = store.getDocument(openId);
       if (found) { setDoc(found.doc); setSavedId(found.id); setLoaded(true); return; }
+    }
+
+    // /invoice-generator?from=dc_123&as=credit-note turns one document into the next one
+    const fromId = params.get("from");
+    if (fromId) {
+      const found = store.getDocument(fromId);
+      const asked = (params.get("as") as DocumentKind | null) ?? kind;
+      if (found && canConvert(found.doc.kind, asked)) {
+        const profile = store.getProfile();
+        setSavedId(undefined);
+        setSource({ id: found.id, number: found.number });
+        setDoc(convertTo(found.doc, asked, {
+          today: todayIso(),
+          number: profile?.nextNumbers?.[asked],
+          profile: profile ? { paymentDetails: profile.paymentDetails, upiId: profile.upiId, paymentLink: profile.paymentLink } : undefined
+        }));
+        setLoaded(true);
+        return;
+      }
     }
 
     // /invoice-generator?copy=dc_123 starts a fresh one from an old one
@@ -205,9 +227,17 @@ export function useDocument(kind: DocumentKind) {
       totalMinor: t.total.minor, paidMinor, status: resolved, doc
     });
     setSavedId(saved.id);
-    if (!savedId) advanceNumber(kind, doc.number);
-    return saved;
-  }, [doc, kind, savedId]);
+    if (!savedId) advanceNumber(doc.kind, doc.number);
 
-  return { doc, setDoc, update, updateItem, addItem, removeItem, moveItem, setCountry, reset, totals, loaded, save, savedId };
+    // Record the pair, once, so the quotation shows it was taken up and this one shows where it
+    // came from. Done on save rather than on conversion: a conversion somebody abandons should
+    // leave no trace on the original.
+    if (source && !savedId) {
+      store.linkConversion(source.id, { id: saved.id, kind: saved.kind, number: saved.number });
+      setSource(undefined);
+    }
+    return saved;
+  }, [doc, kind, savedId, source]);
+
+  return { doc, setDoc, update, updateItem, addItem, removeItem, moveItem, setCountry, reset, totals, loaded, save, savedId, source };
 }

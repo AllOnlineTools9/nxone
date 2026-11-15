@@ -113,6 +113,12 @@ export interface SavedDocument extends Syncable {
    * that has one must not be registered twice.
    */
   einvoice?: { irn: string; ackNumber?: string; ackDate?: string; signedQr?: string; registeredAt: string };
+  /**
+    * The document this one was made from, and the one made from it: a quotation and the invoice
+    * it became. Named for documents rather than currencies, which convert too.
+    */
+  madeFrom?: { id: string; number: string };
+  madeInto?: { id: string; kind: DocumentKind; number: string };
   doc: DocumentData;
   createdAt: string;
   updatedAt: string;
