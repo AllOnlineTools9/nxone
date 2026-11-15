@@ -7,6 +7,7 @@ import { formatDate, todayIso } from "@/lib/format";
 import { formatMoney } from "@/lib/money";
 import type { SavedDocument } from "@/lib/store/types";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
+import RateNeeded from "./RateNeeded";
 
 /** Who owes you, who is late, and a message you can send in one click. */
 export default function Receivables() {
@@ -45,6 +46,7 @@ export default function Receivables() {
 
   return (
     <div className="space-y-8">
+      <RateNeeded />
       <div>
         <h1 className="text-2xl font-semibold sm:text-3xl">Money owed to you</h1>
         <p className="mt-1 text-ink-soft">What is outstanding, how old it is, and who is worth a message today.</p>

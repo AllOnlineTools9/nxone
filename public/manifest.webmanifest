@@ -1,0 +1,22 @@
+{
+  "name": "NXOne — invoices, tax and your money",
+  "short_name": "NXOne",
+  "description": "Invoices, expenses, tax and the whole accounts, on your own device.",
+  "start_url": "/today/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F7F8F7",
+  "theme_color": "#0B3D2E",
+  "categories": ["business", "finance", "productivity"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Today", "short_name": "Today", "url": "/today/", "description": "What needs doing" },
+    { "name": "New invoice", "short_name": "Invoice", "url": "/invoice-generator/", "description": "Make an invoice" },
+    { "name": "Record an expense", "short_name": "Expense", "url": "/expenses/", "description": "Put in a bill you paid" }
+  ]
+}

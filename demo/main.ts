@@ -40,7 +40,7 @@ function blank(kind: DocumentKind, country: string): DocumentData {
 
 const DEMO: Partial<DocumentData> = {
   seller: { name: "Acme Consulting LLP", address: "221 Linking Road\nBandra West\nMumbai 400050", email: "billing@acme.example", taxId: "27AAPFU0939F1ZV", region: "MH" },
-  buyer: { name: "Globex Private Limited", address: "4th Floor, Prestige Tech Park\nBengaluru 560103", taxId: "29AACCG1234M1ZP" },
+  buyer: { name: "Globex Private Limited", address: "4th Floor, Prestige Tech Park\nBengaluru 560103", taxId: "29AACCG1234M1ZJ" },
   placeOfSupply: "KA",
   paymentDetails: "HDFC Bank, A/c 50200012345678, IFSC HDFC0000123\nUPI: acme@hdfcbank"
 };

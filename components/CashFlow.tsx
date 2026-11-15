@@ -1,9 +1,11 @@
 "use client";
+import { openingOf } from "@/lib/ledger/opening";
 import { useState } from "react";
 import { forecast, windowOf } from "@/lib/analysis/cashflow";
 import { formatDate, todayIso } from "@/lib/format";
 import { formatMoney, fromMinor } from "@/lib/money";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
+import RateNeeded from "./RateNeeded";
 
 /** What the next few weeks look like, with the guesswork labelled as guesswork. */
 export default function CashFlow() {
@@ -16,7 +18,7 @@ export default function CashFlow() {
 
   const currency = ws.profile?.currency ?? "INR";
   const today = todayIso();
-  const f = forecast(db.documents(), db.expenses(), today, currency, 90, minimum * 100);
+  const f = forecast(db.documents(), db.expenses(), today, currency, 90, minimum * 100, openingOf(ws.profile));
   const view = windowOf(f, days);
   const m = (v: { minor: number; currency: string }) => formatMoney(v, "en-IN");
 
@@ -30,6 +32,7 @@ export default function CashFlow() {
 
   return (
     <div className="space-y-8">
+      <RateNeeded />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold sm:text-3xl">Cash</h1>

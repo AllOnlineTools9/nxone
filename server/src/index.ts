@@ -7,9 +7,14 @@ import {
 import { PLANS, TRIAL_DAYS, entitlementsFor, planById, priceFor } from "./billing/plans";
 import { paymentProvider } from "./billing/provider";
 import * as schema from "./db/schema";
-import { emailSender, loginEmail } from "./http/email";
+import { emailSender, inviteEmail, loginEmail } from "./http/email";
 import { corsHeaders, json, problem, rateLimit } from "./http/respond";
+import { buildDigest, digestEmail } from "./notify/digest";
+import { receiptService } from "./receipts/read";
 import { changesSince, mergePush, type SyncRecord } from "./sync/merge";
+import {
+  ROLES, can, canAddSeat, isRole, refuseInvite, refuseRemoval, refuseRoleChange, seatCount, type Role
+} from "./team/seats";
 
 export interface Env {
   DB: D1Database;
@@ -18,6 +23,9 @@ export interface Env {
   EMAIL_PROVIDER?: string;
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
+  /** Set when a receipt reading service is connected. Without it, the app says so plainly. */
+  RECEIPT_PROVIDER?: string;
+  GOOGLE_VISION_KEY?: string;
   /** Set when a payment provider is connected. Without these, checkout says so plainly. */
   PAYMENT_PROVIDER?: string;
   RAZORPAY_KEY_ID?: string;
@@ -56,6 +64,60 @@ async function allowance(db: DrizzleD1Database<typeof schema>, orgId: string) {
   return { org, ...entitlementsFor(org.plan, org.trialEndsAt?.getTime() ?? null) };
 }
 
+/** An invitation is good for a week: long enough for somebody on holiday, short enough to matter. */
+const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** How many seats are taken, counting invitations nobody has opened yet. */
+async function seatNumbers(db: DrizzleD1Database<typeof schema>, orgId: string) {
+  const members = await db.select().from(schema.memberships).where(eq(schema.memberships.orgId, orgId));
+  const invites = await db.select().from(schema.invitations).where(eq(schema.invitations.orgId, orgId));
+  const pending = invites.filter((i) => !i.acceptedAt && !i.revokedAt && i.expiresAt.getTime() > Date.now());
+  return { memberRows: members, pendingRows: pending, members: members.length, pending: pending.length };
+}
+
+/** Everything the People screen shows, assembled once so every route answers the same way. */
+async function teamView(db: DrizzleD1Database<typeof schema>, orgId: string, viewerId: string) {
+  const allowed = await allowance(db, orgId);
+  const org = allowed?.org;
+  const { memberRows, pendingRows } = await seatNumbers(db, orgId);
+  const people = memberRows.length
+    ? await db.select({ id: schema.users.id, email: schema.users.email, name: schema.users.name, lastSeenAt: schema.users.lastSeenAt })
+        .from(schema.users).where(inArray(schema.users.id, memberRows.map((m) => m.userId)))
+    : [];
+
+  const members = memberRows.map((m) => {
+    const person = people.find((u) => u.id === m.userId);
+    return {
+      userId: m.userId,
+      email: person?.email ?? "",
+      name: person?.name ?? null,
+      role: m.role as Role,
+      joinedAt: m.createdAt.getTime(),
+      lastSeenAt: person?.lastSeenAt?.getTime() ?? null,
+      isYou: m.userId === viewerId
+    };
+  });
+
+  const pending = pendingRows.map((i) => ({
+    id: i.id, email: i.email, role: i.role as Role, invitedAt: i.createdAt.getTime(), expiresAt: i.expiresAt.getTime()
+  }));
+
+  const plan = allowed?.plan ?? planById("free");
+  const country = org?.country ?? "IN";
+  const viewer = memberRows.find((m) => m.userId === viewerId);
+
+  return {
+    organisation: { id: orgId, name: org?.name ?? "", country },
+    plan: { id: plan.id, name: plan.name, trialing: allowed?.trialing ?? false },
+    you: { userId: viewerId, role: (viewer?.role ?? "readonly") as Role, can: can(viewer?.role ?? "readonly") },
+    roles: ROLES,
+    members,
+    pending,
+    counts: seatCount(plan, members.length, pending.length),
+    seats: canAddSeat(plan, country, members.length, pending.length)
+  };
+}
+
 async function audit(db: DrizzleD1Database<typeof schema>, req: Request, entry: { orgId: string; userId?: string; action: string; recordKind?: string; recordId?: string; summary?: string }) {
   await db.insert(schema.auditLog).values({
     id: uid("au"), at: new Date(), ip: req.headers.get("CF-Connecting-IP") ?? undefined,
@@ -63,7 +125,55 @@ async function audit(db: DrizzleD1Database<typeof schema>, req: Request, entry: 
   });
 }
 
+/** Builds the digest for an organisation from the records it has synced. */
+async function digestFor(db: DrizzleD1Database<typeof schema>, orgId: string, today: string) {
+  const rows = await db.select().from(schema.records).where(eq(schema.records.orgId, orgId));
+  const records = rows.filter((r) => !r.deletedAt).map((r) => ({ kind: r.kind, body: JSON.parse(r.body) as Record<string, unknown> }));
+  const profile = records.find((r) => r.kind === "profile")?.body as { name?: string; currency?: string } | undefined;
+  return buildDigest({
+    businessName: profile?.name,
+    currency: profile?.currency ?? "INR",
+    today,
+    records
+  });
+}
+
 export default {
+  /**
+   * The scheduled run. Sending is deliberately conservative: only people who asked, only when
+   * there is something to say, and never more than once a day however often this runs.
+   */
+  async scheduled(_event: ScheduledController, env: Env): Promise<void> {
+    const db = drizzle(env.DB, { schema });
+    const today = new Date().toISOString().slice(0, 10);
+    const sender = emailSender(env);
+
+    const wanted = await db.select({
+      prefs: schema.notificationPrefs,
+      email: schema.users.email
+    }).from(schema.notificationPrefs)
+      .innerJoin(schema.users, eq(schema.notificationPrefs.userId, schema.users.id))
+      .where(eq(schema.notificationPrefs.weeklyDigest, true));
+
+    for (const row of wanted) {
+      const lastSent = row.prefs.lastSentAt?.getTime() ?? 0;
+      if (Date.now() - lastSent < 20 * 60 * 60 * 1000) continue;
+
+      // reminders are part of Pro, so a lapsed plan simply stops sending rather than failing
+      const org = (await db.select().from(schema.organisations).where(eq(schema.organisations.id, row.prefs.orgId)).limit(1))[0];
+      if (!org || !entitlementsFor(org.plan, org.trialEndsAt?.getTime() ?? null).limits.reminders) continue;
+
+      const digest = await digestFor(db, row.prefs.orgId, today);
+      if (!digest.worthSending) continue;
+
+      const mail = digestEmail(digest, env.APP_ORIGIN);
+      const sent = await sender.send({ to: row.email, subject: mail.subject, text: mail.text });
+      if (sent) {
+        await db.update(schema.notificationPrefs).set({ lastSentAt: new Date() }).where(eq(schema.notificationPrefs.id, row.prefs.id));
+      }
+    }
+  },
+
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     /**
@@ -181,14 +291,179 @@ export default {
         return reply(json({ ok: true }, { headers: { "Set-Cookie": clearedCookie(secure) } }));
       }
 
+      /* ---------- who is on the team ---------- */
+      if (url.pathname === "/team" && req.method === "GET") {
+        const found = await currentSession(req, env);
+        if (!found?.session.orgId) return reply(problem(401, "Not signed in."));
+        const member = await membership(db, found.session.userId, found.session.orgId);
+        if (!member) return reply(problem(403, "You do not have access to that organisation."));
+        return reply(json(await teamView(db, found.session.orgId, found.session.userId)));
+      }
+
+      /* ---------- ask somebody to join ---------- */
+      if (url.pathname === "/team/invite" && req.method === "POST") {
+        const found = await currentSession(req, env);
+        if (!found?.session.orgId) return reply(problem(401, "Not signed in."));
+        const orgId = found.session.orgId;
+        const member = await membership(db, found.session.userId, orgId);
+        if (!member || !can(member.role).manageTeam) return reply(problem(403, "Only an owner or a manager can add people."));
+
+        const { email, role } = (await req.json()) as { email?: string; role?: string };
+        if (!email || !isEmail(email)) return reply(problem(400, "That does not look like an email address."));
+        const wanted: Role = isRole(role) ? role : "member";
+        if (wanted === "owner" && member.role !== "owner") return reply(problem(403, "Only an owner can make somebody else an owner."));
+
+        const address = normaliseEmail(email);
+        const view = await teamView(db, orgId, found.session.userId);
+        const already = refuseInvite(view.members, view.pending, address);
+        if (already) return reply(problem(409, already));
+        if (!view.seats.allowed) return reply(problem(402, view.seats.message, { plan: view.plan.id, seats: view.seats.seats }));
+
+        const token = randomToken();
+        const invite = {
+          id: uid("in"), orgId, email: address, role: wanted, tokenHash: await hashToken(token),
+          invitedBy: found.session.userId, expiresAt: new Date(Date.now() + INVITE_TTL_MS),
+          acceptedAt: null, revokedAt: null, createdAt: new Date()
+        };
+        await db.insert(schema.invitations).values(invite);
+
+        const org = (await db.select().from(schema.organisations).where(eq(schema.organisations.id, orgId)).limit(1))[0];
+        const link = `${env.APP_ORIGIN}/join/?token=${token}`;
+        const sent = await emailSender(env).send({
+          ...inviteEmail(link, {
+            org: org?.name ?? "a business on NXOne",
+            invitedBy: found.session.email,
+            role: ROLES.find((r) => r.id === wanted)!.name.toLowerCase(),
+            days: Math.round(INVITE_TTL_MS / 86_400_000)
+          }),
+          to: address
+        });
+        await audit(db, req, { orgId, userId: found.session.userId, action: "team.invited", summary: `${address} as ${wanted}` });
+
+        return reply(json({ ok: true, sent, team: await teamView(db, orgId, found.session.userId) }));
+      }
+
+      /* ---------- take back an invitation ---------- */
+      if (url.pathname === "/team/invite/revoke" && req.method === "POST") {
+        const found = await currentSession(req, env);
+        if (!found?.session.orgId) return reply(problem(401, "Not signed in."));
+        const orgId = found.session.orgId;
+        const member = await membership(db, found.session.userId, orgId);
+        if (!member || !can(member.role).manageTeam) return reply(problem(403, "Only an owner or a manager can do that."));
+
+        const { id } = (await req.json()) as { id?: string };
+        if (!id) return reply(problem(400, "Which invitation?"));
+        const row = (await db.select().from(schema.invitations).where(and(eq(schema.invitations.id, id), eq(schema.invitations.orgId, orgId))).limit(1))[0];
+        if (!row) return reply(problem(404, "That invitation no longer exists."));
+        await db.update(schema.invitations).set({ revokedAt: new Date() }).where(eq(schema.invitations.id, id));
+        await audit(db, req, { orgId, userId: found.session.userId, action: "team.invite-revoked", summary: row.email });
+        return reply(json({ ok: true, team: await teamView(db, orgId, found.session.userId) }));
+      }
+
+      /* ---------- accept one ---------- */
+      if (url.pathname === "/team/accept" && req.method === "POST") {
+        const { token } = (await req.json()) as { token?: string };
+        if (!token) return reply(problem(400, "No invitation token was sent."));
+
+        const hash = await hashToken(token);
+        const invite = (await db.select().from(schema.invitations).where(eq(schema.invitations.tokenHash, hash)).limit(1))[0];
+        if (!invite || invite.acceptedAt || invite.revokedAt || invite.expiresAt.getTime() < Date.now()) {
+          return reply(problem(401, "That invitation has expired or has already been used. Ask whoever sent it for another."));
+        }
+
+        const org = (await db.select().from(schema.organisations).where(eq(schema.organisations.id, invite.orgId)).limit(1))[0];
+        if (!org) return reply(problem(404, "That business no longer exists."));
+
+        // The seat is checked again here: the plan may have changed between sending and opening.
+        const allowed = await allowance(db, invite.orgId);
+        const counts = await seatNumbers(db, invite.orgId);
+        // The pending invitation is not counted here: it is the one being taken up.
+        if (allowed && !canAddSeat(allowed.plan, org.country, counts.members, 0).allowed) {
+          return reply(problem(402, "There is no seat free on this plan any more. Ask whoever invited you to add one."));
+        }
+
+        let user = (await db.select().from(schema.users).where(eq(schema.users.email, invite.email)).limit(1))[0];
+        if (!user) {
+          user = { id: uid("us"), email: invite.email, name: null, createdAt: new Date(), lastSeenAt: new Date(), deletionRequestedAt: null };
+          await db.insert(schema.users).values(user);
+        } else {
+          await db.update(schema.users).set({ lastSeenAt: new Date() }).where(eq(schema.users.id, user.id));
+        }
+
+        const existing = await membership(db, user.id, invite.orgId);
+        if (!existing) {
+          await db.insert(schema.memberships).values({ id: uid("me"), userId: user.id, orgId: invite.orgId, role: invite.role, createdAt: new Date() });
+        }
+        await db.update(schema.invitations).set({ acceptedAt: new Date() }).where(eq(schema.invitations.id, invite.id));
+
+        const sessionToken = randomToken();
+        const session: Session = { userId: user.id, email: user.email, orgId: invite.orgId, createdAt: Date.now(), expiresAt: Date.now() + SESSION_TTL_MS };
+        await env.SESSIONS.put(`session:${sessionToken}`, JSON.stringify(session), { expirationTtl: SESSION_TTL_MS / 1000 });
+        await audit(db, req, { orgId: invite.orgId, userId: user.id, action: "team.joined", summary: `as ${invite.role}` });
+
+        return reply(json({
+          ok: true,
+          user: { email: user.email },
+          orgId: invite.orgId,
+          organisation: { name: org.name },
+          role: invite.role,
+          can: can(invite.role)
+        }, { headers: { "Set-Cookie": sessionCookie(sessionToken, secure) } }));
+      }
+
+      /* ---------- change what somebody can do ---------- */
+      if (url.pathname === "/team/role" && req.method === "POST") {
+        const found = await currentSession(req, env);
+        if (!found?.session.orgId) return reply(problem(401, "Not signed in."));
+        const orgId = found.session.orgId;
+        const member = await membership(db, found.session.userId, orgId);
+        if (!member || member.role !== "owner") return reply(problem(403, "Only an owner can change what somebody can do."));
+
+        const { userId, role } = (await req.json()) as { userId?: string; role?: string };
+        if (!userId || !isRole(role)) return reply(problem(400, "Say who, and which role."));
+
+        const rows = await db.select().from(schema.memberships).where(eq(schema.memberships.orgId, orgId));
+        const refusal = refuseRoleChange(rows.map((r) => ({ userId: r.userId, role: r.role as Role })), userId, role);
+        if (refusal) return reply(problem(409, refusal));
+
+        await db.update(schema.memberships).set({ role })
+          .where(and(eq(schema.memberships.orgId, orgId), eq(schema.memberships.userId, userId)));
+        await audit(db, req, { orgId, userId: found.session.userId, action: "team.role-changed", summary: `${userId} to ${role}` });
+        return reply(json({ ok: true, team: await teamView(db, orgId, found.session.userId) }));
+      }
+
+      /* ---------- take somebody off ---------- */
+      if (url.pathname === "/team/remove" && req.method === "POST") {
+        const found = await currentSession(req, env);
+        if (!found?.session.orgId) return reply(problem(401, "Not signed in."));
+        const orgId = found.session.orgId;
+        const member = await membership(db, found.session.userId, orgId);
+        if (!member || !can(member.role).manageTeam) return reply(problem(403, "Only an owner or a manager can do that."));
+
+        const { userId } = (await req.json()) as { userId?: string };
+        if (!userId) return reply(problem(400, "Say who."));
+
+        const rows = await db.select().from(schema.memberships).where(eq(schema.memberships.orgId, orgId));
+        const refusal = refuseRemoval(rows.map((r) => ({ userId: r.userId, role: r.role as Role })), userId);
+        if (refusal) return reply(problem(409, refusal));
+        const target = rows.find((r) => r.userId === userId)!;
+        if (target.role === "owner" && member.role !== "owner") return reply(problem(403, "Only an owner can remove another owner."));
+
+        await db.delete(schema.memberships).where(and(eq(schema.memberships.orgId, orgId), eq(schema.memberships.userId, userId)));
+        await audit(db, req, { orgId, userId: found.session.userId, action: "team.removed", summary: userId });
+
+        /**
+         * Their copy of the books stays on their own device. We say so rather than implying a
+         * removal reaches into somebody's laptop, which it cannot and should not.
+         */
+        return reply(json({ ok: true, note: "They can no longer sync or see anything new. What is already on their own device stays there.", team: await teamView(db, orgId, found.session.userId) }));
+      }
+
       /* ---------- pull changes ---------- */
       if (url.pathname === "/sync/pull") {
         const found = await currentSession(req, env);
         if (!found?.session.orgId) return reply(problem(401, "Not signed in."));
         if (!(await membership(db, found.session.userId, found.session.orgId))) return reply(problem(403, "You do not have access to that organisation."));
-
-        const allowed = await allowance(db, found.session.orgId);
-        if (!allowed?.limits.sync) return reply(problem(402, "Syncing is part of Pro. Your work is safe on your device, and nothing has been lost.", { plan: allowed?.plan.id ?? "free" }));
 
         const since = Number(url.searchParams.get("since") ?? 0);
         const rows = await db.select().from(schema.records)
@@ -208,11 +483,13 @@ export default {
         if (!found?.session.orgId) return reply(problem(401, "Not signed in."));
         const member = await membership(db, found.session.userId, found.session.orgId);
         if (!member) return reply(problem(403, "You do not have access to that organisation."));
-        if (member.role === "readonly") return reply(problem(403, "Your access to this organisation is read only."));
+        if (!can(member.role).write) {
+          return reply(problem(403, member.role === "accountant"
+            ? "An accountant seat can see the books and export them, but cannot change them."
+            : "Your access to this organisation is read only."));
+        }
 
         const allowed = await allowance(db, found.session.orgId);
-        if (!allowed?.limits.sync) return reply(problem(402, "Syncing is part of Pro. Your work is safe on your device, and nothing has been lost.", { plan: allowed?.plan.id ?? "free" }));
-
         const { records } = (await req.json()) as { records: SyncRecord[] };
         if (!Array.isArray(records) || records.length > 500) return reply(problem(400, "Send up to 500 records at a time."));
         if (records.length === 0) return reply(json({ applied: [], rejected: [], cursor: Date.now() }));
@@ -226,6 +503,18 @@ export default {
           updatedAt: r.updatedAt.getTime(), deletedAt: r.deletedAt?.getTime() ?? null
         }]));
         const byKeyId = new Map(existingRows.map((r) => [`${r.kind}:${r.localId}`, r.id]));
+
+        /**
+         * A free account is held, but not without limit. We refuse politely and say how to lift
+         * it, rather than failing silently and leaving somebody's work on one device.
+         */
+        if (allowed?.limits.records !== null && allowed?.limits.records !== undefined) {
+          const held = await db.select({ id: schema.records.id }).from(schema.records).where(eq(schema.records.orgId, orgId));
+          const newOnes = records.filter((r) => !existing.has(`${r.kind}:${r.localId}`)).length;
+          if (held.length + newOnes > allowed.limits.records) {
+            return reply(problem(402, `A free account holds up to ${allowed.limits.records} records, and this would go past that. Everything stays safe on your device, and Pro removes the limit.`, { plan: allowed.plan.id, held: held.length, limit: allowed.limits.records }));
+          }
+        }
 
         const result = mergePush(records, existing);
         const at = new Date();
@@ -317,6 +606,83 @@ export default {
 
         await audit(db, req, { orgId, action: "billing.webhook", summary: `${event.event ?? "event"} -> ${active ? "active" : "inactive"}` });
         return reply(json({ ok: true }));
+      }
+
+      /* ---------- reading a photographed bill ---------- */
+      if (url.pathname === "/receipts/read" && req.method === "POST") {
+        const found = await currentSession(req, env);
+        if (!found?.session.orgId) return reply(problem(401, "Sign in to have receipts read for you."));
+
+        const service = receiptService(env);
+        if (!service.connected) {
+          return reply(problem(501, "Reading receipts automatically is not connected yet. Attach the photo and type the details, which still keeps the paperwork with the money."));
+        }
+
+        const allowed = await allowance(db, found.session.orgId);
+        if (!allowed?.limits.receiptReading) {
+          return reply(problem(402, "Reading a bill from a photograph is part of Pro. You can still attach the photo and type the details.", { plan: allowed?.plan.id ?? "free" }));
+        }
+
+        if (!(await rateLimit(env.SESSIONS, `ocr:${found.session.orgId}`, 60, 60 * 60 * 1000))) {
+          return reply(problem(429, "That is a lot of receipts in one hour. Try again shortly."));
+        }
+
+        const { dataUrl } = (await req.json()) as { dataUrl?: string };
+        if (!dataUrl || dataUrl.length > 8_000_000) return reply(problem(400, "Send one image, under about six megabytes."));
+
+        const receipt = await service.read(dataUrl);
+        if (!receipt) return reply(problem(502, "That receipt could not be read. Type the details instead."));
+
+        await audit(db, req, { orgId: found.session.orgId, userId: found.session.userId, action: "receipt.read", summary: service.name });
+        return reply(json(receipt));
+      }
+
+      /* ---------- what you want to hear about ---------- */
+      if (url.pathname === "/notifications/preferences") {
+        const found = await currentSession(req, env);
+        if (!found?.session.orgId) return reply(problem(401, "Not signed in."));
+        const orgId = found.session.orgId;
+
+        if (req.method === "POST") {
+          const allowed = await allowance(db, orgId);
+          const body = (await req.json()) as { weeklyDigest?: boolean; overdueAlerts?: boolean };
+          if ((body.weeklyDigest || body.overdueAlerts) && !allowed?.limits.reminders) {
+            return reply(problem(402, "Email reminders are part of Pro.", { plan: allowed?.plan.id ?? "free" }));
+          }
+          const existing = (await db.select().from(schema.notificationPrefs)
+            .where(and(eq(schema.notificationPrefs.userId, found.session.userId), eq(schema.notificationPrefs.orgId, orgId))).limit(1))[0];
+
+          const values = {
+            userId: found.session.userId, orgId,
+            weeklyDigest: Boolean(body.weeklyDigest), overdueAlerts: Boolean(body.overdueAlerts),
+            updatedAt: new Date()
+          };
+          if (existing) await db.update(schema.notificationPrefs).set(values).where(eq(schema.notificationPrefs.id, existing.id));
+          else await db.insert(schema.notificationPrefs).values({ id: uid("np"), ...values });
+
+          await audit(db, req, { orgId, userId: found.session.userId, action: "notifications.changed", summary: `digest ${values.weeklyDigest}, overdue ${values.overdueAlerts}` });
+          return reply(json({ ok: true, ...values }));
+        }
+
+        const row = (await db.select().from(schema.notificationPrefs)
+          .where(and(eq(schema.notificationPrefs.userId, found.session.userId), eq(schema.notificationPrefs.orgId, orgId))).limit(1))[0];
+        const plan = await allowance(db, orgId);
+        return reply(json({
+          weeklyDigest: row?.weeklyDigest ?? false,
+          overdueAlerts: row?.overdueAlerts ?? false,
+          lastSentAt: row?.lastSentAt?.getTime() ?? null,
+          allowed: plan?.limits.reminders ?? false,
+          plan: plan?.plan.id ?? "free",
+          trialing: plan?.trialing ?? false
+        }));
+      }
+
+      /* ---------- a preview, so nobody has to wait a week to see what it says ---------- */
+      if (url.pathname === "/notifications/preview") {
+        const found = await currentSession(req, env);
+        if (!found?.session.orgId) return reply(problem(401, "Not signed in."));
+        const digest = await digestFor(db, found.session.orgId, new Date().toISOString().slice(0, 10));
+        return reply(json(digest));
       }
 
       /* ---------- take everything with you ---------- */

@@ -55,7 +55,7 @@ export const memberships = sqliteTable("memberships", {
 export const records = sqliteTable("records", {
   id: id(),
   orgId: text("org_id").notNull().references(() => organisations.id),
-  kind: text("kind", { enum: ["profile", "client", "item", "document", "expense"] }).notNull(),
+  kind: text("kind", { enum: ["profile", "client", "item", "document", "expense", "recurring", "scenario", "employee", "payrun"] }).notNull(),
   /** The client's own id, which is what sync matches on. */
   localId: text("local_id").notNull(),
   body: text("body").notNull(),
@@ -95,6 +95,18 @@ export const loginTokens = sqliteTable("login_tokens", {
   requestIp: text("request_ip")
 }, (t) => ({ byEmail: index("login_tokens_email_idx").on(t.email) }));
 
+/** What each person wants to hear about, and when they last heard it. */
+export const notificationPrefs = sqliteTable("notification_prefs", {
+  id: id(),
+  userId: text("user_id").notNull().references(() => users.id),
+  orgId: text("org_id").notNull().references(() => organisations.id),
+  /** Off by default: an email nobody asked for is spam, however useful we think it is. */
+  weeklyDigest: integer("weekly_digest", { mode: "boolean" }).notNull().default(false),
+  overdueAlerts: integer("overdue_alerts", { mode: "boolean" }).notNull().default(false),
+  lastSentAt: integer("last_sent_at", { mode: "timestamp_ms" }),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull()
+}, (t) => ({ pair: uniqueIndex("notify_user_org_idx").on(t.userId, t.orgId) }));
+
 /** What a plan allows. Stored rather than coded, so pricing can change without a deploy. */
 export const entitlements = sqliteTable("entitlements", {
   id: id(),
@@ -121,3 +133,25 @@ export const subscriptions = sqliteTable("subscriptions", {
   createdAt: created(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull()
 }, (t) => ({ byOrg: index("subscriptions_org_idx").on(t.orgId) }));
+
+/**
+ * An invitation to join an organisation. The token is hashed, like a login link, so the database
+ * never holds anything that would let somebody walk in. One of these holds a seat from the moment
+ * it is sent, because two people cannot be given the same last seat.
+ */
+export const invitations = sqliteTable("invitations", {
+  id: id(),
+  orgId: text("org_id").notNull().references(() => organisations.id),
+  email: text("email").notNull(),
+  role: text("role", { enum: ["owner", "admin", "accountant", "member", "readonly"] }).notNull().default("member"),
+  tokenHash: text("token_hash").notNull(),
+  invitedBy: text("invited_by").notNull().references(() => users.id),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  acceptedAt: integer("accepted_at", { mode: "timestamp_ms" }),
+  revokedAt: integer("revoked_at", { mode: "timestamp_ms" }),
+  createdAt: created()
+}, (t) => ({
+  byToken: uniqueIndex("invitations_token_idx").on(t.tokenHash),
+  byOrg: index("invitations_org_idx").on(t.orgId),
+  byEmail: index("invitations_email_idx").on(t.email)
+}));

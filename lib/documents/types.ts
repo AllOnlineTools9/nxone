@@ -97,6 +97,12 @@ export interface DocumentData {
   buyerOrderRef?: string;
   /** Which visual template to print. */
   template?: TemplateId;
+  /**
+   * What one unit of this document's currency was worth in the business's own currency on the
+   * day it was issued. Only set when the two differ. Typed by the person billing, because
+   * NXOne has no rate feed and will not invent one.
+   */
+  fxRate?: number;
   /** UPI id and payment link, so the customer can pay from the document itself. */
   payment?: { upiId?: string; paymentLink?: string; includeAmount?: boolean };
   /**

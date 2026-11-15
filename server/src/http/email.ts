@@ -60,3 +60,26 @@ export function loginEmail(link: string, minutes: number): EmailMessage {
     ].join("\n")
   };
 }
+
+/**
+ * The invitation. It says who asked, for which business, and what the person will be able to do,
+ * because an email that says only "you have been invited" is indistinguishable from a phishing
+ * attempt and deserves to be deleted.
+ */
+export function inviteEmail(link: string, opts: { org: string; invitedBy: string; role: string; days: number }): EmailMessage {
+  return {
+    to: "",
+    subject: `${opts.invitedBy} has asked you to join ${opts.org} on NXOne`,
+    text: [
+      `${opts.invitedBy} has asked you to join ${opts.org} on NXOne, as ${opts.role}.`,
+      "",
+      link,
+      "",
+      `The link works once and expires in ${opts.days} days. You do not need a password: opening it signs you in.`,
+      "",
+      "If you were not expecting this, ignore it. Nothing happens until the link is opened, and you can tell the sender it arrived unasked.",
+      "",
+      "NXOne"
+    ].join("\n")
+  };
+}

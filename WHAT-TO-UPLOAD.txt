@@ -1,0 +1,98 @@
+NXONE — THE COMPLETE SOURCE
+===========================
+
+Verified from this zip in an empty directory:
+  npm install && npm test                 557 pass
+  npm run build                           57 pages
+  cd server && npm install && npm test     68 pass
+
+Unzip over the repo root, keeping folders. No new dependencies.
+One database migration is still pending for the API, for the invitations
+table, and only once the API is actually deployed:
+  cd server && npx wrangler d1 migrations apply <your database> --remote
+
+
+WHAT IS NEW SINCE THE LAST ZIP
+
+1. PAYROLL  —  /payroll
+-----------------------
+  Onboarding has always asked "do you run payroll?" and the calendar has
+  always said provident fund is due on the 15th. Neither could say how much.
+  Now it can.
+
+  People, their pay split the way the law cares about, and a month that works
+  itself out: provident fund on basic and dearness allowance, employee
+  insurance on the gross, professional tax by state, and an estimate of tax on
+  salary under either regime. It posts to the ledger properly, so salaries
+  stop being a lump sum and an employer can finally see what staff cost —
+  gross plus the contributions the business pays on top.
+
+  Three bits of arithmetic people get wrong by hand, now tested:
+    - the employer's 12% does not split 8.33/3.67 of the actual wage. The
+      pension share is 8.33% of the ceiling wage however high the salary.
+    - somebody who rises above the insurance ceiling partway through a
+      half-year keeps contributing until it ends. This catches employers out
+      at appraisal time.
+    - the fund's administration charge has a floor per establishment, not per
+      person, so a small payroll pays the minimum rather than half a per cent.
+
+  Where a rule is not held — a professional tax slab for a state we have not
+  encoded — the payslip says so instead of deducting nil. A wrong nil and a
+  correct nil look identical on a payslip, which is how an employer finds out
+  at assessment. The provident fund's own upload file is produced too.
+
+2. STOCK AND COST OF GOODS  —  /stock
+-------------------------------------
+  A shop that buys to sell cannot read its profit from its bank account.
+  Stock bought in March and sold in May is not March's cost — it is an asset
+  until it sells. Without that every monthly profit figure is wrong in both
+  directions.
+
+  Switch an item on and purchases of it become stock rather than a cost of the
+  month, and the cost appears in the month the thing actually left the shop,
+  as one entry a month rather than one per sale. Sales are read from the
+  invoices themselves, matched by code where there is one, because asking
+  somebody to record the same sale twice is asking them to disagree with
+  themselves.
+
+  Cost is the weighted average: every delivery re-averages the shelf, every
+  sale leaves at that average. It is one of the two methods the standards
+  allow and the one a shopkeeper can check by hand.
+
+  It also says when you have sold more than you bought, which means a purchase
+  has not been recorded and the cost of those sales is missing from profit.
+  And it warns when something is running low.
+
+  A business that tracks nothing behaves exactly as it did before, so nothing
+  can be counted twice.
+
+3. E-INVOICING  —  /e-invoicing
+-------------------------------
+  Above a turnover threshold a B2B invoice is not valid until the government's
+  portal has given it a number, and the customer cannot claim credit on one
+  that was never registered.
+
+  This works out whether the threshold applies from your own turnover, picks
+  the invoices that actually belong on the portal (counter sales never do),
+  builds the payload, and checks it before you send it — the number format,
+  both GSTINs against their state codes, addresses, PIN codes, HSN codes, the
+  rate against the portal's own list, and every total against its parts within
+  the rupee of tolerance the portal allows. All at once, which matters because
+  the portal reports one fault at a time.
+
+  Nothing is registered from here. That needs credentials from the portal that
+  NXOne does not have, and telling somebody an invoice was filed when it was
+  not would be worse than not offering it.
+
+
+ONE FAULT THIS FOUND IN ITS OWN CODE
+  The e-invoice turnover thresholds were every one of them ten times too
+  small — ₹500 crore written as ₹50 crore, and so on down. The test that
+  printed the figure in crores caught it. They are right now.
+
+
+WHAT IS LEFT
+  Razorpay: plans, limits, prices and seat arithmetic are built and tested;
+  what is missing is the account, three plan ids and two secrets. The API has
+  never been deployed, so People still shows "accounts are not switched on".
+  Everything else runs on the device without it.

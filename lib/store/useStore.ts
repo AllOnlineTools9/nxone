@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { store } from "./db";
+import { entities } from "./entities";
 import type { Workspace } from "./types";
 
 /** Subscribes a component to the workspace. Re-renders whenever anything is saved. */
@@ -21,4 +22,12 @@ export function useProfile() {
   const [ws] = useWorkspace();
   const save = useCallback((p: Parameters<typeof store.saveProfile>[0]) => store.saveProfile(p), []);
   return { profile: ws.profile, saveProfile: save };
+}
+
+/** Subscribes a component to the list of businesses on this device. */
+export function useEntities() {
+  const [, bump] = useState(0);
+  useEffect(() => entities.subscribe(() => bump((n) => n + 1)), []);
+  useEffect(() => store.subscribe(() => bump((n) => n + 1)), []);
+  return entities;
 }

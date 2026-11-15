@@ -6,7 +6,7 @@ import { toMajor } from "@/lib/money";
 
 const doc = (over: Partial<DocumentData> = {}): DocumentData => ({
   kind: "invoice", country: "IN", currency: "INR", issueDate: "2026-05-10", number: "INV-1",
-  seller: { name: "Acme", region: "MH" }, buyer: { name: "Globex", taxId: "29AACCG1234M1ZP" }, placeOfSupply: "MH",
+  seller: { name: "Acme", region: "MH" }, buyer: { name: "Globex", taxId: "29AACCG1234M1ZJ" }, placeOfSupply: "MH",
   items: [{ id: "1", description: "Work", quantity: 1, rate: 100000, code: "998314", taxRuleId: "in-gst-18" }],
   taxInclusive: false, ...over
 });

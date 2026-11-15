@@ -1,3 +1,5 @@
+import { booksView } from "../fx";
+import type { StockItem } from "../stock/ledger";
 import { ledgerFor } from "../ledger/posting";
 import { cashFlow } from "../ledger/statements";
 import { fromMinor, type Money } from "../money";
@@ -47,7 +49,8 @@ const isBill = (d: SavedDocument) => d.kind === "invoice" || d.kind === "proform
  * Spending per month from the last 90 days. Recent reality beats a budget nobody updates, and
  * three months is long enough to even out a quarterly bill without including last year.
  */
-export function monthlyBurnRate(expenses: Expense[], today: string, currency: string): number {
+export function monthlyBurnRate(allExpenses: Expense[], today: string, currency: string): number {
+  const expenses = booksView([], allExpenses, currency).expenses;
   const from = addDays(today, -90);
   const recent = expenses.filter((e) => e.currency === currency && !e.deletedAt && e.date >= from && e.date <= today);
   if (!recent.length) return 0;
@@ -57,20 +60,25 @@ export function monthlyBurnRate(expenses: Expense[], today: string, currency: st
 }
 
 export function forecast(
-  documents: SavedDocument[],
-  expenses: Expense[],
+  allDocuments: SavedDocument[],
+  allExpenses: Expense[],
   today: string,
   currency: string,
   horizonDays = 90,
-  minimumCashMinor = 0
+  minimumCashMinor = 0,
+  opening?: { amountMinor: number; date: string },
+  /** Stock, when the business keeps any, so cost of sales lands in the month it sold. */
+  opts?: { stock?: { items: StockItem[] } }
 ): Forecast {
-  const ledger = ledgerFor(documents, expenses.filter((e) => !e.deletedAt).map((e) => ({
+  // The ledger converts for itself; these are the same records converted for the arithmetic below.
+  const { documents, expenses } = booksView(allDocuments, allExpenses, currency);
+  const ledger = ledgerFor(allDocuments, allExpenses.filter((e) => !e.deletedAt).map((e) => ({
     id: e.id, date: e.date, supplier: e.supplier, description: e.description, category: e.category,
-    currency: e.currency, netMinor: e.netMinor, taxMinor: e.taxMinor, paidFrom: e.paidFrom
-  })), currency);
+    currency: e.currency, netMinor: e.netMinor, taxMinor: e.taxMinor, paidFrom: e.paidFrom, stockQuantity: e.stockQuantity, fxRate: e.fxRate
+  })), currency, opening, opts?.stock);
 
   const cash = cashFlow(ledger, currency, "1900-01-01", today);
-  const opening = cash.closing.minor;
+  const openingMinor = cash.closing.minor;
 
   // money we are owed, assumed to arrive on its due date, and overdue invoices assumed to arrive soon
   const inflows = new Map<string, number>();
@@ -96,7 +104,7 @@ export function forecast(
   const dailyBurn = Math.round(burn / 30);
 
   const points: CashPoint[] = [];
-  let balance = opening;
+  let balance = openingMinor;
   let runwayDays: number | null = null;
   let dipsBelowOn: string | null = null;
   let totalIn = 0;
@@ -126,7 +134,7 @@ export function forecast(
 
   return {
     currency,
-    openingCash: fromMinor(opening, currency),
+    openingCash: fromMinor(openingMinor, currency),
     points,
     expectedIn: fromMinor(totalIn, currency),
     expectedOut: fromMinor(totalOut, currency),

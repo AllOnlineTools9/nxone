@@ -1,4 +1,5 @@
 import { fromMinor, type Money } from "../money";
+import { booksView } from "../fx";
 import type { SavedDocument } from "../store/types";
 
 /**
@@ -46,11 +47,14 @@ const daysBetween = (from: string, to: string) =>
 const isBill = (d: SavedDocument) => d.kind === "invoice" || d.kind === "proforma";
 const owedOn = (d: SavedDocument) => Math.max(0, d.totalMinor - d.paidMinor);
 
-export function unpaidBills(documents: SavedDocument[], currency: string): SavedDocument[] {
+export function unpaidBills(allDocuments: SavedDocument[], currency: string): SavedDocument[] {
+  // Foreign-currency records are converted at their own rate first, so nothing is left out.
+  const documents = booksView(allDocuments, [], currency).documents;
   return documents.filter((d) => isBill(d) && d.currency === currency && d.status !== "draft" && d.status !== "cancelled" && d.status !== "paid" && owedOn(d) > 0);
 }
 
-export function aging(documents: SavedDocument[], today: string, currency: string): AgingBuckets {
+export function aging(allDocuments: SavedDocument[], today: string, currency: string): AgingBuckets {
+  const documents = booksView(allDocuments, [], currency).documents;
   const buckets = { current: 0, days1to30: 0, days31to60: 0, days61to90: 0, over90: 0 };
 
   for (const d of unpaidBills(documents, currency)) {
@@ -75,7 +79,8 @@ export function aging(documents: SavedDocument[], today: string, currency: strin
 }
 
 /** How each customer actually behaves, which is more useful than what they promised. */
-export function customerStanding(documents: SavedDocument[], today: string, currency: string): CustomerStanding[] {
+export function customerStanding(allDocuments: SavedDocument[], today: string, currency: string): CustomerStanding[] {
+  const documents = booksView(allDocuments, [], currency).documents;
   const map = new Map<string, { outstanding: number; overdue: number; invoices: number; oldest: number; lateDays: number[] }>();
 
   for (const d of documents.filter((x) => isBill(x) && x.currency === currency && x.status !== "draft" && x.status !== "cancelled")) {
@@ -118,7 +123,8 @@ export function customerStanding(documents: SavedDocument[], today: string, curr
  * Who to chase today. Priority rises with the amount and with lateness, so a large invoice a week
  * late outranks a small one a month late, which is how people actually decide.
  */
-export function chaseList(documents: SavedDocument[], today: string, currency: string, limit = 10): ChaseItem[] {
+export function chaseList(allDocuments: SavedDocument[], today: string, currency: string, limit = 10): ChaseItem[] {
+  const documents = booksView(allDocuments, [], currency).documents;
   return unpaidBills(documents, currency)
     .map((doc) => {
       const daysLate = doc.dueDate ? daysBetween(doc.dueDate, today) : 0;

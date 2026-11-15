@@ -25,12 +25,12 @@ describe("clients and items", () => {
     expect(store.findClients("globex")[0].email).toBe("ap@globex.example");
   });
   it("updates rather than duplicating when the name matches", () => {
-    store.saveClient({ name: "Globex", taxId: "29AACCG1234M1ZP" });
+    store.saveClient({ name: "Globex", taxId: "29AACCG1234M1ZJ" });
     store.saveClient({ name: "globex", email: "new@globex.example" });
     const all = store.clients();
     expect(all).toHaveLength(1);
     expect(all[0].email).toBe("new@globex.example");
-    expect(all[0].taxId).toBe("29AACCG1234M1ZP");
+    expect(all[0].taxId).toBe("29AACCG1234M1ZJ");
   });
   it("keeps a catalogue of what you sell", () => {
     store.saveItem({ description: "Monthly retainer", rate: 15000, code: "998314" });

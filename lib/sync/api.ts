@@ -55,6 +55,13 @@ export const plans = (country?: string) => call<{ country: string; provider: str
 export const checkout = (plan: string, period: "monthly" | "yearly") =>
   call<{ url: string | null; reference: string; note?: string; provider: string; connected: boolean }>("/billing/checkout", { method: "POST", body: JSON.stringify({ plan, period }) });
 
+export interface NotificationPrefs { weeklyDigest: boolean; overdueAlerts: boolean; lastSentAt?: number | null }
+
+export const notificationPrefs = () => call<NotificationPrefs>("/notifications/preferences");
+export const saveNotificationPrefs = (prefs: NotificationPrefs) =>
+  call<NotificationPrefs>("/notifications/preferences", { method: "POST", body: JSON.stringify(prefs) });
+export const previewDigest = () => call<{ worthSending: boolean; subject: string; lines: string[] }>("/notifications/preview");
+
 export const pull = (since: number) => call<{ records: WireRecord[]; cursor: number; more: boolean }>(`/sync/pull?since=${since}`);
 
 export const push = (records: WireRecord[]) =>
@@ -63,3 +70,59 @@ export const push = (records: WireRecord[]) =>
     rejected: Array<{ record: WireRecord; reason: string; current: WireRecord }>;
     cursor: number;
   }>("/sync/push", { method: "POST", body: JSON.stringify({ records }) });
+
+/* ------------------------------------------------------------------- team */
+
+export type TeamRole = "owner" | "admin" | "accountant" | "member" | "readonly";
+
+export interface Capabilities { write: boolean; manageTeam: boolean; billing: boolean; exportBooks: boolean }
+
+export interface TeamMember {
+  userId: string;
+  email: string;
+  name: string | null;
+  role: TeamRole;
+  joinedAt: number;
+  lastSeenAt: number | null;
+  isYou: boolean;
+}
+
+export interface PendingInvite { id: string; email: string; role: TeamRole; invitedAt: number; expiresAt: number }
+
+export interface SeatDecision {
+  allowed: boolean;
+  seats: { members: number; pending: number; used: number; included: number; extra: number };
+  monthlyCostMinor: number;
+  currency: string;
+  addsMonthlyMinor: number;
+  message: string;
+}
+
+export interface TeamView {
+  organisation: { id: string; name: string; country: string };
+  plan: { id: string; name: string; trialing: boolean };
+  you: { userId: string; role: TeamRole; can: Capabilities };
+  roles: Array<{ id: TeamRole; name: string; describes: string }>;
+  members: TeamMember[];
+  pending: PendingInvite[];
+  counts: { members: number; pending: number; used: number; included: number; extra: number };
+  seats: SeatDecision;
+}
+
+export const team = () => call<TeamView>("/team");
+
+export const invitePerson = (email: string, role: TeamRole) =>
+  call<{ ok: boolean; sent: boolean; team: TeamView }>("/team/invite", { method: "POST", body: JSON.stringify({ email, role }) });
+
+export const revokeInvite = (id: string) =>
+  call<{ ok: boolean; team: TeamView }>("/team/invite/revoke", { method: "POST", body: JSON.stringify({ id }) });
+
+export const acceptInvite = (token: string) =>
+  call<{ ok: boolean; user: { email: string }; orgId: string; organisation: { name: string }; role: TeamRole; can: Capabilities }>(
+    "/team/accept", { method: "POST", body: JSON.stringify({ token }) });
+
+export const setMemberRole = (userId: string, role: TeamRole) =>
+  call<{ ok: boolean; team: TeamView }>("/team/role", { method: "POST", body: JSON.stringify({ userId, role }) });
+
+export const removeMember = (userId: string) =>
+  call<{ ok: boolean; note: string; team: TeamView }>("/team/remove", { method: "POST", body: JSON.stringify({ userId }) });

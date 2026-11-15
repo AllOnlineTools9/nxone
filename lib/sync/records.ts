@@ -1,4 +1,4 @@
-import type { CatalogueItem, Client, Expense, Profile, SavedDocument, Workspace } from "../store/types";
+import type { CatalogueItem, Client, Expense, Profile, RecurringTemplate, SavedDocument, SavedEmployee, SavedPayRun, SavedScenario, Workspace } from "../store/types";
 
 /**
  * Translating between the workspace on this device and the records the server stores. The server
@@ -6,7 +6,7 @@ import type { CatalogueItem, Client, Expense, Profile, SavedDocument, Workspace 
  * what an invoice is.
  */
 
-export type RecordKind = "profile" | "client" | "item" | "document" | "expense";
+export type RecordKind = "profile" | "client" | "item" | "document" | "expense" | "recurring" | "scenario" | "employee" | "payrun";
 
 export interface WireRecord {
   kind: RecordKind;
@@ -26,7 +26,7 @@ export function toWire(ws: Workspace): WireRecord[] {
   if (ws.profile) {
     out.push({ kind: "profile", localId: "profile", body: ws.profile, version: ws.profile.version ?? 1, updatedAt: ms(ws.profile.updatedAt) || Date.now() });
   }
-  const add = (kind: RecordKind, rows: Array<Client | CatalogueItem | SavedDocument | Expense>) => {
+  const add = (kind: RecordKind, rows: Array<Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun>) => {
     for (const row of rows) {
       out.push({ kind, localId: row.id, body: row, version: row.version ?? 1, updatedAt: ms(row.updatedAt), deletedAt: row.deletedAt ? ms(row.deletedAt) : null });
     }
@@ -35,6 +35,10 @@ export function toWire(ws: Workspace): WireRecord[] {
   add("item", ws.items ?? []);
   add("document", ws.documents ?? []);
   add("expense", ws.expenses ?? []);
+  add("recurring", ws.recurring ?? []);
+  add("scenario", ws.scenarios ?? []);
+  add("employee", ws.employees ?? []);
+  add("payrun", ws.payruns ?? []);
   return out;
 }
 
@@ -48,11 +52,15 @@ export function pendingRecords(ws: Workspace): WireRecord[] {
   });
 }
 
-export function collectionFor(ws: Workspace, kind: RecordKind): Array<Client | CatalogueItem | SavedDocument | Expense> {
+export function collectionFor(ws: Workspace, kind: RecordKind): Array<Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun> {
   if (kind === "client") return ws.clients ?? [];
   if (kind === "item") return ws.items ?? [];
   if (kind === "document") return ws.documents ?? [];
   if (kind === "expense") return ws.expenses ?? [];
+  if (kind === "recurring") return ws.recurring ?? [];
+  if (kind === "scenario") return ws.scenarios ?? [];
+  if (kind === "employee") return ws.employees ?? [];
+  if (kind === "payrun") return ws.payruns ?? [];
   return [];
 }
 
@@ -84,7 +92,7 @@ export function applyIncoming(ws: Workspace, incoming: WireRecord[]): Workspace 
       version: rec.version,
       syncedAt: new Date().toISOString(),
       deletedAt: rec.deletedAt ? new Date(rec.deletedAt).toISOString() : undefined
-    } as Client | CatalogueItem | SavedDocument | Expense;
+    } as Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun;
 
     const updated = mine ? list.map((row) => (row.id === rec.localId ? incomingRow : row)) : [...list, incomingRow];
     next = withCollection(next, rec.kind, updated);
@@ -101,11 +109,15 @@ function serverWins(incoming: WireRecord, mine: { version: number; updatedAt: nu
   return incoming.updatedAt > mine.updatedAt;
 }
 
-function withCollection(ws: Workspace, kind: RecordKind, rows: Array<Client | CatalogueItem | SavedDocument | Expense>): Workspace {
+function withCollection(ws: Workspace, kind: RecordKind, rows: Array<Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun>): Workspace {
   if (kind === "client") return { ...ws, clients: rows as Client[] };
   if (kind === "item") return { ...ws, items: rows as CatalogueItem[] };
   if (kind === "document") return { ...ws, documents: rows as SavedDocument[] };
   if (kind === "expense") return { ...ws, expenses: rows as Expense[] };
+  if (kind === "recurring") return { ...ws, recurring: rows as RecurringTemplate[] };
+  if (kind === "scenario") return { ...ws, scenarios: rows as SavedScenario[] };
+  if (kind === "employee") return { ...ws, employees: rows as SavedEmployee[] };
+  if (kind === "payrun") return { ...ws, payruns: rows as SavedPayRun[] };
   return ws;
 }
 
@@ -129,7 +141,11 @@ export function markSynced(ws: Workspace, accepted: Array<{ kind: RecordKind; lo
     clients: (next.clients ?? []).filter(keepRow),
     items: (next.items ?? []).filter(keepRow),
     documents: (next.documents ?? []).filter(keepRow),
-    expenses: (next.expenses ?? []).filter(keepRow)
+    expenses: (next.expenses ?? []).filter(keepRow),
+    recurring: (next.recurring ?? []).filter(keepRow),
+    scenarios: (next.scenarios ?? []).filter(keepRow),
+    employees: (next.employees ?? []).filter(keepRow),
+    payruns: (next.payruns ?? []).filter(keepRow)
   };
 }
 

@@ -32,6 +32,7 @@ export const CHART: Account[] = [
   asset("1020", "Bank account", { isCash: true, plain: "Bank" }),
   asset("1030", "Payment gateway balance", { isCash: true, plain: "Money in transit" }),
   asset("1200", "Accounts receivable", { plain: "Owed to you" }),
+  asset("1300", "Stock", { plain: "Goods on the shelf" }),
   asset("1400", "Input tax credit", { taxRole: "input", plain: "Tax you can reclaim" }),
   asset("1500", "Prepayments", { plain: "Paid in advance" }),
   asset("1700", "Equipment", { plain: "Equipment you own" }),
@@ -40,17 +41,24 @@ export const CHART: Account[] = [
   liability("2100", "Tax collected on sales", { taxRole: "output", plain: "Tax you owe the government" }),
   liability("2200", "Customer advances", { plain: "Paid to you in advance" }),
   liability("2300", "Loans", { plain: "Borrowings" }),
+  liability("2400", "Salaries payable", { plain: "Pay owed to staff" }),
+  liability("2410", "Provident fund payable", { plain: "Provident fund owed" }),
+  liability("2420", "Employee insurance payable", { plain: "Employee insurance owed" }),
+  liability("2430", "Tax deducted payable", { plain: "Tax held back from pay" }),
+  liability("2440", "Professional tax payable", { plain: "Professional tax owed" }),
 
   { code: "3000", name: "Owner's capital", type: "equity", normal: "credit", plain: "What the owner put in" },
   { code: "3900", name: "Retained earnings", type: "equity", normal: "credit", plain: "Profit kept in the business" },
 
   income("4000", "Sales", { plain: "What you earned" }),
   income("4100", "Other income", { plain: "Other income" }),
+  income("4300", "Exchange gain", { plain: "Gained on exchange rates" }),
   income("4900", "Discounts given", { normal: "debit", plain: "Discounts you gave" }),
 
   expense("5000", "Cost of sales", { plain: "What your sales cost you" }),
   expense("6010", "Rent"),
   expense("6020", "Salaries and wages"),
+  expense("6025", "Employer contributions", { plain: "Provident fund and insurance you pay" }),
   expense("6030", "Utilities"),
   expense("6040", "Software and subscriptions"),
   expense("6050", "Advertising and marketing"),
@@ -59,6 +67,7 @@ export const CHART: Account[] = [
   expense("6080", "Repairs and maintenance"),
   expense("6090", "Bank and payment charges"),
   expense("6100", "Office supplies"),
+  expense("6950", "Exchange loss", { plain: "Lost on exchange rates" }),
   expense("6900", "Other expenses")
 ];
 

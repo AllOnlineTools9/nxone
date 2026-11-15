@@ -1,8 +1,9 @@
-import { emptyWorkspace, type CatalogueItem, type Client, type Expense, type Profile, type SavedDocument, type Workspace } from "./types";
+import { emptyWorkspace, type CatalogueItem, type Client, type Expense, type Profile, type RecurringTemplate, type SavedDocument, type SavedScenario, type SavedEmployee, type SavedPayRun, type Workspace } from "./types";
 
 /**
  * Everything a person saves lives on their own device. This is a small store over a storage
- * adapter: the browser's local storage in the app, an object in tests. No server, no account.
+ * adapter: the browser's local storage in the app, an object in tests. A copy syncs to an account
+ * when there is one, but this is always the working copy.
  *
  * It is deliberately boring. The interesting part is that there is nowhere else for the data to go.
  */
@@ -13,7 +14,13 @@ export interface StorageLike {
   removeItem(key: string): void;
 }
 
-const KEY = "nxone.workspace.v1";
+export const KEY = "nxone.workspace.v1";
+
+/**
+ * Where a second business's books are kept. The first business stays on the original key, so
+ * somebody who never opens another one is never migrated and never at risk of a migration.
+ */
+export const keyForEntity = (id: string) => (id === "default" ? KEY : `${KEY}:${id}`);
 
 const memory = (): StorageLike => {
   const map = new Map<string, string>();
@@ -27,13 +34,30 @@ const memory = (): StorageLike => {
 export class Store {
   private cache: Workspace | null = null;
   private listeners = new Set<() => void>();
+  private key = KEY;
 
   constructor(private storage: StorageLike = typeof window === "undefined" ? memory() : window.localStorage) {}
+
+  /**
+   * Open another business's books. Each one is a separate set: separate documents, separate
+   * accounts, separate sync. Nothing is merged and nothing is shared between them, because two
+   * businesses that share a ledger are one business with a problem.
+   */
+  openEntity(id: string) {
+    const next = keyForEntity(id);
+    if (next === this.key) return;
+    this.key = next;
+    this.cache = null;
+    this.listeners.forEach((fn) => fn());
+  }
+
+  /** Which set of books is open, for anything that needs to say so. */
+  entityKey() { return this.key; }
 
   read(): Workspace {
     if (this.cache) return this.cache;
     try {
-      const raw = this.storage.getItem(KEY);
+      const raw = this.storage.getItem(this.key);
       const parsed = raw ? (JSON.parse(raw) as Workspace) : null;
       this.cache = parsed && parsed.version === 1 && Array.isArray(parsed.clients) ? { ...emptyWorkspace(), ...parsed } : emptyWorkspace();
     } catch {
@@ -45,7 +69,7 @@ export class Store {
 
   private write(next: Workspace) {
     this.cache = next;
-    try { this.storage.setItem(KEY, JSON.stringify(next)); } catch { /* private mode or full: keep going in memory */ }
+    try { this.storage.setItem(this.key, JSON.stringify(next)); } catch { /* private mode or full: keep going in memory */ }
     this.listeners.forEach((fn) => fn());
   }
 
@@ -178,10 +202,10 @@ export class Store {
    * Deleting marks the row instead of removing it, so your other devices learn about it. A row the
    * server has never seen is dropped outright, since there is nobody to tell.
    */
-  private tombstone(collection: "clients" | "items" | "documents" | "expenses", id: string) {
+  private tombstone(collection: "clients" | "items" | "documents" | "expenses" | "recurring" | "scenarios" | "employees" | "payruns", id: string) {
     const ws = this.read();
     const now = new Date().toISOString();
-    const list = (ws[collection] ?? []) as Array<Client | CatalogueItem | SavedDocument | Expense>;
+    const list = (ws[collection] ?? []) as Array<Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun>;
     const next = list
       .filter((row) => !(row.id === id && !row.syncedAt))
       .map((row) => (row.id === id ? { ...row, deletedAt: now, updatedAt: now, version: (row.version ?? 1) + 1 } : row));
@@ -200,6 +224,94 @@ export class Store {
   getCursor(): number { return this.read().syncCursor ?? 0; }
   setAccount(account: Workspace["account"]) { this.write({ ...this.read(), account }); }
   getAccount() { return this.read().account; }
+
+  /* ---- invoices that repeat ---- */
+
+  recurring(): RecurringTemplate[] {
+    return (this.read().recurring ?? []).filter(alive).sort((a, b) => a.nextDate.localeCompare(b.nextDate));
+  }
+
+  saveRecurring(input: Omit<RecurringTemplate, "createdAt" | "updatedAt"> & { createdAt?: string }): RecurringTemplate {
+    const now = new Date().toISOString();
+    const ws = this.read();
+    const list = ws.recurring ?? [];
+    const existing = list.find((r) => r.id === input.id);
+    const saved: RecurringTemplate = existing
+      ? { ...existing, ...input, createdAt: existing.createdAt, updatedAt: now, version: (existing.version ?? 1) + 1, deletedAt: undefined }
+      : { ...input, createdAt: input.createdAt ?? now, updatedAt: now, version: 1 };
+
+    this.write({ ...ws, recurring: existing ? list.map((r) => (r.id === saved.id ? saved : r)) : [...list, saved] });
+    return saved;
+  }
+
+  deleteRecurring(id: string) { this.tombstone("recurring", id); }
+
+  /* ---- questions you kept ---- */
+
+  scenarios(): SavedScenario[] {
+    return (this.read().scenarios ?? []).filter(alive).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  /** Saving under a name you have used before replaces that one, so trying again does not pile up. */
+  saveScenario(input: Omit<SavedScenario, "id" | "createdAt" | "updatedAt"> & { id?: string }): SavedScenario {
+    const now = new Date().toISOString();
+    const ws = this.read();
+    const list = ws.scenarios ?? [];
+    const existing = (input.id ? list.find((s) => s.id === input.id) : undefined)
+      ?? list.find((s) => !s.deletedAt && s.name.trim().toLowerCase() === input.name.trim().toLowerCase());
+
+    const saved: SavedScenario = existing
+      ? { ...existing, ...input, id: existing.id, createdAt: existing.createdAt, updatedAt: now, version: (existing.version ?? 1) + 1, deletedAt: undefined }
+      : { ...input, id: newId("sc"), createdAt: now, updatedAt: now, version: 1 };
+
+    this.write({ ...ws, scenarios: existing ? list.map((s) => (s.id === saved.id ? saved : s)) : [...list, saved] });
+    return saved;
+  }
+
+  deleteScenario(id: string) { this.tombstone("scenarios", id); }
+
+  /* ---- the payroll ---- */
+
+  employees(): SavedEmployee[] {
+    return (this.read().employees ?? []).filter(alive).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  saveEmployee(input: Omit<SavedEmployee, "createdAt" | "updatedAt"> & { id?: string }): SavedEmployee {
+    const now = new Date().toISOString();
+    const ws = this.read();
+    const list = ws.employees ?? [];
+    const existing = input.id ? list.find((e) => e.id === input.id) : undefined;
+    const saved: SavedEmployee = existing
+      ? { ...existing, ...input, id: existing.id, createdAt: existing.createdAt, updatedAt: now, version: (existing.version ?? 1) + 1, deletedAt: undefined }
+      : { ...input, id: input.id || newId("em"), createdAt: now, updatedAt: now, version: 1 };
+    this.write({ ...ws, employees: existing ? list.map((e) => (e.id === saved.id ? saved : e)) : [...list, saved] });
+    return saved;
+  }
+
+  deleteEmployee(id: string) { this.tombstone("employees", id); }
+
+  payruns(): SavedPayRun[] {
+    return (this.read().payruns ?? []).filter(alive).sort((a, b) => b.month.localeCompare(a.month));
+  }
+
+  /**
+   * Keep a month exactly as it was paid. The rules behind a payslip change at budgets, so a run
+   * is frozen rather than recomputed: somebody asking in two years what they were paid should
+   * get what they were paid.
+   */
+  savePayRun(month: string, snapshot: unknown, postedAt?: string): SavedPayRun {
+    const now = new Date().toISOString();
+    const ws = this.read();
+    const list = ws.payruns ?? [];
+    const existing = list.find((r) => r.month === month);
+    const saved: SavedPayRun = existing
+      ? { ...existing, snapshot, postedAt: postedAt ?? existing.postedAt, updatedAt: now, version: (existing.version ?? 1) + 1, deletedAt: undefined }
+      : { id: newId("pr"), month, snapshot, postedAt, createdAt: now, updatedAt: now, version: 1 };
+    this.write({ ...ws, payruns: existing ? list.map((r) => (r.id === saved.id ? saved : r)) : [...list, saved] });
+    return saved;
+  }
+
+  deletePayRun(id: string) { this.tombstone("payruns", id); }
 
   /* ---- the whole lot ---- */
 
@@ -226,14 +338,18 @@ export class Store {
       clients: mergeById(ws.clients, incoming.clients ?? []),
       items: mergeById(ws.items, incoming.items ?? []),
       documents: mergeById(ws.documents, incoming.documents ?? []),
-      expenses: mergeById(ws.expenses ?? [], incoming.expenses ?? [])
+      expenses: mergeById(ws.expenses ?? [], incoming.expenses ?? []),
+      recurring: mergeById(ws.recurring ?? [], incoming.recurring ?? []),
+      scenarios: mergeById(ws.scenarios ?? [], incoming.scenarios ?? []),
+      employees: mergeById(ws.employees ?? [], incoming.employees ?? []),
+      payruns: mergeById(ws.payruns ?? [], incoming.payruns ?? [])
     };
     this.write(next);
     return { clients: next.clients.length, items: next.items.length, documents: next.documents.length, expenses: next.expenses.length };
   }
 
   clear() { 
-    try { this.storage.removeItem(KEY); } catch { /* ignore */ }
+    try { this.storage.removeItem(this.key); } catch { /* ignore */ }
     this.cache = null;
     this.listeners.forEach((fn) => fn());
   }

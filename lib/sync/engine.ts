@@ -1,5 +1,5 @@
 "use client";
-import { store } from "../store/db";
+import { KEY, store } from "../store/db";
 import * as api from "./api";
 import { applyIncoming, markSynced, pendingRecords } from "./records";
 
@@ -10,7 +10,7 @@ import { applyIncoming, markSynced, pendingRecords } from "./records";
  * only consequence should be a message: the work stays on the device either way.
  */
 
-export type SyncState = "off" | "signed-out" | "idle" | "working" | "error" | "needs-plan";
+export type SyncState = "off" | "signed-out" | "idle" | "working" | "error" | "needs-plan" | "local-only";
 
 export interface SyncStatus {
   state: SyncState;
@@ -51,6 +51,19 @@ class SyncEngine {
     return pending;
   }
 
+/**
+   * Whether the books now open are the ones this account is signed in to.
+   *
+   * A second business on this device has its own books, and an account signs in to one business
+   * at a time. Pushing a second set of books into the first one's account would merge two
+   * businesses that must never be merged, so it is refused outright rather than attempted.
+   */
+  private belongsToSession(sessionOrgId: string | undefined): boolean {
+    const account = store.getAccount();
+    if (account?.orgId && sessionOrgId) return account.orgId === sessionOrgId;
+    return store.entityKey() === KEY;
+  }
+
   /** Called on load: works out whether there is a session without bothering the person. */
   async resume() {
     if (!api.syncAvailable()) return;
@@ -60,6 +73,17 @@ class SyncEngine {
       this.set({ state: "signed-out", email: undefined });
       return;
     }
+
+    if (!this.belongsToSession(me.data.orgId)) {
+      this.stopTimer();
+      this.set({
+        state: "local-only",
+        email: me.data.user.email,
+        message: "These books belong to another business on this device. They stay here: your account is signed in to a different one, and the two are never merged."
+      });
+      return;
+    }
+
     store.setAccount({ email: me.data.user.email, orgId: me.data.orgId });
     const plan = me.data.plan ? { id: me.data.plan.id, name: me.data.plan.name, trialing: me.data.plan.trialing, trialEndsAt: me.data.plan.trialEndsAt } : undefined;
     this.set({ state: me.data.plan && !me.data.plan.limits.sync ? "needs-plan" : "idle", email: me.data.user.email, plan });
@@ -143,6 +167,29 @@ class SyncEngine {
     store.setAccount({ email: result.data.user.email, orgId: result.data.orgId });
     this.set({ state: "idle", email: result.data.user.email, message: undefined });
     // a device that has been working offline sends everything it has on first sign in
+    await this.run();
+    this.startTimer();
+    return result;
+  }
+
+  /**
+   * Joining somebody else's business.
+   *
+   * This device may already hold work of its own, and the next sync would push it into the
+   * organisation being joined — somebody's personal invoices landing in their employer's books.
+   * So the choice is made here, deliberately, rather than assumed: bring it, or clear this device
+   * first. Clearing is only ever offered beside a backup.
+   */
+  async acceptInvite(token: string, opts: { bringMyWork: boolean }) {
+    const result = await api.acceptInvite(token);
+    if (!result.ok) { this.set({ state: "error", message: result.error }); return result; }
+
+    if (!opts.bringMyWork) {
+      store.clear();
+      store.setCursor(0);
+    }
+    store.setAccount({ email: result.data.user.email, orgId: result.data.orgId });
+    this.set({ state: "idle", email: result.data.user.email, message: undefined });
     await this.run();
     this.startTimer();
     return result;

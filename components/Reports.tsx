@@ -5,6 +5,7 @@ import { formatDate, todayIso } from "@/lib/format";
 import { formatMoney } from "@/lib/money";
 import { documentsCsv, financialYear, monthPeriod, quarterPeriod, reportFor, type Period } from "@/lib/store/reports";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
+import RateNeeded from "./RateNeeded";
 
 type Choice = "month" | "quarter" | "year" | "custom";
 
@@ -43,6 +44,7 @@ export default function Reports() {
 
   return (
     <div className="space-y-8">
+      <RateNeeded />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold sm:text-3xl">Reports</h1>

@@ -16,7 +16,7 @@ export interface JournalLine {
   memo?: string;
 }
 
-export type SourceKind = "invoice" | "payment" | "expense" | "bill" | "manual" | "opening" | "reversal";
+export type SourceKind = "invoice" | "payment" | "expense" | "bill" | "manual" | "opening" | "reversal" | "payroll" | "stock";
 
 export interface JournalEntry {
   id: string;
@@ -32,6 +32,12 @@ export interface JournalEntry {
   reversedBy?: string;
   /** Set on a reversal, pointing at what it reversed. */
   reverses?: string;
+  /**
+   * Set when the event happened in another currency. The entry itself is in the books' currency,
+   * because a ledger that mixes currencies cannot be added up; this is what it was before, so a
+   * screen can show the customer's own figure beside yours.
+   */
+  original?: { currency: string; rate: number; totalMinor: number };
 }
 
 export class UnbalancedEntry extends Error {

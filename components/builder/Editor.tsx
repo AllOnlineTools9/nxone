@@ -11,7 +11,10 @@ import PaymentBox from "./PaymentBox";
 import { kindConfig } from "@/lib/documents/kinds";
 import HsnPicker from "./HsnPicker";
 import { rulesOn } from "@/lib/countries/types";
+import { describeRate, knownRates, usableRate } from "@/lib/fx";
+import { useHydrated, useWorkspace } from "@/lib/store/useStore";
 import type { DocumentData, DocumentTotals, LineItem } from "@/lib/documents/types";
+import type { SavedDocument } from "@/lib/store/types";
 import { formatMoney } from "@/lib/money";
 
 interface Props {
@@ -26,6 +29,8 @@ interface Props {
 }
 
 export default function Editor({ doc, totals, update, updateItem, addItem, removeItem, moveItem, setCountry }: Props) {
+  const [ws, db] = useWorkspace();
+  const hydrated = useHydrated();
   const pack = packFor(doc.country);
   const rules = rulesOn(pack, doc.issueDate);
   const interRegion = totals.supply.interRegion;
@@ -76,6 +81,9 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
             <label className="label" htmlFor="currency">Currency</label>
             <input id="currency" className="field uppercase" value={doc.currency} onChange={(e) => update({ currency: e.target.value.toUpperCase().slice(0, 3) })} />
           </div>
+          {hydrated && ws.profile?.currency && ws.profile.currency !== doc.currency ? (
+            <ExchangeRate doc={doc} base={ws.profile.currency} documents={db.documents()} update={update} />
+          ) : null}
           {pack.regions?.length ? (
             <>
               <div>
@@ -146,7 +154,7 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
             <span className="label">Logo</span>
             <div className="flex flex-wrap items-center gap-3">
               <label className="btn-ghost cursor-pointer">Choose image<input type="file" accept="image/png,image/jpeg" className="sr-only" onChange={(e) => onLogo(e.target.files?.[0])} /></label>
-              {doc.logoDataUrl ? <button type="button" className="btn-quiet" onClick={() => update({ logoDataUrl: undefined })}>Remove logo</button> : <span className="text-sm text-ink-faint">PNG or JPG. It stays on your device and goes straight into the PDF.</span>}
+              {doc.logoDataUrl ? <button type="button" className="btn-quiet" onClick={() => update({ logoDataUrl: undefined })}>Remove logo</button> : <span className="text-sm text-ink-faint">PNG or JPG. It goes straight into the PDF.</span>}
             </div>
           </div>
         </div>
@@ -275,6 +283,45 @@ function Num({ label, value, onChange, className = "" }: { label: string; value:
     <div className={className}>
       <label className="label" htmlFor={id}>{label}</label>
       <input id={id} type="number" inputMode="decimal" step="any" className="field tabular" value={Number.isFinite(value) ? value : ""} onChange={(e) => onChange(e.target.value === "" ? 0 : Number(e.target.value))} />
+    </div>
+  );
+}
+
+/**
+ * The rate, asked for only when it is actually needed.
+ *
+ * A business billing in its own currency never sees this. One billing abroad is asked once per
+ * invoice, with the last rate it used offered as a starting point and labelled as exactly that —
+ * a starting point, from a date, not a quotation. NXOne has no rate feed and says so rather than
+ * implying the number came from somewhere authoritative.
+ */
+function ExchangeRate({ doc, base, documents, update }: { doc: DocumentData; base: string; documents: SavedDocument[]; update: (patch: Partial<DocumentData>) => void }) {
+  const last = knownRates(documents, base)[doc.currency];
+  const current = doc.fxRate;
+  const showing = usableRate(current) ? current : undefined;
+
+  return (
+    <div className="sm:col-span-2">
+      <label className="label" htmlFor="fxRate">
+        What 1 {doc.currency} is worth in {base}
+      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          id="fxRate" type="number" step="0.0001" min="0" className="field tabular w-48"
+          value={showing ?? ""} placeholder={last ? String(last.rate) : "83.2000"}
+          onChange={(e) => update({ fxRate: e.target.value === "" ? undefined : Number(e.target.value) })}
+        />
+        {!showing && last ? (
+          <button type="button" className="btn-quiet text-sm" onClick={() => update({ fxRate: last.rate })}>
+            Use {last.rate} from {last.date}
+          </button>
+        ) : null}
+      </div>
+      <p className="mt-1 text-xs text-ink-soft">
+        {showing
+          ? `${describeRate({ from: doc.currency, to: base, rate: showing, source: "recorded" })}. Your books are kept in ${base}, and this is the rate they will use for this invoice.`
+          : `Your books are kept in ${base}. Without this rate the invoice stays off your reports, cash and returns. Use the rate your bank gave you — NXOne has no rate feed and will not make one up.`}
+      </p>
     </div>
   );
 }

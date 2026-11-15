@@ -1,25 +1,37 @@
 "use client";
-import { BookOpen, Building2, Calculator, ChartColumn, FileText, FolderOpen, HandCoins, LayoutDashboard, Quote, Receipt, Search, ShoppingCart, TrendingDown, Wallet, X } from "lucide-react";
+import { BookOpen, Building2, CalendarClock, CalendarSync, Calculator, ChartColumn, FileSpreadsheet, FileText, FlaskConical, FolderOpen, HandCoins, Landmark, LayoutDashboard, MessageCircleQuestion, Quote, Package, Receipt, Search, ShoppingCart, Stamp, Sun, UsersRound, TrendingDown, Users, Wallet, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import Logo from "./Logo";
+import { useHydrated, useWorkspace } from "@/lib/store/useStore";
+import EntitySwitcher from "./EntitySwitcher";
 
 const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string; icon: typeof FileText; soon?: boolean }> }> = [
   {
     title: "Overview",
     items: [
+      { href: "/today", label: "Today", icon: Sun },
+      { href: "/ask", label: "Ask", icon: MessageCircleQuestion },
       { href: "/dashboard", label: "Your money", icon: LayoutDashboard },
       { href: "/documents", label: "Documents", icon: FolderOpen },
       { href: "/receivables", label: "Owed to you", icon: HandCoins },
       { href: "/cash-flow", label: "Cash", icon: Wallet },
-      { href: "/reports", label: "Reports", icon: ChartColumn }
+      { href: "/scenarios", label: "What if", icon: FlaskConical },
+      { href: "/reports", label: "Reports", icon: ChartColumn },
+      { href: "/compliance", label: "Filing calendar", icon: CalendarClock },
+      { href: "/gst-returns", label: "GST returns", icon: FileSpreadsheet },
+      { href: "/e-invoicing", label: "E-invoicing", icon: Stamp }
     ]
   },
   {
     title: "Money out",
     items: [
       { href: "/expenses", label: "Expenses", icon: TrendingDown },
+      { href: "/payables", label: "What you owe", icon: Receipt },
+      { href: "/stock", label: "Stock", icon: Package },
+      { href: "/payroll", label: "Payroll", icon: UsersRound },
+      { href: "/bank-import", label: "Bank statement", icon: Landmark },
       { href: "/books", label: "Accounts", icon: BookOpen }
     ]
   },
@@ -29,12 +41,16 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string;
       { href: "/invoice-generator", label: "Invoice", icon: FileText },
       { href: "/quotation-generator", label: "Quotation", icon: Quote },
       { href: "/purchase-order-generator", label: "Purchase order", icon: ShoppingCart },
-      { href: "/receipt-generator", label: "Receipt", icon: Receipt }
+      { href: "/receipt-generator", label: "Receipt", icon: Receipt },
+      { href: "/recurring", label: "Repeating", icon: CalendarSync }
     ]
   },
   {
     title: "Your business",
-    items: [{ href: "/settings", label: "Business details", icon: Building2 }]
+    items: [
+      { href: "/settings", label: "Business details", icon: Building2 },
+      { href: "/team", label: "People", icon: Users }
+    ]
   },
   {
     title: "Work out",
@@ -47,6 +63,11 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string;
 
 export default function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const path = usePathname();
+  const [ws] = useWorkspace();
+  // the profile lives in this browser, so the server cannot know it: wait for the first paint
+  // before deciding, or the markup will not match and React will complain
+  const hydrated = useHydrated();
+  const setUp = !hydrated || Boolean(ws.profile?.name);
   useEffect(() => { onClose(); }, [path, onClose]);
 
   return (
@@ -61,7 +82,16 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
           <button type="button" className="rounded p-1 text-ink-faint hover:bg-canvas lg:hidden" onClick={onClose} aria-label="Close menu"><X size={18} /></button>
         </div>
 
+        <div className="border-b border-line px-3 py-2">
+          <EntitySwitcher />
+        </div>
+
         <nav className="flex-1 overflow-y-auto px-3 py-4">
+          {!setUp ? (
+            <Link href="/welcome/" className={`mb-5 flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-semibold ${path === "/welcome" ? "bg-forest text-white" : "bg-forest-pale text-forest"}`}>
+              Set up your business
+            </Link>
+          ) : null}
           {GROUPS.map((g) => (
             <div key={g.title} className="mb-6">
               <p className="mb-1 px-2 text-[0.68rem] font-semibold uppercase tracking-wider text-ink-faint">{g.title}</p>
@@ -90,7 +120,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
 
         <div className="border-t border-line p-3">
           <p className="rounded-lg bg-forest-pale p-3 text-xs text-ink-soft">
-            Everything is worked out on this device. Nothing you type is uploaded.
+            Worked out on this device. With an account, a copy is held for you and your devices stay in step.
           </p>
         </div>
       </aside>

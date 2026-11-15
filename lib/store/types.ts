@@ -1,3 +1,8 @@
+import type { Baseline, Change } from "../analysis/scenario";
+import type { Attachment } from "../files/vault";
+import type { Employee as PayrollEmployee } from "../payroll/run";
+import type { Registration } from "../compliance/rules";
+import type { RecurringTemplate } from "../recurring/schedule";
 import type { DocumentData, DocumentKind } from "../documents/types";
 
 /** Your own business, filled into every document so you type it once. */
@@ -15,6 +20,13 @@ export interface Profile extends Syncable {
   signatureDataUrl?: string;
   signatoryName?: string;
   paymentDetails?: string;
+  /** What was in the bank when you started using NXOne, so cash is right from day one. */
+  openingCashMinor?: number;
+  openingCashDate?: string;
+  /** What the business is registered for, which decides the filing calendar. */
+  registrations?: Registration[];
+  /** Indian businesses on the QRMP scheme file GST quarterly rather than monthly. */
+  quarterlyGst?: boolean;
   /** Your UPI id, used to put a scannable QR on Indian invoices. */
   upiId?: string;
   /** A hosted payment page, for cards and overseas customers. */
@@ -63,6 +75,11 @@ export interface CatalogueItem extends Syncable {
   /** HSN or SAC code, so the tax rate follows automatically. */
   code?: string;
   taxRuleId?: string;
+  /** Kept on the shelf and counted: see lib/stock. Services are never tracked. */
+  tracked?: boolean;
+  openingQty?: number;
+  openingCostMinor?: number;
+  reorderLevel?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -82,7 +99,20 @@ export interface SavedDocument extends Syncable {
   /** Minor units, as everywhere else. */
   totalMinor: number;
   paidMinor: number;
+  /**
+   * The rate when the money actually arrived, where it differs from the rate on the document.
+   * The gap between the two is a real gain or loss, and the ledger records it as one.
+   */
+  paymentFxRate?: number;
   status: DocumentStatus;
+  /** Paperwork kept with the document. The files themselves stay on the device they were added on. */
+  attachments?: Attachment[];
+  /**
+   * What the registration portal gave back, once somebody has registered this invoice there.
+   * Kept because the number belongs on the document and on the return, and because an invoice
+   * that has one must not be registered twice.
+   */
+  einvoice?: { irn: string; ackNumber?: string; ackDate?: string; signedQr?: string; registeredAt: string };
   doc: DocumentData;
   createdAt: string;
   updatedAt: string;
@@ -97,15 +127,59 @@ export interface Expense extends Syncable {
   /** Expense account code from the chart of accounts. */
   category: string;
   currency: string;
+  /** What one unit of this bill's currency was worth in the books' currency on the day. */
+  fxRate?: number;
   netMinor: number;
   taxMinor: number;
   /** The cash account it was paid from, or empty when it is still owed. */
   paidFrom?: string;
   /** Bill or receipt number, for matching later. */
   reference?: string;
+  /** The photographed bill, kept with the expense so the paperwork is where the money is. */
+  receiptDataUrl?: string;
+  receiptFileName?: string;
+  /** Anything else kept with it: the supplier's PDF, a contract, a delivery note. */
+  attachments?: Attachment[];
+  /** How many arrived, when this bill is a purchase of stock rather than a cost of the month. */
+  stockQuantity?: number;
   createdAt: string;
   updatedAt: string;
 }
+
+/**
+ * A question you asked of your own figures and kept: "what if I hire someone". The changes are
+ * saved rather than the answer, so reopening it runs against the books as they are now.
+ */
+export interface SavedScenario extends Syncable {
+  id: string;
+  name: string;
+  changes: Change[];
+  horizonMonths?: number;
+  /** Only present when you corrected the figures the books suggested. */
+  baseline?: Baseline;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Somebody on the payroll. The arithmetic lives in lib/payroll; this is the record of them. */
+export interface SavedEmployee extends Syncable, PayrollEmployee {
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A month that has been run, kept so a payslip can be reprinted exactly as it was paid. */
+export interface SavedPayRun extends Syncable {
+  id: string;
+  /** YYYY-MM. */
+  month: string;
+  /** The run as it was computed, frozen. Rules change; a payslip already paid must not. */
+  snapshot: unknown;
+  postedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type { RecurringTemplate };
 
 export interface Workspace {
   version: 1;
@@ -118,6 +192,10 @@ export interface Workspace {
   items: CatalogueItem[];
   documents: SavedDocument[];
   expenses: Expense[];
+  recurring: RecurringTemplate[];
+  scenarios: SavedScenario[];
+  employees: SavedEmployee[];
+  payruns: SavedPayRun[];
 }
 
-export const emptyWorkspace = (): Workspace => ({ version: 1, clients: [], items: [], documents: [], expenses: [] });
+export const emptyWorkspace = (): Workspace => ({ version: 1, clients: [], items: [], documents: [], expenses: [], recurring: [], scenarios: [], employees: [], payruns: [] });

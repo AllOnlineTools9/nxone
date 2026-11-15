@@ -1,7 +1,9 @@
 import { calculate } from "../documents/totals";
 import type { DocumentData } from "../documents/types";
-import type { SavedDocument } from "../store/types";
-import { entry, type JournalEntry } from "./journal";
+import { convertMinor, rateFor, usableRate } from "../fx";
+import { keepingStock, stockFrom, type StockItem, type StockMove } from "../stock/ledger";
+import type { Expense, SavedDocument } from "../store/types";
+import { entry, totalCredits, totalDebits, type JournalEntry, type JournalLine } from "./journal";
 
 /**
  * Turning what a business does into what accountants record. A sale debits what the customer owes
@@ -20,6 +22,12 @@ export interface PaymentInput {
   account: string;
   reference?: string;
   documentNumber?: string;
+  /**
+   * Set when the money arrived in another currency. `rate` is what it was worth on the day it
+   * landed; `invoiceRate` is what it was worth when the invoice was raised. The gap between the
+   * two is a real gain or loss, and it is posted as one rather than quietly absorbed.
+   */
+  fx?: Fx & { invoiceRate?: number };
 }
 
 export interface ExpenseInput {
@@ -36,10 +44,49 @@ export interface ExpenseInput {
   taxMinor?: number;
   /** Paid now from an account, or left owing to the supplier. */
   paidFrom?: string;
+  /** What one unit of this bill's currency was worth in the books' currency on the day. */
+  fxRate?: number;
+  /** How many arrived, when the bill is a purchase of stock rather than a cost of the month. */
+  stockQuantity?: number;
+}
+
+/** Where a document was written in one currency and the books are kept in another. */
+export interface Fx {
+  /** The currency the books are kept in. */
+  base: string;
+  /** What one unit of the document's currency was worth in it. */
+  rate: number;
+}
+
+/**
+ * The same entry, in the books' currency.
+ *
+ * Each amount is converted on its own, which can leave the entry a minor unit or two out of
+ * balance — convert a total and its parts separately and the parts need not add back up. Rather
+ * than let that through, or silently round the receivable (which is what the customer actually
+ * owes, and must be exact), the difference is given to the anchor line: income on a sale, the
+ * cost itself on a bill. That is where a rounding difference belongs.
+ */
+function inBase(lines: JournalLine[], from: string, fx: Fx, anchor: string): JournalLine[] {
+  const out = lines.map((l) => ({
+    ...l,
+    debit: l.debit === undefined ? undefined : convertMinor(l.debit, from, fx.base, fx.rate),
+    credit: l.credit === undefined ? undefined : convertMinor(l.credit, from, fx.base, fx.rate)
+  }));
+
+  const drift = totalDebits(out) - totalCredits(out);
+  if (drift !== 0) {
+    const target = out.find((l) => l.account === anchor);
+    if (target) {
+      if (target.credit !== undefined) target.credit += drift;
+      else if (target.debit !== undefined) target.debit -= drift;
+    }
+  }
+  return out;
 }
 
 /** A sale: the customer owes you, you have earned income, and you hold tax for the government. */
-export function postInvoice(doc: DocumentData, savedId?: string): JournalEntry {
+export function postInvoice(doc: DocumentData, savedId?: string, fx?: Fx): JournalEntry {
   const t = calculate(doc);
   const cur = doc.currency;
   const lines = [
@@ -57,17 +104,48 @@ export function postInvoice(doc: DocumentData, savedId?: string): JournalEntry {
     lines.push(r > 0 ? { account: "4100", credit: r, memo: "Rounding" } : { account: "6900", debit: -r, memo: "Rounding" });
   }
 
+  const foreign = fx && fx.base !== cur;
   return entry({
     date: doc.issueDate,
     narration: `${doc.number} to ${doc.buyer.name || "customer"}`,
-    currency: cur,
-    lines,
-    source: { kind: "invoice", id: savedId, number: doc.number }
+    currency: foreign ? fx.base : cur,
+    lines: foreign ? inBase(lines, cur, fx, "4000") : lines,
+    source: { kind: "invoice", id: savedId, number: doc.number },
+    ...(foreign ? { original: { currency: cur, rate: fx.rate, totalMinor: t.total.minor } } : {})
   });
 }
 
-/** Money arriving against an invoice: the debt shrinks and the bank grows. */
+/**
+ * Money arriving against an invoice: the debt shrinks and the bank grows.
+ *
+ * In another currency those two are not the same number. The debt comes off at the rate the
+ * invoice was raised at, because that is what was put on the books; the bank goes up at the rate
+ * the money actually arrived at. What is left over is an exchange gain or loss, which is money
+ * the business genuinely made or lost by being paid later.
+ */
 export function postPayment(input: PaymentInput): JournalEntry {
+  const fx = input.fx;
+  if (fx && fx.base !== input.currency) {
+    const invoiceRate = usableRate(fx.invoiceRate) ? fx.invoiceRate : fx.rate;
+    const arrived = convertMinor(input.amountMinor, input.currency, fx.base, fx.rate);
+    const owed = convertMinor(input.amountMinor, input.currency, fx.base, invoiceRate);
+    const difference = arrived - owed;
+
+    return entry({
+      date: input.date,
+      narration: `Payment received${input.documentNumber ? ` for ${input.documentNumber}` : ""}`,
+      currency: fx.base,
+      lines: [
+        { account: input.account, debit: arrived, memo: input.reference },
+        { account: "1200", credit: owed, memo: input.documentNumber },
+        ...(difference > 0 ? [{ account: "4300", credit: difference, memo: `Exchange on ${input.documentNumber ?? "payment"}` }] : []),
+        ...(difference < 0 ? [{ account: "6950", debit: -difference, memo: `Exchange on ${input.documentNumber ?? "payment"}` }] : [])
+      ],
+      source: { kind: "payment", id: input.id, number: input.documentNumber },
+      original: { currency: input.currency, rate: fx.rate, totalMinor: input.amountMinor }
+    });
+  }
+
   return entry({
     date: input.date,
     narration: `Payment received${input.documentNumber ? ` for ${input.documentNumber}` : ""}`,
@@ -81,7 +159,7 @@ export function postPayment(input: PaymentInput): JournalEntry {
 }
 
 /** Something you bought: a cost, any reclaimable tax, and either cash out or a supplier owed. */
-export function postExpense(input: ExpenseInput): JournalEntry {
+export function postExpense(input: ExpenseInput, fx?: Fx): JournalEntry {
   const tax = input.taxMinor ?? 0;
   const gross = input.netMinor + tax;
   const lines = [
@@ -92,12 +170,14 @@ export function postExpense(input: ExpenseInput): JournalEntry {
       : { account: "2010", credit: gross, memo: input.supplier }
   ];
 
+  const foreign = fx && fx.base !== input.currency;
   return entry({
     date: input.date,
     narration: `${input.supplier}${input.description ? `: ${input.description}` : ""}`,
-    currency: input.currency,
-    lines,
-    source: { kind: "expense", id: input.id }
+    currency: foreign ? fx.base : input.currency,
+    lines: foreign ? inBase(lines, input.currency, fx, input.category) : lines,
+    source: { kind: "expense", id: input.id },
+    ...(foreign ? { original: { currency: input.currency, rate: fx.rate, totalMinor: gross } } : {})
   });
 }
 
@@ -120,15 +200,57 @@ export function postBillPayment(input: PaymentInput): JournalEntry {
  * against them produces a receipt entry, so the books follow the documents without double entry
  * of data by the user.
  */
-export function ledgerFor(documents: SavedDocument[], expenses: ExpenseInput[], currency: string): JournalEntry[] {
+/** What was in the bank before NXOne knew anything: money in, owner's capital out. */
+export function postOpeningBalance(amountMinor: number, date: string, currency: string, account = "1020"): JournalEntry {
+  return entry({
+    date,
+    narration: "Opening balance",
+    currency,
+    lines: [
+      { account, debit: amountMinor },
+      { account: "3000", credit: amountMinor }
+    ],
+    source: { kind: "opening" }
+  });
+}
+
+/**
+ * The ledger for everything saved, in the books' own currency.
+ *
+ * A document billed in another currency is converted at its own rate. One with no rate is left
+ * out — there is no honest number to put in — but it is never left out quietly: `unrated` in
+ * lib/fx lists exactly what is missing, and the screens ask for it. Leaving money out without
+ * saying so is the one failure nobody would catch.
+ */
+export function ledgerFor(
+  documents: SavedDocument[],
+  expenses: ExpenseInput[],
+  currency: string,
+  opening?: { amountMinor: number; date: string },
+  /**
+   * Stock, when the business keeps any. Bills charged to the stock account have already been
+   * posted as an asset by the loop below — this adds the other half: the cost of what was sold,
+   * moving value off the shelf and into cost of sales in the month it left. Left out, the
+   * accounts behave exactly as they did before stock existed, so nothing can be counted twice.
+   */
+  stock?: { items: StockItem[]; moves?: StockMove[] }
+): JournalEntry[] {
   const out: JournalEntry[] = [];
+  const saved = documents;
+
+  if (opening && opening.amountMinor > 0) {
+    out.push(postOpeningBalance(opening.amountMinor, opening.date, currency));
+  }
 
   for (const d of documents) {
-    if (d.currency !== currency) continue;
     if (d.status === "draft" || d.status === "cancelled") continue;
     if (d.kind !== "invoice" && d.kind !== "proforma") continue;
 
-    out.push(postInvoice(d.doc, d.id));
+    const rate = rateFor(d.currency, currency, saved, d.doc.fxRate);
+    if (!rate) continue;
+    const fx: Fx | undefined = rate.source === "same" ? undefined : { base: currency, rate: rate.rate };
+
+    out.push(postInvoice(d.doc, d.id, fx));
     if (d.paidMinor > 0) {
       out.push(postPayment({
         id: `${d.id}-paid`,
@@ -136,15 +258,108 @@ export function ledgerFor(documents: SavedDocument[], expenses: ExpenseInput[], 
         amountMinor: Math.min(d.paidMinor, d.totalMinor),
         currency: d.currency,
         account: "1020",
-        documentNumber: d.number
+        documentNumber: d.number,
+        ...(fx ? { fx: { base: currency, rate: usableRate(d.paymentFxRate) ? d.paymentFxRate : rate.rate, invoiceRate: rate.rate } } : {})
       }));
     }
   }
 
   for (const e of expenses) {
-    if (e.currency !== currency) continue;
-    out.push(postExpense(e));
+    if (e.currency === currency) { out.push(postExpense(e)); continue; }
+    if (!usableRate(e.fxRate)) continue;
+    out.push(postExpense(e, { base: currency, rate: e.fxRate }));
   }
 
+  if (stock && keepingStock(stock.items)) out.push(...costOfSalesEntries(stock.items, documents, expenses, stock.moves, currency));
+
   return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * One entry a month taking the cost of what was sold off the shelf.
+ *
+ * Monthly rather than per sale, because a shop makes hundreds of sales and a ledger nobody can
+ * read is not a ledger. Each entry says which month it covers and can be traced back to the
+ * stock screen, where every movement is listed.
+ */
+function costOfSalesEntries(
+  items: StockItem[],
+  documents: SavedDocument[],
+  expenses: ExpenseInput[],
+  extraMoves: StockMove[] | undefined,
+  currency: string
+): JournalEntry[] {
+  const months = new Set<string>();
+  for (const d of documents) {
+    if (d.deletedAt || d.kind !== "invoice" || d.status === "draft" || d.status === "cancelled") continue;
+    months.add(d.issueDate.slice(0, 7));
+  }
+
+  const bills = expenses as unknown as Parameters<typeof stockFrom>[0]["expenses"];
+
+  const out: JournalEntry[] = [];
+  for (const month of [...months].sort()) {
+    const lastDay = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0));
+    const to = lastDay.toISOString().slice(0, 10);
+    const cost = stockFrom({ items, documents, expenses: bills, extraMoves, from: `${month}-01`, to }).costOfSalesMinor;
+    if (cost <= 0) continue;
+
+    out.push(entry({
+      date: to,
+      narration: `Cost of what sold in ${month}`,
+      currency,
+      lines: [
+        { account: "5000", debit: cost, memo: "Taken off the shelf" },
+        { account: "1300", credit: cost }
+      ],
+      source: { kind: "stock", id: `cogs-${month}` }
+    }));
+  }
+  return out;
+}
+
+/**
+ * A month's payroll in the accounts.
+ *
+ * Salaries stop being a lump sum typed into an expense. The gross is the cost, what is held back
+ * from it is money the business owes somebody else — the fund, the insurer, the tax department —
+ * and only the net is owed to the person. The employer's own contributions are a separate cost,
+ * because an employer who cannot see them does not know what their staff actually cost.
+ *
+ * Nothing is paid here. This records what is owed; paying it is its own entry, so the month can
+ * be closed before the challans are.
+ */
+export function postPayroll(run: {
+  month: string;
+  totals: {
+    grossMinor: number; netMinor: number;
+    employeePfMinor: number; employerPfMinor: number; pensionMinor: number; edliMinor: number; pfAdminMinor: number;
+    employeeEsiMinor: number; employerEsiMinor: number;
+    professionalTaxMinor: number; taxDeductedMinor: number;
+  };
+}, currency: string): JournalEntry {
+  const t = run.totals;
+  const lastDay = new Date(Date.UTC(Number(run.month.slice(0, 4)), Number(run.month.slice(5, 7)), 0));
+  const date = lastDay.toISOString().slice(0, 10);
+
+  const employerPf = t.employerPfMinor + t.pensionMinor + t.edliMinor + t.pfAdminMinor;
+  const employerContributions = employerPf + t.employerEsiMinor;
+
+  const lines: JournalLine[] = [
+    { account: "6020", debit: t.grossMinor, memo: "Salaries for the month" },
+    ...(employerContributions > 0 ? [{ account: "6025", debit: employerContributions, memo: "Employer provident fund and insurance" }] : []),
+    ...(t.employeePfMinor + employerPf > 0 ? [{ account: "2410", credit: t.employeePfMinor + employerPf }] : []),
+    ...(t.employeeEsiMinor + t.employerEsiMinor > 0 ? [{ account: "2420", credit: t.employeeEsiMinor + t.employerEsiMinor }] : []),
+    ...(t.taxDeductedMinor > 0 ? [{ account: "2430", credit: t.taxDeductedMinor }] : []),
+    ...(t.professionalTaxMinor > 0 ? [{ account: "2440", credit: t.professionalTaxMinor }] : []),
+    { account: "2400", credit: t.netMinor, memo: "Net pay owed to staff" }
+  ];
+
+  return entry({
+    date,
+    narration: `Payroll for ${run.month}`,
+    currency,
+    lines,
+    source: { kind: "payroll", id: `payroll-${run.month}` }
+  });
 }

@@ -1,12 +1,15 @@
 "use client";
 import { useState } from "react";
 import { formatDate, todayIso } from "@/lib/format";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, fromMinor } from "@/lib/money";
 import { trialBalance } from "@/lib/ledger/journal";
 import { ledgerFor } from "@/lib/ledger/posting";
 import { balanceSheet, cashFlow, profitAndLoss } from "@/lib/ledger/statements";
 import { financialYear, monthPeriod, quarterPeriod, type Period } from "@/lib/store/reports";
+import { openingOf } from "@/lib/ledger/opening";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
+import RateNeeded from "./RateNeeded";
+import type { StockItem } from "@/lib/stock/ledger";
 
 type Choice = "month" | "quarter" | "year";
 type View = "profit" | "position" | "cash" | "journals";
@@ -26,7 +29,7 @@ export default function Books() {
 
   const currency = ws.profile?.currency ?? "INR";
   const period: Period = choice === "month" ? monthPeriod(anchor) : choice === "quarter" ? quarterPeriod(anchor) : financialYear(anchor);
-  const ledger = ledgerFor(db.documents(), db.expenses(), currency);
+  const ledger = ledgerFor(db.documents(), db.expenses(), currency, openingOf(ws.profile), { items: db.items() as StockItem[] });
   const pl = profitAndLoss(ledger, currency, period.from, period.to);
   const bs = balanceSheet(ledger, currency, period.to);
   const cf = cashFlow(ledger, currency, period.from, period.to);
@@ -37,6 +40,7 @@ export default function Books() {
 
   return (
     <div className="space-y-6">
+      <RateNeeded />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold sm:text-3xl">Accounts</h1>
@@ -155,7 +159,14 @@ export default function Books() {
                 {entriesInPeriod.flatMap((e) => e.lines.map((l, i) => (
                   <tr key={`${e.id}-${i}`} className={i === 0 ? "border-t border-line" : ""}>
                     <td className="px-4 py-1.5 tabular text-ink-soft">{i === 0 ? formatDate(e.date, ws.profile?.country ?? "IN") : ""}</td>
-                    <td className="px-4 py-1.5">{i === 0 ? e.narration : ""}</td>
+                    <td className="px-4 py-1.5">
+                      {i === 0 ? e.narration : ""}
+                      {i === 0 && e.original ? (
+                        <span className="ml-2 text-xs text-ink-faint">
+                          {formatMoney(fromMinor(e.original.totalMinor, e.original.currency), "en-IN")} at {e.original.rate}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-4 py-1.5 tabular text-ink-soft">{l.account}</td>
                     <td className="px-4 py-1.5 text-right tabular">{l.debit ? m({ minor: l.debit, currency }) : ""}</td>
                     <td className="px-4 py-1.5 text-right tabular">{l.credit ? m({ minor: l.credit, currency }) : ""}</td>
