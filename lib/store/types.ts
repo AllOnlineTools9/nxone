@@ -100,6 +100,12 @@ export interface SavedDocument extends Syncable {
   totalMinor: number;
   paidMinor: number;
   /**
+   * The day the money arrived, which is not the day somebody got round to ticking it off.
+   * Without this the ledger has to guess from updatedAt, and an edit months later would move
+   * the cash into another month. Older records have none, and the guess is kept for those.
+   */
+  paidOn?: string;
+  /**
    * The rate when the money actually arrived, where it differs from the rate on the document.
    * The gap between the two is a real gain or loss, and the ledger records it as one.
    */

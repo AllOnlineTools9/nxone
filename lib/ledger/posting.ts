@@ -254,7 +254,9 @@ export function ledgerFor(
     if (d.paidMinor > 0) {
       out.push(postPayment({
         id: `${d.id}-paid`,
-        date: d.status === "paid" ? d.updatedAt.slice(0, 10) : d.issueDate,
+        // The recorded day the money arrived. Records made before that was kept fall back to
+        // the old guess, which is wrong in the same way it always was but no more so.
+        date: d.paidOn ?? (d.status === "paid" ? d.updatedAt.slice(0, 10) : d.issueDate),
         amountMinor: Math.min(d.paidMinor, d.totalMinor),
         currency: d.currency,
         account: "1020",

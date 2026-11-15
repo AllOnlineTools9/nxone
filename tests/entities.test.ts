@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { Store, keyForEntity, store, type StorageLike } from "@/lib/store/db";
-import { ENTITIES_KEY, Entities, FIRST_ENTITY } from "@/lib/store/entities";
+import { ENTITIES_KEY, Entities, EntitiesExport, FIRST_ENTITY } from "@/lib/store/entities";
 
 /**
  * The one thing that must never happen here is two businesses touching each other's books. Most
@@ -180,5 +180,57 @@ describe("the list of businesses on a device", () => {
   it("falls back when the list points at a business that is not in it", () => {
     storage.setItem(ENTITIES_KEY, JSON.stringify({ active: "en_gone", list: [{ id: FIRST_ENTITY, name: "", createdAt: "" }] }));
     expect(new Entities(storage).state().active).toBe(FIRST_ENTITY);
+  });
+});
+
+describe("why a business cannot be removed", () => {
+  let storage: StorageLike;
+  let list: Entities;
+  beforeEach(() => { storage = memory(); list = new Entities(storage); });
+
+  it("says so before the button is drawn, not after it is pressed", () => {
+    expect(list.whyNotRemovable(list.active().id)).toContain("only business");
+  });
+
+  it("still protects the first set of books once there are two", () => {
+    const second = list.add("Second");
+    expect(list.whyNotRemovable(second.id)).toBeUndefined();
+    expect(list.whyNotRemovable(FIRST_ENTITY)).toContain("first set of books");
+  });
+
+  it("refuses the removal for the same reason it gave", () => {
+    const why = list.whyNotRemovable(FIRST_ENTITY);
+    expect(list.remove(FIRST_ENTITY)).toEqual({ removed: false, reason: why });
+  });
+});
+
+describe("taking a copy out without opening it", () => {
+  let storage: StorageLike;
+  let list: Entities;
+  beforeEach(() => { storage = memory(); list = new Entities(storage); });
+
+  it("names every business in one file", () => {
+    list.add("Second");
+    const all = JSON.parse(new EntitiesExport(list, storage).all());
+    expect(all.kind).toBe("nxone-businesses");
+    expect(all.businesses).toHaveLength(2);
+  });
+
+  it("reads a business's books without opening it", () => {
+    const db = new Store(storage);
+    db.openEntity(FIRST_ENTITY);
+    db.saveProfile({ name: "The shop", country: "IN", currency: "INR" });
+    const second = list.add("Second");
+    list.open(second.id);
+    expect(JSON.parse(new EntitiesExport(list, storage).one(FIRST_ENTITY)).profile.name).toBe("The shop");
+  });
+
+  it("describes a file before anything is restored from it", () => {
+    expect(EntitiesExport.describe(new EntitiesExport(list, storage).all())?.businesses).toHaveLength(1);
+    expect(EntitiesExport.describe("{}")).toBeUndefined();
+  });
+
+  it("names the file after the business and the day", () => {
+    expect(EntitiesExport.fileName("Brightline Studio")).toMatch(/^brightline-studio-backup-\d{4}-\d{2}-\d{2}\.json$/);
   });
 });

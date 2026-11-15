@@ -1,5 +1,5 @@
 "use client";
-import { Building2, Check, ChevronsUpDown, Plus } from "lucide-react";
+import { Building2, Check, ChevronsUpDown, Plus, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useEntities, useHydrated, useWorkspace } from "@/lib/store/useStore";
@@ -93,6 +93,16 @@ export default function EntitySwitcher() {
             >
               <Plus size={14} className="shrink-0" aria-hidden="true" />
               Add another business
+            </button>
+          </li>
+          <li className="border-t border-line">
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink-soft hover:bg-canvas"
+              onClick={() => { setOpen(false); router.push("/settings/"); }}
+            >
+              <Settings2 size={14} className="shrink-0" aria-hidden="true" />
+              Manage, back up or remove
             </button>
           </li>
         </ul>

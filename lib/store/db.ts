@@ -1,4 +1,5 @@
 import type { DocumentKind } from "../documents/types";
+import { todayIso } from "../format";
 import { emptyWorkspace, type CatalogueItem, type Client, type Expense, type Profile, type RecurringTemplate, type SavedDocument, type SavedScenario, type SavedEmployee, type SavedPayRun, type Workspace } from "./types";
 
 /**
@@ -168,11 +169,22 @@ export class Store {
     return saved;
   }
 
-  setStatus(id: string, status: SavedDocument["status"], paidMinor?: number) {
+  setStatus(id: string, status: SavedDocument["status"], paidMinor?: number, paidOn?: string) {
     const ws = this.read();
     this.write({
       ...ws,
-      documents: ws.documents.map((d) => (d.id === id ? { ...d, status, paidMinor: paidMinor ?? (status === "paid" ? d.totalMinor : d.paidMinor), updatedAt: new Date().toISOString() } : d))
+      documents: ws.documents.map((d) => {
+        if (d.id !== id) return d;
+        const nowPaid = paidMinor ?? (status === "paid" ? d.totalMinor : d.paidMinor);
+        const gotMoney = nowPaid > d.paidMinor;
+        return {
+          ...d, status, paidMinor: nowPaid,
+          // Set the day the money arrived the first time money arrives, and leave it alone
+          // afterwards: a later edit is an edit, not a second payment.
+          paidOn: nowPaid <= 0 ? undefined : gotMoney ? paidOn ?? todayIso() : d.paidOn,
+          updatedAt: new Date().toISOString()
+        };
+      })
     });
   }
 

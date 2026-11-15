@@ -134,10 +134,21 @@ export class Entities {
    * caller to have asked first; what syncs to an account is untouched, and signing in again
    * brings it back.
    */
+  /**
+   * Why this business cannot be removed, or undefined when it can. Asked before the button is
+   * drawn as well as when it is pressed, so nobody is offered a removal that will be refused.
+   */
+  whyNotRemovable(id: string): string | undefined {
+    const state = this.state();
+    if (state.list.length < 2) return "This is the only business on this device. Add another first, or clear this one from your business details.";
+    if (id === FIRST_ENTITY) return "The first set of books cannot be removed here. Clear it from your business details instead.";
+    return undefined;
+  }
+
   remove(id: string): { removed: boolean; reason?: string } {
     const state = this.state();
-    if (state.list.length < 2) return { removed: false, reason: "This is the only business on this device." };
-    if (id === FIRST_ENTITY) return { removed: false, reason: "The first set of books cannot be removed here. Clear it from your business details instead." };
+    const why = this.whyNotRemovable(id);
+    if (why) return { removed: false, reason: why };
 
     try { this.storage.removeItem(keyForEntity(id)); } catch { /* ignore */ }
     const list = state.list.filter((e) => e.id !== id);
@@ -155,3 +166,65 @@ export class Entities {
 }
 
 export const entities = new Entities();
+
+/* ------------------------------------------------- taking a copy out */
+
+/** A backup holding more than one business, so a device can be moved in one file. */
+export interface MultiBackup {
+  version: 1;
+  kind: "nxone-businesses";
+  exportedAt: string;
+  businesses: Array<{ id: string; name: string; workspace: Workspace }>;
+}
+
+export class EntitiesExport {
+  constructor(private entities: Entities, private storage: StorageLike = localStore()) {}
+
+  /** One business's books, in the same shape as the single-business backup. */
+  one(id: string): string {
+    const raw = this.storage.getItem(keyForEntity(id));
+    return raw ?? JSON.stringify(emptyWorkspace(), null, 2);
+  }
+
+  /** Everything on this device, named, so restoring knows what came from where. */
+  all(): string {
+    const businesses = this.entities.list().map((e) => {
+      let workspace = emptyWorkspace();
+      try {
+        const raw = this.storage.getItem(keyForEntity(e.id));
+        if (raw) workspace = { ...workspace, ...(JSON.parse(raw) as Workspace) };
+      } catch { /* a business whose books will not parse is still listed, empty */ }
+      return { id: e.id, name: e.name || "Untitled business", workspace };
+    });
+
+    const backup: MultiBackup = {
+      version: 1, kind: "nxone-businesses", exportedAt: new Date().toISOString(), businesses
+    };
+    return JSON.stringify(backup, null, 2);
+  }
+
+  /** What a file like this holds, so a screen can say so before anything is restored. */
+  static describe(json: string): { businesses: Array<{ name: string; documents: number; expenses: number }> } | undefined {
+    try {
+      const parsed = JSON.parse(json) as MultiBackup;
+      if (parsed?.kind !== "nxone-businesses") return undefined;
+      return {
+        businesses: parsed.businesses.map((b) => ({
+          name: b.name,
+          documents: b.workspace.documents?.length ?? 0,
+          expenses: b.workspace.expenses?.length ?? 0
+        }))
+      };
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** A filename somebody will recognise in six months. */
+  static fileName(name: string): string {
+    const who = (name || "nxone").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase();
+    return `${who || "nxone"}-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  }
+}
+
+export const entitiesExport = new EntitiesExport(entities);

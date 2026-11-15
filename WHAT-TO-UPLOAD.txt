@@ -1,84 +1,101 @@
-NXONE — THE COMPLETE SOURCE
-===========================
+NXONE — WHAT CHANGED THIS ROUND
+===============================
 
-Verified from this zip in an empty directory:
-  npm install && npm test                 589 pass
-  npm run build                           57 pages
-  cd server && npm install && npm test     68 pass
+16 files. Verified: 634 app tests, 68 server tests, build clean, and every
+screen driven in a real browser with no console errors.
 
-
-BEFORE YOU UNZIP: TWO DELETIONS
--------------------------------
-  `cp -r` merges — it never deletes — so files your repo has and this zip does
-  not will survive every update. Two sets need removing by hand.
-
-  1. The flat-upload leftovers, if they are still there. `app/page.tsx` was
-     shadowing the real home page at `app/(site)/page.tsx`, which is why the
-     site served a 404 at its root:
-
-       git rm -f app/page.tsx
-       find app -maxdepth 1 -type f \( -name 'page (*.tsx' -o -name 'layout (*.tsx' \) -delete
-
-  2. A dead copy of the whole document builder sitting at the top of
-     components/. Nothing imports it — the live one is components/builder/ —
-     but it is thirteen files that look live and are not, and I nearly edited
-     the wrong one:
-
-       git rm -f components/Builder.tsx components/Editor.tsx \
-         components/Preview.tsx components/ExportBox.tsx components/PaymentBox.tsx \
-         components/StylePicker.tsx components/TotalsBar.tsx components/ClientPicker.tsx \
-         components/ItemPicker.tsx components/HsnPicker.tsx components/SignatureBox.tsx \
-         components/SupplyType.tsx components/state.ts
-
-  Then unzip over the repo root, keeping folders. No new dependencies.
+  cd /workspaces/nxone
+  unzip -q nxone-businesses-books-statements.zip
+  cp -r nxone-businesses-books-statements/. .
+  rm -rf nxone-businesses-books-statements nxone-businesses-books-statements.zip
+  git status --short      # expect 16
+  npm test && npm run build
 
 
-WHAT IS NEW
+1. BUSINESSES CAN NOW BE REMOVED, RENAMED AND DOWNLOADED
+--------------------------------------------------------
+  You found this: they could be added and nothing else. The remove function
+  existed with all its guards and had no button on it.
 
-1. SENDING A DOCUMENT
----------------------
-  Until now a finished invoice left by print or download, and everything after
-  that was the user's own email client. The most-used action in an invoicing
-  product was the one it did not have.
+  Settings now has "Businesses on this device": open, rename, download or
+  remove each one, and download all of them in a single file for moving to
+  another computer. The business switcher links to it.
 
-  Now every document carries a Send panel: the email written and addressed, a
-  WhatsApp message for the short version, and both copyable for anything else.
-  It opens their own mail client from their own address, so a reply comes back
-  to them.
+  Each one's books can be downloaded without opening it — with two businesses
+  nobody should have to switch back and forth to take two backups.
 
-  The message says the number, the amount, the due date, what it was for taken
-  from the lines, and only the ways to pay that are actually set up — never an
-  invented one. It opens with the customer's first name, signs off with the
-  person rather than the software, and asks a different question of a
-  quotation than of an invoice. A receipt thanks them instead of asking for
-  anything.
+  Nothing is removed until its books have been downloaded: the remove button
+  stays disabled and says "Download first". The files are on that device and
+  nowhere else, so a removal with no copy is a loss, not a tidy-up. A business
+  that cannot be removed — the only one, or the first set of books — shows no
+  remove button at all, and says why, rather than refusing after you press it.
 
-  The one thing a mail draft cannot do is carry the PDF, so the panel says so
-  before offering the buttons rather than letting somebody send an empty
-  email.
-
-2. ONE DOCUMENT BECOMING THE NEXT
----------------------------------
-  A quotation that is accepted becomes an invoice. An invoice that is paid
-  becomes a receipt. An invoice sent in error becomes a credit note. All three
-  used to mean typing it again, which is tedious and the most reliable way to
-  make two documents that should agree disagree.
-
-  The new one keeps who, what, how much and the tax treatment, and takes a
-  fresh number from its own series, today's date and the new kind's dates. It
-  gains what the new kind needs and the old one lacked — an invoice made from
-  a quotation picks up the bank details and UPI code that a quotation never
-  carried. Wording that belonged to the old kind is replaced; wording the
-  person wrote themselves is kept.
-
-  Both ends are recorded. The invoice prints "Ref: QUO-0003", and the list
-  shows "QUO-0003 became INV-0012" beside the quotation, so neither looks
-  forgotten. The link is written when the new document is saved, not when the
-  conversion starts, so an abandoned conversion leaves no trace.
+  NEW  components/Businesses.tsx
+  CHG  lib/store/entities.ts        EntitiesExport, whyNotRemovable
+  CHG  components/EntitySwitcher.tsx
+  CHG  app/(app)/settings/page.tsx
+  CHG  tests/entities.test.ts
 
 
-WHAT IS LEFT
-  Razorpay: plans, limits, prices and seat arithmetic are built and tested;
-  what is missing is the account, three plan ids and two secrets. The API has
-  never been deployed, so People shows "accounts are not switched on" until it
-  is. Everything else runs on the device without it.
+2. SEND THE BOOKS TO YOUR ACCOUNTANT
+------------------------------------
+  On Reports. Pick a month, quarter or financial year and get one folder: the
+  profit and loss, the balance sheet, the trial balance, every posting behind
+  them, and the sales and expenses they came from — as CSV, which every
+  accounting package imports. A covering note inside gives the headline
+  figures, says how the books were prepared, says plainly that no accountant
+  has reviewed them, and says so if the balance sheet does not balance.
+
+  The email is written for you, with the figures in the message as well as the
+  files, so an accountant on a phone can see whether anything looks wrong
+  before opening an attachment.
+
+  The ZIP is written by hand — about a hundred lines, no new dependency — and
+  checked against the real unzip in the tests.
+
+  NEW  lib/files/zip.ts
+  NEW  lib/reports/pack.ts
+  NEW  components/BooksPack.tsx
+  NEW  tests/pack.test.ts
+  CHG  app/(app)/reports/page.tsx
+
+
+3. STATEMENT OF ACCOUNT
+-----------------------
+  On Owed to you. Everything one customer owes: every invoice, what was paid
+  against each, what is left, how late it is, and the whole thing aged. The
+  chase list told you who to chase and gave you nothing to send them.
+
+  Credit notes count against the balance, quotations are ignored, and the
+  lines go in the message itself rather than an attachment — a statement is
+  short, and an email you must open a file to understand waits until tomorrow.
+  A customer who owes nothing gets a thank-you, not a chase.
+
+  NEW  lib/analysis/statement.ts
+  NEW  components/Statement.tsx
+  CHG  app/(app)/receivables/page.tsx
+
+
+4. A BUG THE ACCOUNTANT PACK EXPOSED
+------------------------------------
+  There was no payment date in the data at all. The ledger guessed: updatedAt
+  if the invoice was paid, the invoice date otherwise. So a part payment was
+  booked as received on the day the invoice was raised, and editing a paid
+  invoice months later silently moved the cash into another month — your books
+  changed retroactively with nobody touching a payment.
+
+  Documents now record paidOn, set the first time money arrives. Records made
+  before this keep the old guess, which is no worse than it was.
+
+  CHG  lib/store/types.ts      paidOn
+  CHG  lib/store/db.ts         setStatus records it
+  CHG  lib/ledger/posting.ts   the ledger uses it
+
+  Marking an invoice paid uses today's date. If you often record payments days
+  later, a date box on that action is the next small thing worth adding.
+
+
+STILL PENDING, UNCHANGED
+  Logins and sending from NXOne's own address both need the API deployed —
+  that is the Cloudflare token step we parked, not a feature. Invoice sending
+  by email and WhatsApp is in the previous patch (nxone-send-and-convert).
