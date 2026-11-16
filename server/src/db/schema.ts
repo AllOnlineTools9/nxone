@@ -155,3 +155,36 @@ export const invitations = sqliteTable("invitations", {
   byOrg: index("invitations_org_idx").on(t.orgId),
   byEmail: index("invitations_email_idx").on(t.email)
 }));
+
+/**
+ * A payment link we asked the provider for, and what came back when it was paid.
+ *
+ * The books live on the device, so this holds the least it can: which document the link was for,
+ * what the provider called it, and whether money arrived. Not what was sold, not to whom.
+ */
+export const paymentLinks = sqliteTable("payment_links", {
+  id: id(),
+  orgId: text("org_id").notNull().references(() => organisations.id),
+  /** The document's id on the device, which is how the device finds it again. */
+  documentId: text("document_id").notNull(),
+  number: text("number").notNull(),
+  amountMinor: integer("amount_minor").notNull(),
+  currency: text("currency").notNull(),
+  /** The provider's own id for the link, which its webhook quotes back. */
+  reference: text("reference").notNull(),
+  url: text("url").notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+  paidAt: integer("paid_at", { mode: "timestamp_ms" }),
+  paidOn: text("paid_on"),
+  paidAmountMinor: integer("paid_amount_minor"),
+  method: text("method"),
+  paymentReference: text("payment_reference"),
+  /** Set once the device has been told, so a payment is not applied twice. */
+  deliveredAt: integer("delivered_at", { mode: "timestamp_ms" }),
+  createdBy: text("created_by").notNull().references(() => users.id),
+  createdAt: created()
+}, (t) => ({
+  byReference: uniqueIndex("payment_links_reference_idx").on(t.reference),
+  byOrg: index("payment_links_org_idx").on(t.orgId),
+  byDocument: index("payment_links_document_idx").on(t.documentId)
+}));

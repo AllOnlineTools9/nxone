@@ -7,6 +7,9 @@ import { EXPENSE_CATEGORIES, cashAccounts } from "@/lib/ledger/accounts";
 import { formatDate, todayIso } from "@/lib/format";
 import { formatMoney, fromMinor , decimalsFor } from "@/lib/money";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
+import { checkGstin } from "@/lib/returns/states";
+import { TDS_SECTIONS } from "@/lib/tds/sections";
+import { deductionsFor } from "@/lib/tds/deduct";
 import { knownRates, usableRate } from "@/lib/fx";
 import Attachments from "./Attachments";
 import type { Attachment } from "@/lib/files/vault";
@@ -20,7 +23,7 @@ export default function Expenses() {
   const ready = useHydrated();
   const currency = ws.profile?.currency ?? "INR";
 
-  const [form, setForm] = useState({ date: todayIso(), supplier: "", description: "", category: "6900", net: 0, tax: 0, paidFrom: "1020", reference: "", billCurrency: "", fxRate: 0, stockQuantity: 0 });
+  const [form, setForm] = useState({ date: todayIso(), supplier: "", description: "", category: "6900", net: 0, tax: 0, paidFrom: "1020", reference: "", supplierGstin: "", supplierPan: "", supplierType: "other" as "individual" | "other", tdsSection: "", billCurrency: "", fxRate: 0, stockQuantity: 0 });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
   const foreignBill = Boolean(form.billCurrency) && form.billCurrency.toUpperCase() !== currency;
   const lastRate = foreignBill ? knownRates(db.documents(), currency)[form.billCurrency.toUpperCase()] : undefined;
@@ -66,6 +69,23 @@ export default function Expenses() {
     }
   };
 
+  /**
+   * What this bill would attract, counting the year's earlier payments to the same supplier:
+   * the threshold is on the year, not on the bill in front of you.
+   */
+  const suggestedTds = (() => {
+    if (!form.tdsSection || !form.net) return 0;
+    const earlier = db.expenses()
+      .filter((e) => e.supplier.trim().toLowerCase() === form.supplier.trim().toLowerCase() && e.tdsSection === form.tdsSection)
+      .map((e) => ({ id: e.id, date: e.date, supplier: e.supplier, supplierPan: e.supplierPan, supplierType: e.supplierType, netMinor: e.netMinor }));
+    const all = [...earlier, {
+      id: "new", date: form.date, supplier: form.supplier.trim(),
+      supplierPan: form.supplierPan.trim() || undefined, supplierType: form.supplierType,
+      netMinor: Math.round(form.net * 100)
+    }];
+    return deductionsFor(all, form.tdsSection).find((d) => d.paymentId === "new")?.shouldBeMinor ?? 0;
+  })();
+
   const add = () => {
     if (!form.supplier.trim() || !form.net) return;
     db.saveExpense({
@@ -78,11 +98,16 @@ export default function Expenses() {
       taxMinor: Math.round(form.tax * 10 ** decimalsFor(foreignBill ? form.billCurrency.toUpperCase() : currency)),
       ...(foreignBill && usableRate(form.fxRate) ? { fxRate: form.fxRate } : {}),
       paidFrom: form.paidFrom || undefined, reference: form.reference.trim() || undefined,
+      supplierGstin: form.supplierGstin.trim().toUpperCase() || undefined,
+      supplierPan: form.supplierPan.trim().toUpperCase() || undefined,
+      supplierType: form.tdsSection ? form.supplierType : undefined,
+      tdsSection: form.tdsSection || undefined,
+      tdsMinor: form.tdsSection ? suggestedTds : undefined,
       receiptDataUrl: receipt?.dataUrl, receiptFileName: receipt?.fileName,
       ...(attachments.length ? { attachments } : {}),
       ...(form.category === STOCK_ACCOUNT && form.stockQuantity ? { stockQuantity: form.stockQuantity } : {})
     });
-    setForm({ ...form, supplier: "", description: "", net: 0, tax: 0, reference: "" });
+    setForm({ ...form, supplier: "", description: "", net: 0, tax: 0, reference: "", supplierGstin: "", supplierPan: "", tdsSection: "" });
     setReceipt(null);
     setAttachments([]);
     setReadNote("");
@@ -125,6 +150,51 @@ export default function Expenses() {
           </div>
           <div className="sm:col-span-2"><label className="label" htmlFor="ex-desc">Note</label><input id="ex-desc" className="field" value={form.description} onChange={(e) => set({ description: e.target.value })} placeholder="Office rent for May" /></div>
           <div><label className="label" htmlFor="ex-ref">Bill number</label><input id="ex-ref" className="field" value={form.reference} onChange={(e) => set({ reference: e.target.value })} /></div>
+          {(ws.profile?.country ?? "IN") === "IN" ? (
+            <div>
+              <label className="label" htmlFor="ex-gstin">Supplier GSTIN</label>
+              <input id="ex-gstin" className="field" value={form.supplierGstin} onChange={(e) => set({ supplierGstin: e.target.value })} placeholder="29AAGCB7383J1Z4" />
+              <p className={`mt-1 text-xs ${form.supplierGstin.trim() && !checkGstin(form.supplierGstin.trim()).valid ? "text-warn" : "text-ink-faint"}`}>
+                {form.supplierGstin.trim() && !checkGstin(form.supplierGstin.trim()).valid
+                  ? checkGstin(form.supplierGstin.trim()).says ?? "That GSTIN does not look right."
+                  : "With this and the bill number, we can check the credit against the portal."}
+              </p>
+            </div>
+          ) : null}
+          {(ws.profile?.country ?? "IN") === "IN" ? (
+            <>
+              <div>
+                <label className="label" htmlFor="ex-tds">Tax to hold back</label>
+                <select id="ex-tds" className="field" value={form.tdsSection} onChange={(e) => set({ tdsSection: e.target.value })}>
+                  <option value="">None — nothing to deduct</option>
+                  {TDS_SECTIONS.map((sec) => <option key={sec.id} value={sec.id}>{sec.label} ({sec.id})</option>)}
+                </select>
+                {form.tdsSection ? (
+                  <p className="mt-1 text-xs text-ink-soft">
+                    {suggestedTds > 0
+                      ? `Hold back ${m(suggestedTds)} and pay ${form.supplier.trim() || "them"} the rest. It is owed to the government by the seventh of next month.`
+                      : "Nothing is due yet: this supplier has not passed the threshold for the year. We will say so when they do."}
+                  </p>
+                ) : null}
+              </div>
+              {form.tdsSection ? (
+                <>
+                  <div>
+                    <label className="label" htmlFor="ex-pan">Supplier PAN</label>
+                    <input id="ex-pan" className="field" value={form.supplierPan} onChange={(e) => set({ supplierPan: e.target.value })} placeholder="AAAPR1234C" />
+                    {!form.supplierPan.trim() ? <p className="mt-1 text-xs text-warn">Without a PAN the rate is 20%, not the usual one.</p> : null}
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="ex-type">They are</label>
+                    <select id="ex-type" className="field" value={form.supplierType} onChange={(e) => set({ supplierType: e.target.value as "individual" | "other" })}>
+                      <option value="other">A company, firm or LLP</option>
+                      <option value="individual">An individual or HUF</option>
+                    </select>
+                  </div>
+                </>
+              ) : null}
+            </>
+          ) : null}
           {form.category === STOCK_ACCOUNT ? (
             <div className="sm:col-span-2">
               <label className="label" htmlFor="ex-qty">How many arrived</label>

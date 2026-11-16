@@ -1,11 +1,14 @@
 "use client";
-import { AlertTriangle, Download, Info } from "lucide-react";
+import { AlertTriangle, Download, Info, Lock } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { todayIso } from "@/lib/format";
 import { formatMoney, fromMinor } from "@/lib/money";
 import { checksFor, verdictOf } from "@/lib/returns/checks";
 import { gstr1Csvs, gstr1Json, gstr3bCsv } from "@/lib/returns/export";
+import { suggestedLock } from "@/lib/books/lock";
+import { formatDate } from "@/lib/format";
+import { store } from "@/lib/store/db";
 import { gstr1, returnPeriod } from "@/lib/returns/gstr1";
 import { gstr3b } from "@/lib/returns/gstr3b";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
@@ -27,6 +30,7 @@ export default function Returns() {
 
   const currency = ws.profile?.currency ?? "INR";
   const period = useMemo(() => returnPeriod(`${month}-15`), [month]);
+  const [closed, setClosed] = useState(false);
 
   const prepared = useMemo(() => {
     const documents = db.documents();
@@ -245,6 +249,29 @@ export default function Returns() {
           {three.notes.map((note) => <li key={note}>{note}</li>)}
         </ul>
       </section>
+
+      {suggestedLock(period.to, ws.profile?.lockedUpTo) ? (
+        <section className="card p-5">
+          <h2 className="flex items-center gap-2 font-display text-lg">
+            <Lock size={17} className="text-ink-faint" aria-hidden="true" />Once this is filed, close the books
+          </h2>
+          <p className="mt-1 max-w-2xl text-sm text-ink-soft">
+            Filed and then edited is how a return stops matching the books. Closing to{" "}
+            {formatDate(period.to, ws.profile?.country ?? "IN")} stops anything dated in {period.label} or
+            earlier from being changed. Do it after the return has actually gone through, not before.
+          </p>
+          <button
+            type="button" className="btn-ghost mt-3"
+            onClick={() => { if (ws.profile) { store.saveProfile({ ...ws.profile, lockedUpTo: period.to }); setClosed(true); } }}
+          >
+            <Lock size={15} /> Close the books to {formatDate(period.to, ws.profile?.country ?? "IN")}
+          </button>
+        </section>
+      ) : closed ? (
+        <p className="rounded-lg border border-ok/30 bg-ok/5 p-3 text-sm text-ok">
+          The books are closed to {formatDate(ws.profile?.lockedUpTo ?? period.to, ws.profile?.country ?? "IN")}. Corrections from here are credit notes, not edits.
+        </p>
+      ) : null}
 
       <p className="text-sm text-ink-faint">
         Prepared, not filed. Upload the JSON to the government&apos;s offline utility, or hand the CSVs to whoever files for you, and let their checks run before anything is submitted. The figures come from the documents you have recorded here and nowhere else.

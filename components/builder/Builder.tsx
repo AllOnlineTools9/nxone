@@ -43,6 +43,7 @@ export default function Builder({ kind }: { kind: DocumentKind }) {
       setTimeout(() => URL.revokeObjectURL(url), 4000);
       setDownloaded(true);
     } catch (e) {
+      // A closed period says so in its own words; anything else is a PDF problem.
       setError(e instanceof Error ? e.message : "The PDF could not be created.");
     } finally { setBusy(false); }
   };
@@ -59,7 +60,10 @@ export default function Builder({ kind }: { kind: DocumentKind }) {
           ))}
         </div>
         <button type="button" className="btn-primary" onClick={download} disabled={busy}><Download size={16} />{busy ? "Making your PDF" : "Download PDF"}</button>
-        <button type="button" className="btn-ghost" onClick={() => { s.save(); setJustSaved(true); setTimeout(() => setJustSaved(false), 2500); }}>
+        <button type="button" className="btn-ghost" onClick={() => {
+          try { setError(""); s.save(); setJustSaved(true); setTimeout(() => setJustSaved(false), 2500); }
+          catch (e) { setError(e instanceof Error ? e.message : "That could not be saved."); }
+        }}>
           {justSaved ? <><Check size={16} className="text-ok" />Saved</> : <><Save size={16} />{s.savedId ? "Update saved copy" : "Save"}</>}
         </button>
         <button type="button" className="btn-ghost" onClick={() => window.print()}><Printer size={16} />Print</button>
@@ -82,7 +86,7 @@ export default function Builder({ kind }: { kind: DocumentKind }) {
 
       <div className="grid gap-8 lg:grid-cols-2">
         <div className={tab === "edit" ? "" : "hidden lg:block"}>
-          <Editor doc={s.doc} totals={s.totals} update={s.update} updateItem={s.updateItem} addItem={s.addItem} removeItem={s.removeItem} moveItem={s.moveItem} setCountry={s.setCountry} />
+          <Editor doc={s.doc} totals={s.totals} update={s.update} updateItem={s.updateItem} addItem={s.addItem} removeItem={s.removeItem} moveItem={s.moveItem} setCountry={s.setCountry} documentId={s.savedId} />
         </div>
         <div className={`lg:sticky lg:top-24 lg:self-start ${tab === "preview" ? "" : "hidden lg:block"}`}>
           <div className="overflow-auto rounded-xl bg-line/40 p-2 sm:p-4">

@@ -1,6 +1,7 @@
 import ProfileForm from "@/components/ProfileForm";
 import DataControls from "@/components/DataControls";
 import Businesses from "@/components/Businesses";
+import LockBooks from "@/components/LockBooks";
 import SyncPanel from "@/components/SyncPanel";
 import DemoControls from "@/components/DemoControls";
 import Notifications from "@/components/Notifications";
@@ -15,7 +16,7 @@ export default function Page() {
         <p className="mt-2 text-ink-soft">Fill this in once and every invoice, quotation, purchase order and receipt starts from it. All of it stays on this device.</p>
       </header>
       <div className="mt-6"><ProfileForm /></div>
-      <div className="mt-10 space-y-6"><SyncPanel /><Notifications /><Businesses /><DemoControls /><DataControls /></div>
+      <div className="mt-10 space-y-6"><SyncPanel /><Notifications /><LockBooks /><Businesses /><DemoControls /><DataControls /></div>
     </div>
   );
 }

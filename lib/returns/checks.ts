@@ -1,6 +1,6 @@
 import { calculate } from "../documents/totals";
 import { balances } from "../ledger/journal";
-import { ledgerFor } from "../ledger/posting";
+import { ledgerFor, toExpenseInput } from "../ledger/posting";
 import type { Expense, Profile, SavedDocument } from "../store/types";
 import { B2CL_THRESHOLDS, type Gstr1, type ReturnPeriod } from "./gstr1";
 import { rateFor } from "../fx";
@@ -152,10 +152,7 @@ export function checksFor(opts: {
   }
 
   /* ---- what the books say the tax was ---- */
-  const ledger = ledgerFor(documents, expenses.filter((e) => !e.deletedAt).map((e) => ({
-    id: e.id, date: e.date, supplier: e.supplier, category: e.category, currency: e.currency,
-    netMinor: e.netMinor, taxMinor: e.taxMinor, paidFrom: e.paidFrom, stockQuantity: e.stockQuantity
-  })), currency);
+  const ledger = ledgerFor(documents, expenses.filter((e) => !e.deletedAt).map(toExpenseInput), currency);
   const posted = balances(ledger, currency, period.from, period.to).find((r) => r.code === "2100")?.balance.minor ?? 0;
   const inReturn = opts.return.totals.taxMinor;
   const drift = Math.abs(posted - inReturn);

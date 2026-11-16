@@ -18,6 +18,8 @@ import type { SavedDocument } from "@/lib/store/types";
 import { formatMoney } from "@/lib/money";
 
 interface Props {
+  /** Set once the document has been saved, so a payment link can point at it. */
+  documentId?: string;
   doc: DocumentData;
   totals: DocumentTotals;
   update: (patch: Partial<DocumentData>) => void;
@@ -28,7 +30,7 @@ interface Props {
   setCountry: (code: string) => void;
 }
 
-export default function Editor({ doc, totals, update, updateItem, addItem, removeItem, moveItem, setCountry }: Props) {
+export default function Editor({ doc, totals, update, updateItem, addItem, removeItem, moveItem, setCountry, documentId }: Props) {
   const [ws, db] = useWorkspace();
   const hydrated = useHydrated();
   const pack = packFor(doc.country);
@@ -244,7 +246,7 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
         <button type="button" className="btn-ghost mt-4" onClick={addItem}><Plus size={16} />Add item</button>
       </section>
 
-      {kind.showPaymentDetails ? <PaymentBox doc={doc} update={update} /> : null}
+      {kind.showPaymentDetails ? <PaymentBox doc={doc} update={update} totals={totals} documentId={documentId} /> : null}
 
       <SignatureBox doc={doc} update={update} />
 

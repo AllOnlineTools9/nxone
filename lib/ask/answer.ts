@@ -5,7 +5,7 @@ import { calendarFor, nextDeadline } from "../compliance/calendar";
 import { formatDate } from "../format";
 import { trialBalance } from "../ledger/journal";
 import { openingOf } from "../ledger/opening";
-import { ledgerFor } from "../ledger/posting";
+import { ledgerFor, toExpenseInput } from "../ledger/posting";
 import { profitAndLoss } from "../ledger/statements";
 import { formatMoney, fromMinor, type Money } from "../money";
 import { reportFor, financialYear, monthPeriod, quarterPeriod, type Period as ReportPeriod } from "../store/reports";
@@ -78,10 +78,7 @@ export function ask(question: string, context: AskContext): Answer {
   const { documents, expenses, today, currency, profile } = context;
   const range = rangeFor(intent.period, today);
   const opening = openingOf(profile);
-  const ledger = ledgerFor(documents, expenses.filter((e) => !e.deletedAt).map((e) => ({
-    id: e.id, date: e.date, supplier: e.supplier, category: e.category, currency: e.currency,
-    netMinor: e.netMinor, taxMinor: e.taxMinor, paidFrom: e.paidFrom
-  })), currency, opening);
+  const ledger = ledgerFor(documents, expenses.filter((e) => !e.deletedAt).map(toExpenseInput), currency, opening);
 
   const understood = `${intent.name.replace(/-/g, " ")}, ${range.label}`;
   const pl = () => profitAndLoss(ledger, currency, range.from, range.to);

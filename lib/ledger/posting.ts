@@ -31,6 +31,9 @@ export interface PaymentInput {
 }
 
 export interface ExpenseInput {
+  /** Tax held back from the supplier, owed to the government rather than paid out. */
+  tdsMinor?: number;
+  tdsSection?: string;
   id?: string;
   date: string;
   supplier: string;
@@ -159,15 +162,41 @@ export function postPayment(input: PaymentInput): JournalEntry {
 }
 
 /** Something you bought: a cost, any reclaimable tax, and either cash out or a supplier owed. */
+/**
+ * An expense, narrowed to what the ledger needs.
+ *
+ * Written once because it has been written three times by hand, and each time a newly added
+ * field was silently left behind — stock quantities once, tax deducted nearly a second time.
+ * A field added to Expense now reaches the books everywhere or nowhere, which is a failure
+ * somebody notices.
+ */
+export function toExpenseInput(e: {
+  id: string; date: string; supplier: string; description?: string; category: string;
+  currency: string; netMinor: number; taxMinor: number; paidFrom?: string;
+  stockQuantity?: number; fxRate?: number; tdsMinor?: number; tdsSection?: string;
+}): ExpenseInput {
+  return {
+    id: e.id, date: e.date, supplier: e.supplier, description: e.description, category: e.category,
+    currency: e.currency, netMinor: e.netMinor, taxMinor: e.taxMinor, paidFrom: e.paidFrom,
+    stockQuantity: e.stockQuantity, fxRate: e.fxRate, tdsMinor: e.tdsMinor, tdsSection: e.tdsSection
+  };
+}
+
 export function postExpense(input: ExpenseInput, fx?: Fx): JournalEntry {
   const tax = input.taxMinor ?? 0;
   const gross = input.netMinor + tax;
+  // Tax held back never leaves the business: the supplier is paid less, and the difference is
+  // owed to the government until it is deposited. Treating it as cash paid out would overstate
+  // what went out of the bank and hide a liability that carries interest.
+  const held = Math.min(input.tdsMinor ?? 0, gross);
+  const toSupplier = gross - held;
   const lines = [
     { account: input.category, debit: input.netMinor, memo: input.description || input.supplier },
     ...(tax > 0 ? [{ account: "1400", debit: tax, memo: "Reclaimable tax" }] : []),
+    ...(held > 0 ? [{ account: "2430", credit: held, memo: `Tax deducted${input.tdsSection ? ` under ${input.tdsSection}` : ""}` }] : []),
     input.paidFrom
-      ? { account: input.paidFrom, credit: gross, memo: input.supplier }
-      : { account: "2010", credit: gross, memo: input.supplier }
+      ? { account: input.paidFrom, credit: toSupplier, memo: input.supplier }
+      : { account: "2010", credit: toSupplier, memo: input.supplier }
   ];
 
   const foreign = fx && fx.base !== input.currency;

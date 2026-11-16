@@ -1,5 +1,5 @@
 "use client";
-import { BookOpen, Building2, CalendarClock, CalendarSync, Calculator, ChartColumn, FileSpreadsheet, FileText, FlaskConical, FolderOpen, HandCoins, Landmark, LayoutDashboard, MessageCircleQuestion, Quote, Package, Receipt, Search, ShoppingCart, Stamp, Sun, UsersRound, TrendingDown, Users, Wallet, X } from "lucide-react";
+import { BookOpen, Building2, CalendarClock, CalendarSync, Calculator, ChartColumn, FileSpreadsheet, FileText, FlaskConical, FolderOpen, HandCoins, Landmark, LayoutDashboard, MessageCircleQuestion, Quote, Package, Receipt, Search, ShoppingCart, Stamp, Sun, UsersRound, TrendingDown, Users, Wallet, X, ShieldCheck, Scissors } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
@@ -21,6 +21,8 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string;
       { href: "/reports", label: "Reports", icon: ChartColumn },
       { href: "/compliance", label: "Filing calendar", icon: CalendarClock },
       { href: "/gst-returns", label: "GST returns", icon: FileSpreadsheet },
+      { href: "/input-credit", label: "Input credit", icon: ShieldCheck },
+      { href: "/tds", label: "TDS", icon: Scissors },
       { href: "/e-invoicing", label: "E-invoicing", icon: Stamp }
     ]
   },

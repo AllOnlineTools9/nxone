@@ -32,6 +32,8 @@ export default function DocumentList({ limit, title }: { limit?: number; title?:
   const ready = useHydrated();
   const [filter, setFilter] = useState<"all" | DocumentStatus>("all");
   const [query, setQuery] = useState("");
+  /** What the books refused, and why, when a closed period is touched. */
+  const [refused, setRefused] = useState("");
 
   if (!ready) return <div className="h-64 animate-pulse rounded-xl border border-line bg-white/60" aria-hidden="true" />;
 
@@ -72,6 +74,12 @@ export default function DocumentList({ limit, title }: { limit?: number; title?:
       ) : null}
 
       <div className="overflow-hidden rounded-xl border border-line bg-white">
+        {refused ? (
+          <p role="alert" className="mb-4 rounded-lg border border-warn/30 bg-warn/5 p-3 text-sm text-warn">
+            {refused} <button type="button" className="underline" onClick={() => setRefused("")}>Dismiss</button>
+          </p>
+        ) : null}
+
         <table className="w-full border-collapse text-sm">
           <thead className="bg-canvas text-left">
             <tr>
@@ -113,7 +121,7 @@ export default function DocumentList({ limit, title }: { limit?: number; title?:
                       aria-label={`Status of ${d.number}`}
                       className={`rounded-md px-2 py-1 text-xs font-semibold ${STATUS[d.status].className}`}
                       value={d.status}
-                      onChange={(e) => store.setStatus(d.id, e.target.value as DocumentStatus)}
+                      onChange={(e) => { try { store.setStatus(d.id, e.target.value as DocumentStatus); } catch (err) { setRefused(err instanceof Error ? err.message : "That could not be changed."); } }}
                     >
                       {(Object.keys(STATUS) as DocumentStatus[]).map((k) => <option key={k} value={k}>{STATUS[k].label}</option>)}
                     </select>
@@ -130,7 +138,7 @@ export default function DocumentList({ limit, title }: { limit?: number; title?:
                           aria-label={`${conversionsFor(d.kind)[0].label} from ${d.number}`}
                         ><ArrowRight size={15} /></Link>
                       ) : null}
-                      <button type="button" onClick={() => { if (confirm(`Delete ${d.number}? This cannot be undone.`)) store.deleteDocument(d.id); }}
+                      <button type="button" onClick={() => { if (confirm(`Delete ${d.number}? This cannot be undone.`)) { try { store.deleteDocument(d.id); } catch (err) { setRefused(err instanceof Error ? err.message : "That could not be deleted."); } } }}
                         className="rounded p-1.5 text-ink-faint hover:bg-canvas hover:text-bad" aria-label={`Delete ${d.number}`}><Trash2 size={15} /></button>
                     </div>
                   </td>

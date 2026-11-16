@@ -126,3 +126,36 @@ export const setMemberRole = (userId: string, role: TeamRole) =>
 
 export const removeMember = (userId: string) =>
   call<{ ok: boolean; note: string; team: TeamView }>("/team/remove", { method: "POST", body: JSON.stringify({ userId }) });
+
+/* ------------------------------------------------------- paying an invoice */
+
+export interface PaymentLinkResult {
+  url: string | null;
+  reference?: string;
+  expiresAt?: string;
+  reused?: boolean;
+  connected?: boolean;
+  note?: string;
+}
+
+export interface ArrivedPayment {
+  documentId: string;
+  amountMinor: number;
+  paidOn: string;
+  method?: string;
+  reference?: string;
+}
+
+/** Ask for a link the customer can pay through. The provider's secret never reaches the device. */
+export const paymentLink = (input: {
+  documentId: string; number: string; amountMinor: number; currency: string;
+  description?: string; customer?: { name?: string; email?: string; phone?: string };
+  dueDate?: string; returnTo?: string;
+}) => call<PaymentLinkResult>("/payments/link", { method: "POST", body: JSON.stringify(input) });
+
+/** Payments that have arrived and that this device has not applied yet. */
+export const paymentsArrived = () => call<{ payments: ArrivedPayment[] }>("/payments/arrived");
+
+/** Tell the server they have been applied, so the same payment is never recorded twice. */
+export const paymentsApplied = (documentIds: string[]) =>
+  call<{ ok: boolean; marked: number }>("/payments/applied", { method: "POST", body: JSON.stringify({ documentIds }) });

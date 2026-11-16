@@ -1,7 +1,7 @@
 import { calculate } from "../documents/totals";
 import { booksView, convertMinor, rateFor } from "../fx";
 import { openingOf } from "../ledger/opening";
-import { ledgerFor } from "../ledger/posting";
+import { ledgerFor, toExpenseInput } from "../ledger/posting";
 import { cashFlow, profitAndLoss } from "../ledger/statements";
 import { monthPeriod } from "../store/reports";
 import type { CatalogueItem, Expense, Profile, SavedDocument } from "../store/types";
@@ -67,11 +67,7 @@ export function wholeMonthsBefore(today: string, months: number): { from: string
   };
 }
 
-const forLedger = (expenses: Expense[]) =>
-  expenses.filter((e) => !e.deletedAt).map((e) => ({
-    id: e.id, date: e.date, supplier: e.supplier, description: e.description, category: e.category,
-    currency: e.currency, netMinor: e.netMinor, taxMinor: e.taxMinor, paidFrom: e.paidFrom, stockQuantity: e.stockQuantity, fxRate: e.fxRate
-  }));
+const forLedger = (expenses: Expense[]) => expenses.filter((e) => !e.deletedAt).map(toExpenseInput);
 
 const isSale = (d: SavedDocument) => d.kind === "invoice" || d.kind === "proforma";
 const owedOn = (d: SavedDocument) => Math.max(0, d.totalMinor - d.paidMinor);

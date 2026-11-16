@@ -1,101 +1,93 @@
-NXONE — WHAT CHANGED THIS ROUND
-===============================
+NXONE — CLOSING THE BOOKS, INPUT CREDIT, TDS, PAYMENT LINKS
+===========================================================
 
-16 files. Verified: 634 app tests, 68 server tests, build clean, and every
+37 files. Verified: 716 app tests, 90 server tests, build clean, and every new
 screen driven in a real browser with no console errors.
 
   cd /workspaces/nxone
-  unzip -q nxone-businesses-books-statements.zip
-  cp -r nxone-businesses-books-statements/. .
-  rm -rf nxone-businesses-books-statements nxone-businesses-books-statements.zip
-  git status --short      # expect 16
+  unzip -q nxone-compliance.zip
+  cp -r nxone-compliance/. .
+  rm -rf nxone-compliance nxone-compliance.zip
   npm test && npm run build
+  git add -A && git commit -m "Close the books, match input credit, hold back TDS, payment links" && git push
+  npm run deploy
+
+Nothing new to install. The server gains a migration; it is applied when the
+API is first deployed, along with the three before it.
 
 
-1. BUSINESSES CAN NOW BE REMOVED, RENAMED AND DOWNLOADED
---------------------------------------------------------
-  You found this: they could be added and nothing else. The remove function
-  existed with all its guards and had no button on it.
+1. CLOSING THE BOOKS ON A FILED PERIOD
+--------------------------------------
+  Nothing stopped a filed month from being edited, so the books and the return
+  could drift apart silently and the first you would hear of it is a notice.
 
-  Settings now has "Businesses on this device": open, rename, download or
-  remove each one, and download all of them in a single file for moving to
-  another computer. The business switcher links to it.
+  Settings → Closing the books sets a date. Everything on or before it is
+  closed: no edits, no deletions, no payments recorded into it, and no new
+  document dated inside it — a document can be moved into a closed period as
+  easily as edited inside one, and both are stopped. The GST returns screen
+  offers to close the books when a return is filed, which is the moment it
+  matters.
 
-  Each one's books can be downloaded without opening it — with two businesses
-  nobody should have to switch back and forth to take two backups.
+  Refusals say what to do instead — a credit note dated today, not an edit to
+  what was filed — and name the dates the way you read them. Moving the lock
+  back is allowed but never silent: it says what it is reopening.
 
-  Nothing is removed until its books have been downloaded: the remove button
-  stays disabled and says "Download first". The files are on that device and
-  nowhere else, so a removal with no copy is a loss, not a tidy-up. A business
-  that cannot be removed — the only one, or the first set of books — shows no
-  remove button at all, and says why, rather than refusing after you press it.
+2. INPUT CREDIT, CHECKED AGAINST GSTR-2B
+----------------------------------------
+  The only GST work that cannot come from your own records, because it is
+  about whether your suppliers filed. Upload the portal's GSTR-2B JSON and it
+  matches bill by bill: what agrees, what your supplier has not filed (credit
+  at risk), what is on the portal that you never recorded, what the portal has
+  blocked, and what cannot be matched at all. Each supplier who has not filed
+  gets a written message naming the invoices and what they are worth.
 
-  NEW  components/Businesses.tsx
-  CHG  lib/store/entities.ts        EntitiesExport, whyNotRemovable
-  CHG  components/EntitySwitcher.tsx
-  CHG  app/(app)/settings/page.tsx
-  CHG  tests/entities.test.ts
+  Matching ignores punctuation and padding, so INV/2026/0012 and inv-2026-12
+  are one invoice. Two traps in the portal's format are handled: `val` is the
+  whole invoice including tax, not the taxable value, and credit notes sit in
+  a separate section and count the other way. An unrecorded credit note is
+  never presented as credit to claim — it reduces what you may claim.
 
+  Bills now carry the supplier's GSTIN, checked as you type.
 
-2. SEND THE BOOKS TO YOUR ACCOUNTANT
-------------------------------------
-  On Reports. Pick a month, quarter or financial year and get one folder: the
-  profit and loss, the balance sheet, the trial balance, every posting behind
-  them, and the sales and expenses they came from — as CSV, which every
-  accounting package imports. A covering note inside gives the headline
-  figures, says how the books were prepared, says plainly that no accountant
-  has reviewed them, and says so if the balance sheet does not balance.
+3. TAX HELD BACK FROM SUPPLIERS
+-------------------------------
+  Mark the section on a bill and the amount to hold back is worked out, with
+  the year's earlier payments to that supplier taken into account — the
+  threshold is on the year, not on the bill in front of you. Under 194C
+  nothing is due until payments pass ₹1,00,000, and then it is due on all of
+  them, including those already paid in full. That retrospective step is what
+  catches businesses out, so a supplier getting close is flagged before the
+  next bill rather than after.
 
-  The email is written for you, with the figures in the message as well as the
-  files, so an accountant on a phone can see whether anything looks wrong
-  before opening an attachment.
+  The screen shows what should have been held back and was not, when each
+  deposit is due (the 7th, except March), and a 26Q by deductee for any
+  quarter. Tax held back is now posted as owed to the government rather than
+  as cash paid out, so the balance sheet shows the liability.
 
-  The ZIP is written by hand — about a hundred lines, no new dependency — and
-  checked against the real unzip in the tests.
+  Rates and thresholds are read from published rate charts, not from the
+  department's own notification, so every rule carries its date and source and
+  the screen says plainly that they are unverified.
 
-  NEW  lib/files/zip.ts
-  NEW  lib/reports/pack.ts
-  NEW  components/BooksPack.tsx
-  NEW  tests/pack.test.ts
-  CHG  app/(app)/reports/page.tsx
+4. PAYMENT LINKS ON INVOICES
+----------------------------
+  A link covering cards, net banking and UPI, which works from abroad and —
+  the point — tells us when the money arrived, so the invoice marks itself
+  paid. One live link per invoice: a second link for the same bill is how a
+  customer pays twice.
 
+  An unsigned webhook records nothing. A payment that would take an invoice
+  past its total, or that lands on a cancelled or already-settled invoice, is
+  shown rather than applied: money appearing twice is harder to unpick than
+  money appearing a day late.
 
-3. STATEMENT OF ACCOUNT
------------------------
-  On Owed to you. Everything one customer owes: every invoice, what was paid
-  against each, what is left, how late it is, and the whole thing aged. The
-  chase list told you who to chase and gave you nothing to send them.
+  This needs the API deployed and a Razorpay account. Until then the button
+  does not appear and the UPI code works as before.
 
-  Credit notes count against the balance, quotations are ignored, and the
-  lines go in the message itself rather than an attachment — a statement is
-  short, and an email you must open a file to understand waits until tomorrow.
-  A customer who owes nothing gets a thank-you, not a chase.
+ALSO
+  A payment date. There was none: the ledger guessed from updatedAt, so
+  editing a paid invoice moved the cash into another month. (Shipped last
+  round; the books pack is what exposed it.)
 
-  NEW  lib/analysis/statement.ts
-  NEW  components/Statement.tsx
-  CHG  app/(app)/receivables/page.tsx
-
-
-4. A BUG THE ACCOUNTANT PACK EXPOSED
-------------------------------------
-  There was no payment date in the data at all. The ledger guessed: updatedAt
-  if the invoice was paid, the invoice date otherwise. So a part payment was
-  booked as received on the day the invoice was raised, and editing a paid
-  invoice months later silently moved the cash into another month — your books
-  changed retroactively with nobody touching a payment.
-
-  Documents now record paidOn, set the first time money arrives. Records made
-  before this keep the old guess, which is no worse than it was.
-
-  CHG  lib/store/types.ts      paidOn
-  CHG  lib/store/db.ts         setStatus records it
-  CHG  lib/ledger/posting.ts   the ledger uses it
-
-  Marking an invoice paid uses today's date. If you often record payments days
-  later, a date box on that action is the next small thing worth adding.
-
-
-STILL PENDING, UNCHANGED
-  Logins and sending from NXOne's own address both need the API deployed —
-  that is the Cloudflare token step we parked, not a feature. Invoice sending
-  by email and WhatsApp is in the previous patch (nxone-send-and-convert).
+  The three places that narrowed an expense for the ledger by hand are now one
+  function. That hand-copying had already dropped stock quantities once and
+  nearly dropped the tax held back.

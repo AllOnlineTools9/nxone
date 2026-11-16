@@ -6,6 +6,7 @@ import {
 } from "./auth/tokens";
 import { PLANS, TRIAL_DAYS, entitlementsFor, planById, priceFor } from "./billing/plans";
 import { paymentProvider } from "./billing/provider";
+import { linkProvider, type PaymentNotice } from "./payments/links";
 import * as schema from "./db/schema";
 import { emailSender, inviteEmail, loginEmail } from "./http/email";
 import { corsHeaders, json, problem, rateLimit } from "./http/respond";
@@ -32,6 +33,8 @@ export interface Env {
   RAZORPAY_KEY_SECRET?: string;
   /** Maps our plan and period to the provider's own plan ids, as JSON. */
   RAZORPAY_PLANS?: string;
+  /** Razorpay signs webhooks with its own secret, separate from the API key. */
+  RAZORPAY_WEBHOOK_SECRET?: string;
 }
 
 const uid = (prefix: string) => `${prefix}_${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;
@@ -552,6 +555,117 @@ export default {
           checkoutConnected: paymentProvider(env).live,
           plans: PLANS.map((p) => ({ id: p.id, name: p.name, summary: p.summary, features: p.features, limits: p.limits, price: priceFor(p, country) }))
         }));
+      }
+
+      /* ---------- a link a customer can pay an invoice through ---------- */
+      if (url.pathname === "/payments/link" && req.method === "POST") {
+        const found = await currentSession(req, env);
+        if (!found?.session.orgId) return reply(problem(401, "Not signed in."));
+
+        const body = await req.json().catch(() => null) as {
+          documentId?: string; number?: string; amountMinor?: number; currency?: string;
+          description?: string; customer?: { name?: string; email?: string; phone?: string };
+          dueDate?: string; returnTo?: string;
+        } | null;
+
+        if (!body?.documentId || !body.number || !body.amountMinor || !body.currency) {
+          return reply(problem(400, "An invoice id, number, amount and currency are needed."));
+        }
+        if (body.amountMinor <= 0) return reply(problem(400, "There is nothing to pay on that invoice."));
+
+        // One live link per invoice: a second link for the same bill is how a customer ends up
+        // paying twice, and refunding that costs more than the invoice was worth.
+        const existing = await db.select().from(schema.paymentLinks)
+          .where(and(eq(schema.paymentLinks.orgId, found.session.orgId), eq(schema.paymentLinks.documentId, body.documentId)))
+          .limit(1);
+        const already = existing[0];
+        if (already && !already.paidAt && (!already.expiresAt || already.expiresAt.getTime() > Date.now())) {
+          return reply(json({ url: already.url, reference: already.reference, reused: true }));
+        }
+
+        const links = linkProvider(env);
+        const made = await links.create({
+          orgId: found.session.orgId,
+          documentId: body.documentId,
+          number: body.number,
+          amountMinor: body.amountMinor,
+          currency: body.currency,
+          description: body.description ?? `Invoice ${body.number}`,
+          customer: body.customer ?? {},
+          dueDate: body.dueDate,
+          returnTo: body.returnTo
+        });
+
+        if (!made.url) return reply(json({ url: null, connected: links.live, note: made.note }));
+
+        await db.insert(schema.paymentLinks).values({
+          id: uid("pl"), orgId: found.session.orgId, documentId: body.documentId, number: body.number,
+          amountMinor: body.amountMinor, currency: body.currency, reference: made.reference, url: made.url,
+          expiresAt: made.expiresAt ? new Date(made.expiresAt) : null,
+          createdBy: found.session.userId, createdAt: new Date()
+        });
+
+        return reply(json({ url: made.url, reference: made.reference, expiresAt: made.expiresAt }));
+      }
+
+      /* ---------- the provider telling us money arrived ---------- */
+      if (url.pathname === "/payments/webhook" && req.method === "POST") {
+        const links = linkProvider(env);
+        const raw = await req.text();
+        const signed = await links.verifyWebhook(raw, req.headers.get("X-Razorpay-Signature"));
+        // An unsigned webhook is somebody claiming an invoice was paid. Nothing is recorded.
+        if (!signed) return reply(problem(401, "That webhook was not signed by the payment provider."));
+
+        const paid = links.readPaid(raw);
+        if (!paid) return reply(json({ ok: true, ignored: true }));
+
+        const rows = await db.select().from(schema.paymentLinks)
+          .where(eq(schema.paymentLinks.reference, paid.reference)).limit(1);
+        const link = rows[0];
+        if (!link) return reply(json({ ok: true, unknown: true }));
+        if (link.paidAt) return reply(json({ ok: true, alreadyRecorded: true }));
+
+        await db.update(schema.paymentLinks).set({
+          paidAt: new Date(), paidOn: paid.paidOn, paidAmountMinor: paid.amountMinor,
+          method: paid.method ?? null, paymentReference: paid.paymentReference ?? null
+        }).where(eq(schema.paymentLinks.id, link.id));
+
+        return reply(json({ ok: true }));
+      }
+
+      /* ---------- payments the device has not been told about yet ---------- */
+      if (url.pathname === "/payments/arrived" && req.method === "GET") {
+        const found = await currentSession(req, env);
+        if (!found?.session.orgId) return reply(problem(401, "Not signed in."));
+
+        const rows = await db.select().from(schema.paymentLinks)
+          .where(and(eq(schema.paymentLinks.orgId, found.session.orgId), eq(schema.paymentLinks.deliveredAt, null as unknown as Date)));
+
+        const notices: PaymentNotice[] = rows
+          .filter((r) => r.paidAt && !r.deliveredAt)
+          .map((r) => ({
+            documentId: r.documentId,
+            amountMinor: r.paidAmountMinor ?? r.amountMinor,
+            paidOn: r.paidOn ?? new Date().toISOString().slice(0, 10),
+            method: r.method ?? undefined,
+            reference: r.paymentReference ?? undefined
+          }));
+
+        return reply(json({ payments: notices }));
+      }
+
+      /* ---------- the device confirming it has applied them ---------- */
+      if (url.pathname === "/payments/applied" && req.method === "POST") {
+        const found = await currentSession(req, env);
+        if (!found?.session.orgId) return reply(problem(401, "Not signed in."));
+        const body = await req.json().catch(() => null) as { documentIds?: string[] } | null;
+        const ids = (body?.documentIds ?? []).filter((x) => typeof x === "string").slice(0, 200);
+        if (ids.length === 0) return reply(json({ ok: true, marked: 0 }));
+
+        await db.update(schema.paymentLinks).set({ deliveredAt: new Date() })
+          .where(and(eq(schema.paymentLinks.orgId, found.session.orgId), inArray(schema.paymentLinks.documentId, ids)));
+
+        return reply(json({ ok: true, marked: ids.length }));
       }
 
       /* ---------- start paying ---------- */

@@ -1,5 +1,6 @@
 import type { DocumentKind } from "../documents/types";
-import { todayIso } from "../format";
+import { formatDate, todayIso } from "../format";
+import { PeriodClosed, isLocked, refusal } from "../books/lock";
 import { emptyWorkspace, type CatalogueItem, type Client, type Expense, type Profile, type RecurringTemplate, type SavedDocument, type SavedScenario, type SavedEmployee, type SavedPayRun, type Workspace } from "./types";
 
 /**
@@ -154,12 +155,31 @@ export class Store {
   getDocument(id: string) { return this.read().documents.find((d) => d.id === id); }
 
   /** Saving the same number twice updates that document rather than piling up duplicates. */
+  /**
+   * Refuse to touch a closed period. Checked on the way in and on the way out: a document can
+   * be moved *into* a closed period as well as edited inside one, and both have to be stopped
+   * or the lock means nothing.
+   */
+  private guardLock(what: "document" | "expense", ...dates: Array<string | undefined>) {
+    const profile = this.read().profile;
+    const lockedUpTo = profile?.lockedUpTo;
+    if (!lockedUpTo) return;
+    // Dates in the reader's own format: a refusal that says 2026-09-10 to somebody who sees
+    // 10/09/2026 on every screen reads like it is about a different document.
+    const show = (iso: string) => formatDate(iso, profile?.country ?? "IN");
+    for (const date of dates) {
+      if (date && isLocked(date, lockedUpTo)) throw new PeriodClosed(date, lockedUpTo, refusal(what, date, lockedUpTo, show));
+    }
+  }
+
   saveDocument(input: Omit<SavedDocument, "id" | "createdAt" | "updatedAt"> & { id?: string }): SavedDocument {
     const now = new Date().toISOString();
     const ws = this.read();
     // the number is the real identity of a document, so saving the same one twice updates it
     const existing = (input.id ? ws.documents.find((d) => d.id === input.id) : undefined)
       ?? ws.documents.find((d) => d.kind === input.kind && d.number === input.number);
+
+    this.guardLock("document", input.issueDate, existing?.issueDate);
 
     const saved: SavedDocument = existing
       ? { ...existing, ...input, id: existing.id, createdAt: existing.createdAt, updatedAt: now, version: (existing.version ?? 1) + 1, deletedAt: undefined }
@@ -170,6 +190,8 @@ export class Store {
   }
 
   setStatus(id: string, status: SavedDocument["status"], paidMinor?: number, paidOn?: string) {
+    // The payment lands on the day the money arrived, so that is the date that must be open.
+    this.guardLock("document", paidOn ?? todayIso());
     const ws = this.read();
     this.write({
       ...ws,
@@ -188,7 +210,10 @@ export class Store {
     });
   }
 
-  deleteDocument(id: string) { this.tombstone("documents", id); }
+  deleteDocument(id: string) {
+    this.guardLock("document", this.read().documents.find((d) => d.id === id)?.issueDate);
+    this.tombstone("documents", id);
+  }
 
   /* ---- expenses ---- */
 
@@ -201,6 +226,8 @@ export class Store {
     const ws = this.read();
     const list = ws.expenses ?? [];
     const existing = input.id ? list.find((e) => e.id === input.id) : undefined;
+    this.guardLock("expense", input.date, existing?.date);
+
     const saved: Expense = existing
       ? { ...existing, ...input, id: existing.id, createdAt: existing.createdAt, updatedAt: now, version: (existing.version ?? 1) + 1, deletedAt: undefined }
       : { ...input, id: newId("ex"), createdAt: now, updatedAt: now, version: 1 };
@@ -209,7 +236,10 @@ export class Store {
     return saved;
   }
 
-  deleteExpense(id: string) { this.tombstone("expenses", id); }
+  deleteExpense(id: string) {
+    this.guardLock("expense", (this.read().expenses ?? []).find((e) => e.id === id)?.date);
+    this.tombstone("expenses", id);
+  }
 
   /**
    * Deleting marks the row instead of removing it, so your other devices learn about it. A row the

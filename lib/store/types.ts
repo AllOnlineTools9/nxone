@@ -23,6 +23,11 @@ export interface Profile extends Syncable {
   /** What was in the bank when you started using NXOne, so cash is right from day one. */
   openingCashMinor?: number;
   openingCashDate?: string;
+  /**
+   * The books are closed on and before this date: nothing dated inside it can be changed.
+   * Set when a return is filed, so what was filed and what the books say cannot drift apart.
+   */
+  lockedUpTo?: string;
   /** What the business is registered for, which decides the filing calendar. */
   registrations?: Registration[];
   /** Indian businesses on the QRMP scheme file GST quarterly rather than monthly. */
@@ -147,6 +152,19 @@ export interface Expense extends Syncable {
   paidFrom?: string;
   /** Bill or receipt number, for matching later. */
   reference?: string;
+  /**
+   * The supplier's GSTIN. Without it a purchase cannot be matched against GSTR-2B, which is
+   * what decides whether the tax on it can actually be claimed.
+   */
+  supplierGstin?: string;
+  /** The supplier's PAN. Without it, tax is deducted at a fifth rather than the usual rate. */
+  supplierPan?: string;
+  /** Individuals and HUFs attract a lower rate under some sections. */
+  supplierType?: "individual" | "other";
+  /** Which section of the income tax act this payment falls under, when tax has to be held back. */
+  tdsSection?: string;
+  /** What was actually held back from the supplier and is owed to the government. */
+  tdsMinor?: number;
   /** The photographed bill, kept with the expense so the paperwork is where the money is. */
   receiptDataUrl?: string;
   receiptFileName?: string;
