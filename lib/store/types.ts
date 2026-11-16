@@ -152,6 +152,8 @@ export interface Expense extends Syncable {
   paidFrom?: string;
   /** Bill or receipt number, for matching later. */
   reference?: string;
+  /** The purchase order this bill is against, so the two can be compared. */
+  orderId?: string;
   /**
    * The supplier's GSTIN. Without it a purchase cannot be matched against GSTR-2B, which is
    * what decides whether the tax on it can actually be claimed.
@@ -211,6 +213,34 @@ export interface SavedPayRun extends Syncable {
 
 export type { RecurringTemplate };
 
+/**
+ * Something the business owns and uses for years rather than consumes: a laptop, a van, the
+ * fit-out of a shop. Kept apart from expenses because its cost belongs to several years, not to
+ * the month the money left.
+ */
+export interface SavedAsset {
+  id: string;
+  name: string;
+  classId: string;
+  purchasedOn: string;
+  costMinor: number;
+  currency: string;
+  salvageMinor?: number;
+  method?: "straight-line" | "written-down";
+  usefulLifeYears?: number;
+  disposedOn?: string;
+  disposalMinor?: number;
+  /** The bill it was bought on, when it started life as an expense. */
+  expenseId?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  version: number;
+  deletedAt?: string;
+  /** Set once this has reached the server, which decides whether a deletion needs a tombstone. */
+  syncedAt?: string;
+}
+
 export interface Workspace {
   version: 1;
   /** How far this device has caught up with the server, in milliseconds. */
@@ -225,7 +255,8 @@ export interface Workspace {
   recurring: RecurringTemplate[];
   scenarios: SavedScenario[];
   employees: SavedEmployee[];
+  assets?: SavedAsset[];
   payruns: SavedPayRun[];
 }
 
-export const emptyWorkspace = (): Workspace => ({ version: 1, clients: [], items: [], documents: [], expenses: [], recurring: [], scenarios: [], employees: [], payruns: [] });
+export const emptyWorkspace = (): Workspace => ({ version: 1, clients: [], items: [], documents: [], expenses: [], recurring: [], scenarios: [], employees: [], payruns: [], assets: [] });

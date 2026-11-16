@@ -16,7 +16,7 @@ export interface JournalLine {
   memo?: string;
 }
 
-export type SourceKind = "invoice" | "payment" | "expense" | "bill" | "manual" | "opening" | "reversal" | "payroll" | "stock";
+export type SourceKind = "invoice" | "payment" | "expense" | "bill" | "manual" | "opening" | "reversal" | "payroll" | "stock" | "asset" | "depreciation" | "disposal";
 
 export interface JournalEntry {
   id: string;

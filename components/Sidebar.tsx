@@ -1,5 +1,5 @@
 "use client";
-import { BookOpen, Building2, CalendarClock, CalendarSync, Calculator, ChartColumn, FileSpreadsheet, FileText, FlaskConical, FolderOpen, HandCoins, Landmark, LayoutDashboard, MessageCircleQuestion, Quote, Package, Receipt, Search, ShoppingCart, Stamp, Sun, UsersRound, TrendingDown, Users, Wallet, X, ShieldCheck, Scissors } from "lucide-react";
+import { BookOpen, Building2, CalendarClock, CalendarSync, Calculator, ChartColumn, FileSpreadsheet, FileText, FlaskConical, FolderOpen, HandCoins, Landmark, LayoutDashboard, MessageCircleQuestion, Quote, Package, Receipt, Search, ShoppingCart, Stamp, Sun, UsersRound, TrendingDown, Users, Wallet, X, ShieldCheck, Scissors, CalendarCheck, ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
@@ -30,11 +30,14 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string;
     title: "Money out",
     items: [
       { href: "/expenses", label: "Expenses", icon: TrendingDown },
+      { href: "/orders", label: "Orders and bills", icon: ClipboardList },
       { href: "/payables", label: "What you owe", icon: Receipt },
       { href: "/stock", label: "Stock", icon: Package },
+      { href: "/assets", label: "What you own", icon: Landmark },
       { href: "/payroll", label: "Payroll", icon: UsersRound },
       { href: "/bank-import", label: "Bank statement", icon: Landmark },
-      { href: "/books", label: "Accounts", icon: BookOpen }
+      { href: "/books", label: "Accounts", icon: BookOpen },
+      { href: "/year-end", label: "Year end", icon: CalendarCheck }
     ]
   },
   {

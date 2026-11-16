@@ -23,7 +23,7 @@ export default function Insights({ limit, brief = false }: { limit?: number; bri
   if (!ready) return null;
 
   const input = {
-    documents: db.documents(), expenses: db.expenses(), profile: ws.profile,
+    documents: db.documents(), expenses: db.expenses(), profile: ws.profile, assets: db.assets(),
     today: todayIso(), currency: ws.profile?.currency ?? "INR"
   };
   const found = insights(input);

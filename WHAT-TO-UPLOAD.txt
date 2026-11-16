@@ -1,93 +1,79 @@
-NXONE — CLOSING THE BOOKS, INPUT CREDIT, TDS, PAYMENT LINKS
-===========================================================
+NXONE — ASSETS, YEAR END, ORDERS AND BILLS
+==========================================
 
-37 files. Verified: 716 app tests, 90 server tests, build clean, and every new
-screen driven in a real browser with no console errors.
+26 files. Verified: 791 app tests, 90 server tests, build clean, and all three
+new screens driven in a real browser with no console errors.
 
   cd /workspaces/nxone
-  unzip -q nxone-compliance.zip
-  cp -r nxone-compliance/. .
-  rm -rf nxone-compliance nxone-compliance.zip
+  unzip -q nxone-assets-yearend-orders.zip
+  cp -r nxone-assets-yearend-orders/. .
+  rm -rf nxone-assets-yearend-orders nxone-assets-yearend-orders.zip
   npm test && npm run build
-  git add -A && git commit -m "Close the books, match input credit, hold back TDS, payment links" && git push
+  git add -A && git commit -m "Fixed assets, year end, orders against bills" && git push
   npm run deploy
 
-Nothing new to install. The server gains a migration; it is applied when the
-API is first deployed, along with the three before it.
+Nothing new to install. Three new screens: /assets, /year-end, /orders.
 
 
-1. CLOSING THE BOOKS ON A FILED PERIOD
---------------------------------------
-  Nothing stopped a filed month from being edited, so the books and the return
-  could drift apart silently and the first you would hear of it is a notice.
+1. WHAT YOU OWN
+---------------
+  A laptop bought outright is not a cost in the month it was bought; it is a
+  cost spread over the years it is used. Recorded as a cost on the day, the
+  month looks far worse than it was and the next three look better — and it is
+  the adjustment an accountant makes by hand every year end.
 
-  Settings → Closing the books sets a date. Everything on or before it is
-  closed: no edits, no deletions, no payments recorded into it, and no new
-  document dated inside it — a document can be moved into a closed period as
-  easily as edited inside one, and both are stopped. The GST returns screen
-  offers to close the books when a return is filed, which is the moment it
-  matters.
+  The register holds what each thing cost, what it has worn down by and what
+  it is worth now, pro-rated by days in the year it was bought. Depreciation
+  posts into the books on the last day of each finished year, never for a year
+  still running. Selling one clears the cost and the wear and books the gain
+  or loss.
 
-  Refusals say what to do instead — a credit note dated today, not an edit to
-  what was filed — and name the dates the way you read them. Moving the lock
-  back is allowed but never silent: it says what it is reopening.
+  Two columns of figures on purpose. The books spread a cost over the life of
+  the thing; the tax computation pools assets into blocks and writes each
+  block down at its own rate — and anything bought with fewer than 180 days
+  left in the year gets half that rate, which is the rule most often missed. A
+  sale is not a gain for tax at all: the proceeds come off the block. The
+  screen says all of this rather than leaving somebody to wonder which figure
+  is wrong.
 
-2. INPUT CREDIT, CHECKED AGAINST GSTR-2B
-----------------------------------------
-  The only GST work that cannot come from your own records, because it is
-  about whether your suppliers filed. Upload the portal's GSTR-2B JSON and it
-  matches bill by bill: what agrees, what your supplier has not filed (credit
-  at risk), what is on the portal that you never recorded, what the portal has
-  blocked, and what cannot be matched at all. Each supplier who has not filed
-  gets a written message naming the invoices and what they are worth.
+  Large bills filed as costs are flagged as things that might be assets, and
+  recording one keeps the bill where it is — nothing is counted twice.
 
-  Matching ignores punctuation and padding, so INV/2026/0012 and inv-2026-12
-  are one invoice. Two traps in the portal's format are handled: `val` is the
-  whole invoice including tax, not the taxable value, and credit notes sit in
-  a separate section and count the other way. An unrecorded credit note is
-  never presented as credit to claim — it reduces what you may claim.
+  Lives and rates are read from published summaries, not the schedules
+  themselves, so every class carries its source and is marked unverified.
 
-  Bills now carry the supplier's GSTIN, checked as you type.
+2. YEAR END
+-----------
+  Nothing in these books is a stored balance, so closing a year is not
+  arithmetic — it is somebody satisfying themselves the year is complete and
+  saying so. The useful part is therefore the list of what is usually wrong
+  when somebody thinks a year is finished: invoices still in draft (which
+  means the year is understated), bills sitting in general expenses, large
+  purchases that never reached the asset register, and books that do not
+  balance. Drafts and an unbalanced sheet stop a close; the rest are flagged
+  and do not hold you up.
 
-3. TAX HELD BACK FROM SUPPLIERS
--------------------------------
-  Mark the section on a bill and the amount to hold back is worked out, with
-  the year's earlier payments to that supplier taken into account — the
-  threshold is on the year, not on the bill in front of you. Under 194C
-  nothing is due until payments pass ₹1,00,000, and then it is due on all of
-  them, including those already paid in full. That retrospective step is what
-  catches businesses out, so a supplier getting close is flagged before the
-  next bill rather than after.
+  The balance sheet now splits profit kept from earlier years from profit made
+  this year, instead of showing one figure covering every year you have
+  traded. Closing sets the period lock to the year end.
 
-  The screen shows what should have been held back and was not, when each
-  deposit is due (the 7th, except March), and a 26Q by deductee for any
-  quarter. Tax held back is now posted as owed to the government rather than
-  as cash paid out, so the balance sheet shows the liability.
+3. ORDERS AND BILLS
+-------------------
+  A purchase order is a promise to pay for a particular thing at a particular
+  price. The bill that arrives later is somebody else's account of the same
+  transaction, and the two disagree more often than anybody expects.
 
-  Rates and thresholds are read from published rate charts, not from the
-  department's own notification, so every rule carries its date and source and
-  the screen says plainly that they are unverified.
+  Bills can now be linked to the order they came from — the form offers that
+  supplier's open orders — and the screen shows what was ordered against what
+  was billed, what is still committed, and anything billed above the order.
 
-4. PAYMENT LINKS ON INVOICES
-----------------------------
-  A link covering cards, net banking and UPI, which works from abroad and —
-  the point — tells us when the money arrived, so the invoice marks itself
-  paid. One live link per invoice: a second link for the same bill is how a
-  customer pays twice.
+  It also catches the same bill entered twice, matched on the supplier and
+  bill number rather than the amount, because two bills for the same amount in
+  a month is ordinary and the same number twice is not. Paying a bill twice is
+  one of the few mistakes that costs real money and leaves no trace: the books
+  balance either way, the supplier is simply better off.
 
-  An unsigned webhook records nothing. A payment that would take an invoice
-  past its total, or that lands on a cancelled or already-settled invoice, is
-  shown rather than applied: money appearing twice is harder to unpick than
-  money appearing a day late.
-
-  This needs the API deployed and a Razorpay account. Until then the button
-  does not appear and the UPI code works as before.
-
-ALSO
-  A payment date. There was none: the ledger guessed from updatedAt, so
-  editing a paid invoice moved the cash into another month. (Shipped last
-  round; the books pack is what exposed it.)
-
-  The three places that narrowed an expense for the ledger by hand are now one
-  function. That hand-copying had already dropped stock quantities once and
-  nearly dropped the tax held back.
+STILL PENDING
+  The API deploy, which is the only thing standing between you and logins,
+  team access, payment links and backups that are not one browser's local
+  storage.

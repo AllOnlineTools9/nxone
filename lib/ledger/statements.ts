@@ -40,11 +40,15 @@ export interface BalanceSheet {
   totalLiabilities: Money;
   /** Profit so far, which is what makes the sheet balance before any year end. */
   retained: Money;
+  /** Profit kept from years before this one, when a year start was given. */
+  retainedEarlier?: Money;
+  /** Profit made in this year alone, when a year start was given. */
+  retainedThisYear?: Money;
   totalEquity: Money;
   balanced: boolean;
 }
 
-export function balanceSheet(entries: JournalEntry[], currency: string, asAt: string): BalanceSheet {
+export function balanceSheet(entries: JournalEntry[], currency: string, asAt: string, yearFrom?: string): BalanceSheet {
   const rows = balances(entries, currency, undefined, asAt);
   const pick = (t: string) => rows.filter((r) => r.type === t);
   const sum = (list: AccountBalance[]) => list.reduce((a, r) => add(a, r.balance), fromMinor(0, currency));
@@ -53,15 +57,35 @@ export function balanceSheet(entries: JournalEntry[], currency: string, asAt: st
   const liabilities = pick("liability");
   const equity = pick("equity");
   const retained = subtract(sum(pick("income")), sum(pick("expense")));
+
+  // Profit split between the years before this one and this one. A single figure covering every
+  // year a business has traded is not what a balance sheet shows, and it is the first thing an
+  // accountant asks to see broken out at a year end.
+  let earlier: Money | undefined;
+  let thisYear: Money | undefined;
+  if (yearFrom) {
+    const before = balances(entries, currency, undefined, dayBefore(yearFrom));
+    const pickBefore = (t: string) => before.filter((r) => r.type === t);
+    earlier = subtract(sum(pickBefore("income")), sum(pickBefore("expense")));
+    thisYear = subtract(retained, earlier);
+  }
+
   const totalEquity = add(sum(equity), retained);
   const totalAssets = sum(assets);
   const totalLiabilities = sum(liabilities);
 
   return {
     assets, liabilities, equity,
-    totalAssets, totalLiabilities, retained, totalEquity,
+    totalAssets, totalLiabilities, retained, retainedEarlier: earlier, retainedThisYear: thisYear, totalEquity,
     balanced: totalAssets.minor === totalLiabilities.minor + totalEquity.minor
   };
+}
+
+/** The day before a date, for taking a view as things stood at the close of the previous one. */
+function dayBefore(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
 }
 
 export interface CashFlow {

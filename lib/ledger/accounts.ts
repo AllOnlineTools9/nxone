@@ -36,6 +36,10 @@ export const CHART: Account[] = [
   asset("1400", "Input tax credit", { taxRole: "input", plain: "Tax you can reclaim" }),
   asset("1500", "Prepayments", { plain: "Paid in advance" }),
   asset("1700", "Equipment", { plain: "Equipment you own" }),
+  // Kept apart from the cost above, so the balance sheet can show what something cost and what
+  // it has worn down to. Netting them into one figure loses the first, which is what the tax
+  // computation and any sale of the thing are both worked out from.
+  asset("1790", "Depreciation so far", { plain: "What your equipment has worn down by" }),
 
   liability("2010", "Accounts payable", { plain: "You owe suppliers" }),
   liability("2100", "Tax collected on sales", { taxRole: "output", plain: "Tax you owe the government" }),
@@ -54,6 +58,7 @@ export const CHART: Account[] = [
   income("4100", "Other income", { plain: "Other income" }),
   income("4300", "Exchange gain", { plain: "Gained on exchange rates" }),
   income("4900", "Discounts given", { normal: "debit", plain: "Discounts you gave" }),
+  income("4800", "Gain on sale of equipment", { plain: "Sold for more than it was worth" }),
 
   expense("5000", "Cost of sales", { plain: "What your sales cost you" }),
   expense("6010", "Rent"),
@@ -67,6 +72,8 @@ export const CHART: Account[] = [
   expense("6080", "Repairs and maintenance"),
   expense("6090", "Bank and payment charges"),
   expense("6100", "Office supplies"),
+  expense("6500", "Depreciation", { plain: "Wear on what you own" }),
+  expense("6510", "Loss on sale of equipment", { plain: "Sold for less than it was worth" }),
   expense("6950", "Exchange loss", { plain: "Lost on exchange rates" }),
   expense("6900", "Other expenses")
 ];

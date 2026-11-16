@@ -1,4 +1,6 @@
+import { carryingValue, depreciationEntries, type AssetInput } from "../assets/depreciate";
 import { calculate } from "../documents/totals";
+import { todayIso } from "../format";
 import type { DocumentData } from "../documents/types";
 import { convertMinor, rateFor, usableRate } from "../fx";
 import { keepingStock, stockFrom, type StockItem, type StockMove } from "../stock/ledger";
@@ -28,6 +30,13 @@ export interface PaymentInput {
    * two is a real gain or loss, and it is posted as one rather than quietly absorbed.
    */
   fx?: Fx & { invoiceRate?: number };
+}
+
+/** An asset, as the books need it. */
+export interface AssetForBooks extends AssetInput {
+  /** Where the money came from, when it was not bought on a bill already in the books. */
+  paidFrom?: string;
+  expenseId?: string;
 }
 
 export interface ExpenseInput {
@@ -182,6 +191,19 @@ export function toExpenseInput(e: {
   };
 }
 
+/** A stored asset, narrowed to what the books need. Written once, for the same reason as above. */
+export function toAssetForBooks(a: {
+  id: string; name: string; classId: string; purchasedOn: string; costMinor: number;
+  salvageMinor?: number; method?: "straight-line" | "written-down"; usefulLifeYears?: number;
+  disposedOn?: string; disposalMinor?: number; expenseId?: string;
+}): AssetForBooks {
+  return {
+    id: a.id, name: a.name, classId: a.classId, purchasedOn: a.purchasedOn, costMinor: a.costMinor,
+    salvageMinor: a.salvageMinor, method: a.method, usefulLifeYears: a.usefulLifeYears,
+    disposedOn: a.disposedOn, disposalMinor: a.disposalMinor, expenseId: a.expenseId
+  };
+}
+
 export function postExpense(input: ExpenseInput, fx?: Fx): JournalEntry {
   const tax = input.taxMinor ?? 0;
   const gross = input.netMinor + tax;
@@ -262,7 +284,12 @@ export function ledgerFor(
    * moving value off the shelf and into cost of sales in the month it left. Left out, the
    * accounts behave exactly as they did before stock existed, so nothing can be counted twice.
    */
-  stock?: { items: StockItem[]; moves?: StockMove[] }
+  stock?: { items: StockItem[]; moves?: StockMove[] },
+  /**
+   * What the business owns. Left out, the accounts behave exactly as they did before assets
+   * existed, so adding this cannot change anybody's books until they record one.
+   */
+  assets?: { list: AssetForBooks[]; today?: string }
 ): JournalEntry[] {
   const out: JournalEntry[] = [];
   const saved = documents;
@@ -303,7 +330,72 @@ export function ledgerFor(
 
   if (stock && keepingStock(stock.items)) out.push(...costOfSalesEntries(stock.items, documents, expenses, stock.moves, currency));
 
+  if (assets?.list.length) out.push(...assetEntries(assets.list, assets.today ?? todayIso(), currency));
+
   return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * What owning things does to the books: the purchase sits as an asset, wear is charged each
+ * completed year, and a sale clears both the cost and the wear and leaves a gain or a loss.
+ *
+ * The purchase itself is only posted here when it did not arrive as a bill. An asset created
+ * from an existing expense is already in the books through that bill, and posting it twice
+ * would double the money that left the bank.
+ */
+function assetEntries(assets: AssetForBooks[], today: string, currency: string): JournalEntry[] {
+  const out: JournalEntry[] = [];
+
+  for (const asset of assets) {
+    if (!asset.expenseId && asset.costMinor > 0) {
+      out.push(entry({
+        date: asset.purchasedOn,
+        narration: `Bought ${asset.name}`,
+        currency,
+        source: { kind: "asset", id: asset.id },
+        lines: [
+          { account: "1700", debit: asset.costMinor, memo: asset.name },
+          { account: asset.paidFrom ?? "2010", credit: asset.costMinor, memo: asset.name }
+        ]
+      }));
+    }
+
+    for (const charge of depreciationEntries([asset], today)) {
+      out.push(entry({
+        date: charge.date,
+        narration: charge.narration,
+        currency,
+        source: { kind: "depreciation", id: charge.id },
+        lines: [
+          { account: "6500", debit: charge.amountMinor, memo: asset.name },
+          { account: "1790", credit: charge.amountMinor, memo: asset.name }
+        ]
+      }));
+    }
+
+    if (asset.disposedOn && asset.disposedOn <= today) {
+      const carrying = carryingValue({ ...asset, disposedOn: undefined }, asset.disposedOn);
+      const wornDown = asset.costMinor - carrying;
+      const proceeds = asset.disposalMinor ?? 0;
+      const result = proceeds - carrying;
+
+      out.push(entry({
+        date: asset.disposedOn,
+        narration: proceeds > 0 ? `Sold ${asset.name}` : `Scrapped ${asset.name}`,
+        currency,
+        source: { kind: "disposal", id: asset.id },
+        lines: [
+          ...(proceeds > 0 ? [{ account: asset.paidFrom ?? "1020", debit: proceeds, memo: asset.name }] : []),
+          ...(wornDown > 0 ? [{ account: "1790", debit: wornDown, memo: `Wear written back on ${asset.name}` }] : []),
+          { account: "1700", credit: asset.costMinor, memo: asset.name },
+          ...(result > 0 ? [{ account: "4800", credit: result, memo: asset.name }] : []),
+          ...(result < 0 ? [{ account: "6510", debit: -result, memo: asset.name }] : [])
+        ]
+      }));
+    }
+  }
+
+  return out;
 }
 
 /**

@@ -8,6 +8,7 @@ import { formatDate, todayIso } from "@/lib/format";
 import { formatMoney, fromMinor , decimalsFor } from "@/lib/money";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
 import { checkGstin } from "@/lib/returns/states";
+import { ordersFor } from "@/lib/purchasing/match";
 import { TDS_SECTIONS } from "@/lib/tds/sections";
 import { deductionsFor } from "@/lib/tds/deduct";
 import { knownRates, usableRate } from "@/lib/fx";
@@ -23,7 +24,7 @@ export default function Expenses() {
   const ready = useHydrated();
   const currency = ws.profile?.currency ?? "INR";
 
-  const [form, setForm] = useState({ date: todayIso(), supplier: "", description: "", category: "6900", net: 0, tax: 0, paidFrom: "1020", reference: "", supplierGstin: "", supplierPan: "", supplierType: "other" as "individual" | "other", tdsSection: "", billCurrency: "", fxRate: 0, stockQuantity: 0 });
+  const [form, setForm] = useState({ date: todayIso(), supplier: "", description: "", category: "6900", net: 0, tax: 0, paidFrom: "1020", reference: "", orderId: "", supplierGstin: "", supplierPan: "", supplierType: "other" as "individual" | "other", tdsSection: "", billCurrency: "", fxRate: 0, stockQuantity: 0 });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
   const foreignBill = Boolean(form.billCurrency) && form.billCurrency.toUpperCase() !== currency;
   const lastRate = foreignBill ? knownRates(db.documents(), currency)[form.billCurrency.toUpperCase()] : undefined;
@@ -86,6 +87,9 @@ export default function Expenses() {
     return deductionsFor(all, form.tdsSection).find((d) => d.paymentId === "new")?.shouldBeMinor ?? 0;
   })();
 
+  /** That supplier's orders with something still to bill, so a bill can be tied to one. */
+  const openOrders = ordersFor(form.supplier, db.documents(), db.expenses());
+
   const add = () => {
     if (!form.supplier.trim() || !form.net) return;
     db.saveExpense({
@@ -98,6 +102,7 @@ export default function Expenses() {
       taxMinor: Math.round(form.tax * 10 ** decimalsFor(foreignBill ? form.billCurrency.toUpperCase() : currency)),
       ...(foreignBill && usableRate(form.fxRate) ? { fxRate: form.fxRate } : {}),
       paidFrom: form.paidFrom || undefined, reference: form.reference.trim() || undefined,
+      orderId: form.orderId || undefined,
       supplierGstin: form.supplierGstin.trim().toUpperCase() || undefined,
       supplierPan: form.supplierPan.trim().toUpperCase() || undefined,
       supplierType: form.tdsSection ? form.supplierType : undefined,
@@ -107,7 +112,7 @@ export default function Expenses() {
       ...(attachments.length ? { attachments } : {}),
       ...(form.category === STOCK_ACCOUNT && form.stockQuantity ? { stockQuantity: form.stockQuantity } : {})
     });
-    setForm({ ...form, supplier: "", description: "", net: 0, tax: 0, reference: "", supplierGstin: "", supplierPan: "", tdsSection: "" });
+    setForm({ ...form, supplier: "", description: "", net: 0, tax: 0, reference: "", orderId: "", supplierGstin: "", supplierPan: "", tdsSection: "" });
     setReceipt(null);
     setAttachments([]);
     setReadNote("");
@@ -150,6 +155,18 @@ export default function Expenses() {
           </div>
           <div className="sm:col-span-2"><label className="label" htmlFor="ex-desc">Note</label><input id="ex-desc" className="field" value={form.description} onChange={(e) => set({ description: e.target.value })} placeholder="Office rent for May" /></div>
           <div><label className="label" htmlFor="ex-ref">Bill number</label><input id="ex-ref" className="field" value={form.reference} onChange={(e) => set({ reference: e.target.value })} /></div>
+          {openOrders.length > 0 ? (
+            <div>
+              <label className="label" htmlFor="ex-order">Against an order</label>
+              <select id="ex-order" className="field" value={form.orderId} onChange={(e) => set({ orderId: e.target.value })}>
+                <option value="">Not against an order</option>
+                {openOrders.map((o) => (
+                  <option key={o.id} value={o.id}>{o.number} — {m(o.outstandingMinor)} still to bill</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-ink-faint">Linking it lets the bill be checked against what you agreed to pay.</p>
+            </div>
+          ) : null}
           {(ws.profile?.country ?? "IN") === "IN" ? (
             <div>
               <label className="label" htmlFor="ex-gstin">Supplier GSTIN</label>

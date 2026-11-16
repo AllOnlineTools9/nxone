@@ -1,7 +1,7 @@
 import type { DocumentKind } from "../documents/types";
 import { formatDate, todayIso } from "../format";
 import { PeriodClosed, isLocked, refusal } from "../books/lock";
-import { emptyWorkspace, type CatalogueItem, type Client, type Expense, type Profile, type RecurringTemplate, type SavedDocument, type SavedScenario, type SavedEmployee, type SavedPayRun, type Workspace } from "./types";
+import { emptyWorkspace, type SavedAsset, type CatalogueItem, type Client, type Expense, type Profile, type RecurringTemplate, type SavedDocument, type SavedScenario, type SavedEmployee, type SavedPayRun, type Workspace } from "./types";
 
 /**
  * Everything a person saves lives on their own device. This is a small store over a storage
@@ -245,10 +245,10 @@ export class Store {
    * Deleting marks the row instead of removing it, so your other devices learn about it. A row the
    * server has never seen is dropped outright, since there is nobody to tell.
    */
-  private tombstone(collection: "clients" | "items" | "documents" | "expenses" | "recurring" | "scenarios" | "employees" | "payruns", id: string) {
+  private tombstone(collection: "clients" | "items" | "documents" | "expenses" | "recurring" | "scenarios" | "employees" | "payruns" | "assets", id: string) {
     const ws = this.read();
     const now = new Date().toISOString();
-    const list = (ws[collection] ?? []) as Array<Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun>;
+    const list = (ws[collection] ?? []) as Array<Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun | SavedAsset>;
     const next = list
       .filter((row) => !(row.id === id && !row.syncedAt))
       .map((row) => (row.id === id ? { ...row, deletedAt: now, updatedAt: now, version: (row.version ?? 1) + 1 } : row));
@@ -312,6 +312,24 @@ export class Store {
   }
 
   deleteScenario(id: string) { this.tombstone("scenarios", id); }
+
+  assets(): SavedAsset[] { return (this.read().assets ?? []).filter((a) => !a.deletedAt); }
+
+  saveAsset(input: Omit<SavedAsset, "id" | "createdAt" | "updatedAt"> & { id?: string }): SavedAsset {
+    const now = new Date().toISOString();
+    const ws = this.read();
+    const list = ws.assets ?? [];
+    const existing = input.id ? list.find((a) => a.id === input.id) : undefined;
+
+    const saved: SavedAsset = existing
+      ? { ...existing, ...input, id: existing.id, createdAt: existing.createdAt, updatedAt: now, version: (existing.version ?? 1) + 1, deletedAt: undefined }
+      : { ...input, id: newId("as"), createdAt: now, updatedAt: now, version: 1 };
+
+    this.write({ ...ws, assets: existing ? list.map((a) => (a.id === saved.id ? saved : a)) : [...list, saved] });
+    return saved;
+  }
+
+  deleteAsset(id: string) { this.tombstone("assets", id); }
 
   /**
    * Tie a document to the one it was made from — a quotation to the invoice it became. Both ends

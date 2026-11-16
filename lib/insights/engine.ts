@@ -1,11 +1,11 @@
 import { customerStanding } from "../analysis/receivables";
 import { forecast } from "../analysis/cashflow";
 import { openingOf } from "../ledger/opening";
-import { ledgerFor } from "../ledger/posting";
+import { ledgerFor, toAssetForBooks } from "../ledger/posting";
 import { profitAndLoss } from "../ledger/statements";
 import { formatMoney, fromMinor, type Money } from "../money";
 import { monthPeriod } from "../store/reports";
-import type { Expense, Profile, SavedDocument } from "../store/types";
+import type { Expense, Profile, SavedDocument, SavedAsset } from "../store/types";
 
 /**
  * Things worth noticing, worked out rather than guessed.
@@ -38,15 +38,17 @@ export function insights(opts: {
   profile?: Profile;
   today: string;
   currency: string;
+  /** What the business owns, so the profit here matches the profit in the books. */
+  assets?: SavedAsset[];
 }): Insight[] {
-  const { documents, expenses, profile, today, currency } = opts;
+  const { documents, expenses, profile, today, currency, assets } = opts;
   const out: Insight[] = [];
 
   const opening = openingOf(profile);
   const ledger = ledgerFor(documents, expenses.filter((e) => !e.deletedAt).map((e) => ({
     id: e.id, date: e.date, supplier: e.supplier, category: e.category, currency: e.currency,
     netMinor: e.netMinor, taxMinor: e.taxMinor, paidFrom: e.paidFrom
-  })), currency, opening);
+  })), currency, opening, undefined, { list: (assets ?? []).map(toAssetForBooks), today });
 
   const [y, m] = today.split("-").map(Number);
   const thisMonth = monthPeriod(today);

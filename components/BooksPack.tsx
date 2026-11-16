@@ -5,7 +5,7 @@ import { makeZip } from "@/lib/files/zip";
 import { packFileName, packFiles, packMessage, type PackInput } from "@/lib/reports/pack";
 import { mailtoLink, todayIso, whatsappLink } from "@/lib/format";
 import { monthPeriod, financialYear, quarterPeriod } from "@/lib/store/reports";
-import { ledgerFor } from "@/lib/ledger/posting";
+import { ledgerFor, toAssetForBooks } from "@/lib/ledger/posting";
 import { openingOf } from "@/lib/ledger/opening";
 import type { StockItem } from "@/lib/stock/ledger";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
@@ -38,7 +38,7 @@ export default function BooksPack() {
       period,
       // The same ledger the Books screen draws, opening balance and stock included. A pack
       // that quietly built its own would disagree with the screen the person checked it against.
-      entries: ledgerFor(db.documents(), db.expenses(), currency, openingOf(ws.profile), { items: db.items() as StockItem[] }),
+      entries: ledgerFor(db.documents(), db.expenses(), currency, openingOf(ws.profile), { items: db.items() as StockItem[] }, { list: db.assets().map(toAssetForBooks) }),
       documents: db.documents(),
       expenses: db.expenses(),
       preparedOn: todayIso()
