@@ -9,6 +9,8 @@ import { formatMoney, fromMinor , decimalsFor } from "@/lib/money";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
 import { checkGstin } from "@/lib/returns/states";
 import { ordersFor } from "@/lib/purchasing/match";
+import { likelyProjects } from "@/lib/analysis/projects";
+import { RCM_CATEGORIES, rcmById } from "@/lib/returns/rcm";
 import { TDS_SECTIONS } from "@/lib/tds/sections";
 import { deductionsFor } from "@/lib/tds/deduct";
 import { knownRates, usableRate } from "@/lib/fx";
@@ -24,7 +26,7 @@ export default function Expenses() {
   const ready = useHydrated();
   const currency = ws.profile?.currency ?? "INR";
 
-  const [form, setForm] = useState({ date: todayIso(), supplier: "", description: "", category: "6900", net: 0, tax: 0, paidFrom: "1020", reference: "", orderId: "", supplierGstin: "", supplierPan: "", supplierType: "other" as "individual" | "other", tdsSection: "", billCurrency: "", fxRate: 0, stockQuantity: 0 });
+  const [form, setForm] = useState({ date: todayIso(), supplier: "", description: "", category: "6900", net: 0, tax: 0, paidFrom: "1020", reference: "", orderId: "", projectId: "", rcmCategory: "", supplierGstin: "", supplierPan: "", supplierType: "other" as "individual" | "other", tdsSection: "", billCurrency: "", fxRate: 0, stockQuantity: 0 });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
   const foreignBill = Boolean(form.billCurrency) && form.billCurrency.toUpperCase() !== currency;
   const lastRate = foreignBill ? knownRates(db.documents(), currency)[form.billCurrency.toUpperCase()] : undefined;
@@ -87,6 +89,9 @@ export default function Expenses() {
     return deductionsFor(all, form.tdsSection).find((d) => d.paymentId === "new")?.shouldBeMinor ?? 0;
   })();
 
+  /** Jobs this cost might belong to, that client's first. */
+  const openProjects = likelyProjects(db.projects(), form.supplier);
+
   /** That supplier's orders with something still to bill, so a bill can be tied to one. */
   const openOrders = ordersFor(form.supplier, db.documents(), db.expenses());
 
@@ -103,6 +108,8 @@ export default function Expenses() {
       ...(foreignBill && usableRate(form.fxRate) ? { fxRate: form.fxRate } : {}),
       paidFrom: form.paidFrom || undefined, reference: form.reference.trim() || undefined,
       orderId: form.orderId || undefined,
+      projectId: form.projectId || undefined,
+      rcmCategory: form.rcmCategory || undefined,
       supplierGstin: form.supplierGstin.trim().toUpperCase() || undefined,
       supplierPan: form.supplierPan.trim().toUpperCase() || undefined,
       supplierType: form.tdsSection ? form.supplierType : undefined,
@@ -112,7 +119,7 @@ export default function Expenses() {
       ...(attachments.length ? { attachments } : {}),
       ...(form.category === STOCK_ACCOUNT && form.stockQuantity ? { stockQuantity: form.stockQuantity } : {})
     });
-    setForm({ ...form, supplier: "", description: "", net: 0, tax: 0, reference: "", orderId: "", supplierGstin: "", supplierPan: "", tdsSection: "" });
+    setForm({ ...form, supplier: "", description: "", net: 0, tax: 0, reference: "", orderId: "", projectId: "", rcmCategory: "", supplierGstin: "", supplierPan: "", tdsSection: "" });
     setReceipt(null);
     setAttachments([]);
     setReadNote("");
@@ -155,6 +162,15 @@ export default function Expenses() {
           </div>
           <div className="sm:col-span-2"><label className="label" htmlFor="ex-desc">Note</label><input id="ex-desc" className="field" value={form.description} onChange={(e) => set({ description: e.target.value })} placeholder="Office rent for May" /></div>
           <div><label className="label" htmlFor="ex-ref">Bill number</label><input id="ex-ref" className="field" value={form.reference} onChange={(e) => set({ reference: e.target.value })} /></div>
+          {openProjects.length > 0 ? (
+            <div>
+              <label className="label" htmlFor="ex-project">Which job</label>
+              <select id="ex-project" className="field" value={form.projectId} onChange={(e) => set({ projectId: e.target.value })}>
+                <option value="">Not against a job</option>
+                {openProjects.map((p) => <option key={p.id} value={p.id}>{p.name}{p.client ? ` — ${p.client}` : ""}</option>)}
+              </select>
+            </div>
+          ) : null}
           {openOrders.length > 0 ? (
             <div>
               <label className="label" htmlFor="ex-order">Against an order</label>
@@ -180,6 +196,20 @@ export default function Expenses() {
           ) : null}
           {(ws.profile?.country ?? "IN") === "IN" ? (
             <>
+              <div>
+                <label className="label" htmlFor="ex-rcm">Who pays the GST</label>
+                <select id="ex-rcm" className="field" value={form.rcmCategory} onChange={(e) => set({ rcmCategory: e.target.value })}>
+                  <option value="">The supplier charged it on the bill</option>
+                  {RCM_CATEGORIES.map((c) => <option key={c.id} value={c.id}>I owe it — {c.label.toLowerCase()}</option>)}
+                </select>
+                {form.rcmCategory ? (
+                  <p className="mt-1 text-xs text-ink-soft">
+                    {rcmById(form.rcmCategory)?.creditable
+                      ? `You owe ${m(Math.round(Math.round(form.net * 100) * 0.18))} to the government on this, and claim the same amount back. It costs nothing in the end, but it has to be paid in cash — it cannot come out of credit you already hold.`
+                      : `You owe ${m(Math.round(Math.round(form.net * 100) * 0.18))} to the government on this, and it cannot be claimed back. That is a real cost on top of the bill.`}
+                  </p>
+                ) : null}
+              </div>
               <div>
                 <label className="label" htmlFor="ex-tds">Tax to hold back</label>
                 <select id="ex-tds" className="field" value={form.tdsSection} onChange={(e) => set({ tdsSection: e.target.value })}>

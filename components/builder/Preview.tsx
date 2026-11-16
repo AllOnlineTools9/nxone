@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { packFor } from "@/lib/countries/packs";
+import { documentTitleFor, COMPOSITION_DECLARATION } from "@/lib/returns/composition";
 import { kindConfig } from "@/lib/documents/kinds";
 import { templateConfig } from "@/lib/documents/templates";
 import type { DocumentData, DocumentTotals } from "@/lib/documents/types";
@@ -16,7 +17,10 @@ export default function Preview({ doc, totals }: { doc: DocumentData; totals: Do
   const kind = kindConfig(doc.kind);
   const tpl = templateConfig(doc.template);
   const accent = tpl.useAccent ? doc.accentColor || "#0B3D2E" : "#121712";
-  const title = doc.kind === "invoice" ? pack.invoiceTitle : kind.title;
+  // A composition dealer may not issue a tax invoice at all: the document is a bill of supply,
+  // and calling it an invoice would assert a right to credit the customer does not have.
+  const title = documentTitleFor(doc.composition ? "composition" : "regular",
+    doc.kind === "invoice" ? pack.invoiceTitle : kind.title);
   const m = (v: { minor: number; currency: string }) => formatMoney(v, pack.locale);
   const hasTax = totals.taxRows.length > 0;
   const cap = tpl.caps ? "uppercase tracking-wide" : "";
@@ -153,6 +157,7 @@ export default function Preview({ doc, totals }: { doc: DocumentData; totals: Do
               </div>
             ) : null}
             {doc.notes ? <div className="mt-4"><Small>Notes</Small><p className="whitespace-pre-line text-xs">{doc.notes}</p></div> : null}
+            {doc.composition ? <p className="mt-4 text-xs font-medium">{COMPOSITION_DECLARATION}</p> : null}
             {doc.terms ? <div className="mt-4"><Small>Terms</Small><p className="whitespace-pre-line text-xs">{doc.terms}</p></div> : null}
           </div>
 

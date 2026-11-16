@@ -1,4 +1,5 @@
 import { carryingValue, depreciationEntries, type AssetInput } from "../assets/depreciate";
+import { rcmById } from "../returns/rcm";
 import { calculate } from "../documents/totals";
 import { todayIso } from "../format";
 import type { DocumentData } from "../documents/types";
@@ -43,6 +44,10 @@ export interface ExpenseInput {
   /** Tax held back from the supplier, owed to the government rather than paid out. */
   tdsMinor?: number;
   tdsSection?: string;
+  /** Set when the tax on this bill is owed by the buyer rather than charged by the supplier. */
+  rcmCategory?: string;
+  rcmRate?: number;
+  rcmCreditable?: boolean;
   id?: string;
   date: string;
   supplier: string;
@@ -183,11 +188,14 @@ export function toExpenseInput(e: {
   id: string; date: string; supplier: string; description?: string; category: string;
   currency: string; netMinor: number; taxMinor: number; paidFrom?: string;
   stockQuantity?: number; fxRate?: number; tdsMinor?: number; tdsSection?: string;
+  rcmCategory?: string; rcmRate?: number;
 }): ExpenseInput {
   return {
     id: e.id, date: e.date, supplier: e.supplier, description: e.description, category: e.category,
     currency: e.currency, netMinor: e.netMinor, taxMinor: e.taxMinor, paidFrom: e.paidFrom,
-    stockQuantity: e.stockQuantity, fxRate: e.fxRate, tdsMinor: e.tdsMinor, tdsSection: e.tdsSection
+    stockQuantity: e.stockQuantity, fxRate: e.fxRate, tdsMinor: e.tdsMinor, tdsSection: e.tdsSection,
+    rcmCategory: e.rcmCategory, rcmRate: e.rcmRate,
+    rcmCreditable: e.rcmCategory ? rcmById(e.rcmCategory)?.creditable ?? true : undefined
   };
 }
 
@@ -212,9 +220,22 @@ export function postExpense(input: ExpenseInput, fx?: Fx): JournalEntry {
   // what went out of the bank and hide a liability that carries interest.
   const held = Math.min(input.tdsMinor ?? 0, gross);
   const toSupplier = gross - held;
+  // Reverse charge: the supplier charged no tax, so the business owes it to the government and
+  // usually claims the same amount straight back. Both sides are posted, because recording only
+  // the credit would show a refund nobody is owed, and recording only the liability would hide
+  // money the business is entitled to.
+  const rcm = input.rcmCategory ? Math.round(input.netMinor * (input.rcmRate ?? 0.18)) : 0;
+  // Whether the credit comes back is a property of the category, not something a caller should
+  // have to remember to pass. Defaulting to "claimable" meant a bill under a blocked category
+  // claimed credit nobody is owed, depending only on how the expense reached this function.
+  const rcmCreditable = input.rcmCreditable ?? (input.rcmCategory ? rcmById(input.rcmCategory)?.creditable ?? true : true);
+
   const lines = [
     { account: input.category, debit: input.netMinor, memo: input.description || input.supplier },
     ...(tax > 0 ? [{ account: "1400", debit: tax, memo: "Reclaimable tax" }] : []),
+    ...(rcm > 0 ? [{ account: "2400", credit: rcm, memo: `Reverse charge on ${input.supplier}` }] : []),
+    ...(rcm > 0 && rcmCreditable ? [{ account: "1400", debit: rcm, memo: `Reverse charge credit on ${input.supplier}` }] : []),
+    ...(rcm > 0 && !rcmCreditable ? [{ account: input.category, debit: rcm, memo: `Reverse charge, not claimable, on ${input.supplier}` }] : []),
     ...(held > 0 ? [{ account: "2430", credit: held, memo: `Tax deducted${input.tdsSection ? ` under ${input.tdsSection}` : ""}` }] : []),
     input.paidFrom
       ? { account: input.paidFrom, credit: toSupplier, memo: input.supplier }

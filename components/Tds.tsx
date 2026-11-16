@@ -3,6 +3,7 @@ import { AlertTriangle, CalendarClock, Download, Info } from "lucide-react";
 import { useMemo, useState } from "react";
 import { TDS_CAVEAT, TDS_SECTIONS, financialYearOf, quarterOf, sectionById } from "@/lib/tds/sections";
 import { form26q, form26qCsv, reviewYear } from "@/lib/tds/deduct";
+import { TCS_CAVEAT, TCS_RULES } from "@/lib/tax/tcs";
 import { formatDate, todayIso } from "@/lib/format";
 import { formatMoney, fromMinor } from "@/lib/money";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
@@ -202,8 +203,31 @@ export default function Tds() {
         )}
       </section>
 
+      <section className="card p-5">
+        <h2 className="font-display text-lg">Tax you collect from customers</h2>
+        <p className="mt-1 max-w-3xl text-sm text-ink-soft">
+          The other direction: added to a customer&apos;s bill, collected with it, and paid over.
+          Most businesses never meet it — on ordinary goods it starts only once your turnover
+          passes ₹10 crore and you have sold more than ₹50 lakh to one customer in a year. A scrap
+          or timber dealer meets it from the first sale.
+        </p>
+        <ul className="mt-3 space-y-2 text-sm">
+          {TCS_RULES.map((rule) => (
+            <li key={rule.id} className="flex flex-wrap gap-x-3 border-t border-line pt-2">
+              <span className="font-medium">{rule.label}</span>
+              <span className="tabular text-ink-soft">{(rule.rate * 100).toFixed(rule.rate < 0.01 ? 2 : 1)}%</span>
+              <span className="w-full text-xs text-ink-faint">{rule.describes}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-xs text-ink-faint">
+          Where there is a threshold, it is charged only on the part above it — charging the whole
+          amount is the usual mistake, and it overcharges the customer rather than the government.
+        </p>
+      </section>
+
       <p className="flex gap-2 rounded-lg border border-line bg-canvas p-3 text-sm text-ink-soft">
-        <Info size={16} className="mt-0.5 shrink-0" aria-hidden="true" />{TDS_CAVEAT}
+        <Info size={16} className="mt-0.5 shrink-0" aria-hidden="true" />{TDS_CAVEAT} {TCS_CAVEAT}
       </p>
     </div>
   );

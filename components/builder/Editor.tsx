@@ -8,6 +8,8 @@ import ExportBox from "./ExportBox";
 import ClientPicker from "./ClientPicker";
 import ItemPicker from "./ItemPicker";
 import PaymentBox from "./PaymentBox";
+import { likelyProjects } from "@/lib/analysis/projects";
+import { store } from "@/lib/store/db";
 import { kindConfig } from "@/lib/documents/kinds";
 import HsnPicker from "./HsnPicker";
 import { rulesOn } from "@/lib/countries/types";
@@ -31,6 +33,7 @@ interface Props {
 }
 
 export default function Editor({ doc, totals, update, updateItem, addItem, removeItem, moveItem, setCountry, documentId }: Props) {
+  const jobs = likelyProjects(store.projects(), doc.buyer.name);
   const [ws, db] = useWorkspace();
   const hydrated = useHydrated();
   const pack = packFor(doc.country);
@@ -246,6 +249,19 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
         <button type="button" className="btn-ghost mt-4" onClick={addItem}><Plus size={16} />Add item</button>
       </section>
 
+      {jobs.length > 0 ? (
+        <section className="card p-5">
+          <h2 className="font-display text-lg">Which job</h2>
+          <p className="mt-1 text-sm text-ink-soft">Tagging it lets this document count towards that job&apos;s figures.</p>
+          <select
+            className="field mt-3 max-w-sm" value={doc.projectId ?? ""}
+            onChange={(e) => update({ projectId: e.target.value || undefined })}
+          >
+            <option value="">Not against a job</option>
+            {jobs.map((p) => <option key={p.id} value={p.id}>{p.name}{p.client ? ` — ${p.client}` : ""}</option>)}
+          </select>
+        </section>
+      ) : null}
       {kind.showPaymentDetails ? <PaymentBox doc={doc} update={update} totals={totals} documentId={documentId} /> : null}
 
       <SignatureBox doc={doc} update={update} />

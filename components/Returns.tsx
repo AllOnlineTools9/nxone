@@ -46,6 +46,22 @@ export default function Returns() {
 
   if (!ready) return <div className="h-72 animate-pulse rounded-xl border border-line bg-white/60" aria-hidden="true" />;
 
+  // A composition dealer files CMP-08, not these, and claims no credit at all. Showing them
+  // regular-scheme figures would invite a return nobody on this scheme may file.
+  if (ws.profile?.gstScheme === "composition") {
+    return (
+      <section className="card p-5">
+        <h2 className="font-display text-lg">This does not apply on the composition scheme</h2>
+        <p className="mt-1 max-w-2xl text-sm text-ink-soft">
+          You file CMP-08 each quarter instead, and claim no input credit — that is the trade for
+          the lower rate on turnover.
+        </p>
+        <Link href="/composition" className="btn-ghost mt-3 inline-flex">Go to the quarterly return</Link>
+      </section>
+    );
+  }
+
+
   const country = (ws.profile?.country ?? "IN").toUpperCase();
   if (country !== "IN") {
     return (

@@ -168,7 +168,11 @@ export function counterpartRuleId(country: string, isoDate: string, ruleId: stri
 }
 
 /** Suggested tax rule for a new line: the country's standard rate, matched to intra or inter region. */
-export function defaultTaxRuleId(country: string, isoDate: string, interRegion = false): string | undefined {
+export function defaultTaxRuleId(country: string, isoDate: string, interRegion = false, composition = false): string | undefined {
+  // A composition dealer may not charge tax at all, so no rule is the correct answer rather
+  // than a zero-rated one: a zero rate still presents as tax that was considered and came to
+  // nothing, which is not what a bill of supply says.
+  if (composition) return undefined;
   const pack = packFor(country);
   const rules = rulesOn(pack, isoDate);
   const wanted = interRegion ? "standard-inter" : "standard";

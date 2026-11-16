@@ -1,4 +1,5 @@
 import type { Expense } from "../store/types";
+import { rcmSummary } from "./rcm";
 import { placeOfSupply, stateByRegion } from "./states";
 import type { Gstr1 } from "./gstr1";
 
@@ -34,6 +35,10 @@ export interface Gstr3b {
   nilAndExempt: { taxableMinor: number };
   /** 3.2 Of 3.1(a), what went to unregistered people in other states, by place of supply. */
   interStateToUnregistered: Array<{ pos: string; posName: string; taxableMinor: number; igstMinor: number }>;
+  /** 3.1(d) Inward supplies on which tax is payable by you, not by the supplier. */
+  inwardReverseCharge: { taxableMinor: number; taxMinor: number; bills: number };
+  /** 4(A)(3) The credit that comes back on those same supplies, where it is allowed. */
+  reverseChargeCredit: { minor: number };
   /** 4(A)(5) All other input tax credit, as recorded on this device. */
   inputTaxCredit: { recordedMinor: number; bills: number; unsplit: true };
   /** 6.1 What is payable per head before any credit is set off. */
@@ -43,8 +48,20 @@ export interface Gstr3b {
   notes: string[];
 }
 
-export function gstr3b(gstr1: Gstr1, expenses: Expense[], opts: { currency?: string } = {}): Gstr3b {
+export function gstr3b(gstr1: Gstr1, expenses: Expense[], opts: { currency?: string; from?: string; to?: string } = {}): Gstr3b {
   const currency = opts.currency ?? "INR";
+
+  // Reverse charge sits in two boxes that must agree with each other: what is owed on inward
+  // supplies, and the credit for the same supplies. Filling one without the other is the
+  // commonest way a 3B comes back queried.
+  const reverse = rcmSummary(
+    expenses.filter((e) => !e.deletedAt).map((e) => ({
+      id: e.id, date: e.date, supplier: e.supplier, netMinor: e.netMinor,
+      rcmCategory: e.rcmCategory, rcmRate: e.rcmRate
+    })),
+    opts.from ?? "0000-01-01",
+    opts.to ?? "9999-12-31"
+  );
 
   const outwardTaxable: TaxSplit = { taxableMinor: 0, igstMinor: 0, cgstMinor: 0, sgstMinor: 0, cessMinor: 0 };
   const zeroRated: TaxSplit = { taxableMinor: 0, igstMinor: 0, cgstMinor: 0, sgstMinor: 0, cessMinor: 0 };
@@ -102,6 +119,7 @@ export function gstr3b(gstr1: Gstr1, expenses: Expense[], opts: { currency?: str
     "Interest and late fees are not included."
   ];
   if (gstr1.cdnr.length) notes.push("Credit notes have been taken off the outward supplies they relate to.");
+  for (const note of reverse.notes) notes.push(note);
 
   return {
     gstin: gstr1.gstin,
@@ -112,8 +130,16 @@ export function gstr3b(gstr1: Gstr1, expenses: Expense[], opts: { currency?: str
     interStateToUnregistered: [...unregistered.values()]
       .map((row) => ({ ...row, posName: row.posName || placeOfSupply(stateByRegion(row.pos)?.region) }))
       .sort((a, b) => a.pos.localeCompare(b.pos)),
+    inwardReverseCharge: {
+      taxableMinor: reverse.taxableMinor,
+      taxMinor: reverse.owedMinor,
+      bills: reverse.liabilities.length
+    },
+    reverseChargeCredit: { minor: reverse.claimableMinor },
     inputTaxCredit: { recordedMinor, bills: withTax.length, unsplit: true },
     payable,
+    // Reverse charge is deliberately left out of this figure: it has to be paid in cash and
+    // cannot be set off against credit, so folding it in here would understate what to pay.
     afterCredit: { totalMinor: payable.totalMinor - recordedMinor },
     notes
   };

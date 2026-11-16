@@ -7,6 +7,7 @@ import {
 import { PLANS, TRIAL_DAYS, entitlementsFor, planById, priceFor } from "./billing/plans";
 import { paymentProvider } from "./billing/provider";
 import { linkProvider, type PaymentNotice } from "./payments/links";
+import { leaks, newToken, refusalFor, stateOf } from "./portal/share";
 import * as schema from "./db/schema";
 import { emailSender, inviteEmail, loginEmail } from "./http/email";
 import { corsHeaders, json, problem, rateLimit } from "./http/respond";
@@ -554,6 +555,124 @@ export default {
           provider: paymentProvider(env).name,
           checkoutConnected: paymentProvider(env).live,
           plans: PLANS.map((p) => ({ id: p.id, name: p.name, summary: p.summary, features: p.features, limits: p.limits, price: priceFor(p, country) }))
+        }));
+      }
+
+      /* ---------- a link a customer can open to see their invoice ---------- */
+      if (url.pathname === "/portal/share" && req.method === "POST") {
+        const found = await currentSession(req, env);
+        if (!found?.session.orgId) return reply(problem(401, "Not signed in."));
+
+        const body = await req.json().catch(() => null) as {
+          documentId?: string; number?: string; snapshot?: unknown; expiresInDays?: number;
+        } | null;
+        if (!body?.documentId || !body.number || !body.snapshot) {
+          return reply(problem(400, "A document and its contents are needed."));
+        }
+
+        // The snapshot is built on the device, so it is checked here rather than trusted: a
+        // field that should never reach a customer must not reach one because a future version
+        // of the app widened what it sends.
+        const found_leaks = leaks(body.snapshot);
+        if (found_leaks.length > 0) {
+          console.error("Refused a snapshot carrying private fields:", found_leaks.join(", "));
+          return reply(problem(400, "That document carries information that must not be shared."));
+        }
+
+        // One live link per document: a second link for the same invoice is one more copy to
+        // remember to withdraw.
+        const existing = await db.select().from(schema.sharedDocuments)
+          .where(and(
+            eq(schema.sharedDocuments.orgId, found.session.orgId),
+            eq(schema.sharedDocuments.documentId, body.documentId)
+          )).limit(1);
+
+        const live = existing[0] && stateOf({
+          ...existing[0],
+          createdAt: existing[0].createdAt ?? new Date(),
+          expiresAt: existing[0].expiresAt ?? undefined,
+          revokedAt: existing[0].revokedAt ?? undefined
+        } as never) === "live";
+
+        if (live && existing[0]) {
+          // Refresh what it shows, so a corrected invoice can be re-shared on the same link.
+          await db.update(schema.sharedDocuments)
+            .set({ snapshot: JSON.stringify(body.snapshot), number: body.number })
+            .where(eq(schema.sharedDocuments.id, existing[0].id));
+          return reply(json({ token: existing[0].token, reused: true }));
+        }
+
+        const token = newToken();
+        await db.insert(schema.sharedDocuments).values({
+          id: uid("sd"), token, orgId: found.session.orgId, documentId: body.documentId,
+          number: body.number, snapshot: JSON.stringify(body.snapshot),
+          expiresAt: body.expiresInDays ? new Date(Date.now() + body.expiresInDays * 86_400_000) : null,
+          viewCount: 0, createdBy: found.session.userId, createdAt: new Date()
+        });
+
+        return reply(json({ token }));
+      }
+
+      /* ---------- what the customer actually opens, with no sign-in ---------- */
+      if (url.pathname.startsWith("/portal/view/") && req.method === "GET") {
+        const token = url.pathname.slice("/portal/view/".length);
+        if (!token || token.length < 16) return reply(problem(404, "There is nothing at this link."));
+
+        const rows = await db.select().from(schema.sharedDocuments)
+          .where(eq(schema.sharedDocuments.token, token)).limit(1);
+        const record = rows[0];
+
+        const state = stateOf(record ? {
+          ...record,
+          createdAt: record.createdAt ?? new Date(),
+          expiresAt: record.expiresAt ?? undefined,
+          revokedAt: record.revokedAt ?? undefined
+        } as never : undefined);
+
+        if (state !== "live" || !record) {
+          const refusal = refusalFor(state);
+          return reply(problem(refusal.status, refusal.says));
+        }
+
+        await db.update(schema.sharedDocuments)
+          .set({ viewCount: (record.viewCount ?? 0) + 1, lastViewedAt: new Date() })
+          .where(eq(schema.sharedDocuments.id, record.id));
+
+        return reply(json({ document: JSON.parse(record.snapshot) }));
+      }
+
+      /* ---------- withdrawing a link ---------- */
+      if (url.pathname === "/portal/revoke" && req.method === "POST") {
+        const found = await currentSession(req, env);
+        if (!found?.session.orgId) return reply(problem(401, "Not signed in."));
+        const body = await req.json().catch(() => null) as { documentId?: string } | null;
+        if (!body?.documentId) return reply(problem(400, "Which document?"));
+
+        await db.update(schema.sharedDocuments).set({ revokedAt: new Date() })
+          .where(and(
+            eq(schema.sharedDocuments.orgId, found.session.orgId),
+            eq(schema.sharedDocuments.documentId, body.documentId)
+          ));
+
+        return reply(json({ ok: true }));
+      }
+
+      /* ---------- which documents are shared, and whether anybody looked ---------- */
+      if (url.pathname === "/portal/shared" && req.method === "GET") {
+        const found = await currentSession(req, env);
+        if (!found?.session.orgId) return reply(problem(401, "Not signed in."));
+
+        const rows = await db.select().from(schema.sharedDocuments)
+          .where(eq(schema.sharedDocuments.orgId, found.session.orgId));
+
+        return reply(json({
+          shared: rows.map((r) => ({
+            documentId: r.documentId, number: r.number, token: r.token,
+            viewCount: r.viewCount ?? 0,
+            lastViewedAt: r.lastViewedAt?.toISOString(),
+            revoked: Boolean(r.revokedAt),
+            expiresAt: r.expiresAt?.toISOString()
+          }))
         }));
       }
 

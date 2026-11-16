@@ -1,79 +1,82 @@
-NXONE — ASSETS, YEAR END, ORDERS AND BILLS
-==========================================
+NXONE — HISTORY, CLAIMS, TCS, CUSTOMER PORTAL
+=============================================
 
-26 files. Verified: 791 app tests, 90 server tests, build clean, and all three
-new screens driven in a real browser with no console errors.
+The last four of the nine. 922 app tests, 104 server tests, build clean, all
+screens driven in a browser.
 
   cd /workspaces/nxone
-  unzip -q nxone-assets-yearend-orders.zip
-  cp -r nxone-assets-yearend-orders/. .
-  rm -rf nxone-assets-yearend-orders nxone-assets-yearend-orders.zip
+  unzip -q nxone-history-claims-tcs-portal.zip
+  cp -r nxone-history-claims-tcs-portal/. .
+  rm -rf nxone-history-claims-tcs-portal nxone-history-claims-tcs-portal.zip
   npm test && npm run build
-  git add -A && git commit -m "Fixed assets, year end, orders against bills" && git push
+  git add -A && git commit -m "Audit trail, claims, TCS, customer portal" && git push
   npm run deploy
 
-Nothing new to install. Three new screens: /assets, /year-end, /orders.
+Apply after the previous two zips. New screens: /history, /claims, and a
+public /view/<token> page. TCS sits on the existing /tds screen.
 
 
-1. WHAT YOU OWN
----------------
-  A laptop bought outright is not a cost in the month it was bought; it is a
-  cost spread over the years it is used. Recorded as a cost on the day, the
-  month looks far worse than it was and the next three look better — and it is
-  the adjustment an accountant makes by hand every year end.
+6. HISTORY
+----------
+  Books that can be edited silently are books nobody can rely on. The question
+  is never who did it — on one device it is always you — it is what this
+  invoice said before somebody changed it, which comes up whenever a figure is
+  queried months later.
 
-  The register holds what each thing cost, what it has worn down by and what
-  it is worth now, pro-rated by days in the year it was bought. Depreciation
-  posts into the books on the last day of each finished year, never for a year
-  still running. Selling one clears the cost and the wear and books the gain
-  or loss.
+  Recorded inside the store's own write methods rather than by their callers,
+  so nothing can change through NXOne without leaving a trace: a trail
+  somebody has to remember to write has holes exactly where it matters. Saves
+  that changed nothing are not recorded. Changes that move the books are
+  marked, and the last 500 are kept — older history is dropped rather than
+  filling the space the books need.
 
-  Two columns of figures on purpose. The books spread a cost over the life of
-  the thing; the tax computation pools assets into blocks and writes each
-  block down at its own rate — and anything bought with fewer than 180 days
-  left in the year gets half that rate, which is the rule most often missed. A
-  sale is not a gain for tax at all: the proceeds come off the block. The
-  screen says all of this rather than leaving somebody to wonder which figure
-  is wrong.
+  A bug caught here: several writes can land in the same millisecond, and
+  sorting on the timestamp alone ordered those arbitrarily, so the newest was
+  not reliably first. The stored order now breaks the tie.
 
-  Large bills filed as costs are flagged as things that might be assets, and
-  recording one keeps the bill where it is — nothing is counted twice.
+7. CLAIMS
+---------
+  Money your people spent that you owe them back. The cost is dated the day
+  the money was spent, not the day it was approved — a September lunch stays a
+  September cost however long it waits — and until it is repaid it sits as
+  owed to the person rather than paid out of a bank account.
 
-  Lives and rates are read from published summaries, not the schedules
-  themselves, so every class carries its source and is marked unverified.
+  The figure shown is not the total claimed, it is how long somebody has been
+  out of pocket. Claims cannot move backwards: once repaid, a correction is a
+  correction rather than a rewrite of what happened.
 
-2. YEAR END
------------
-  Nothing in these books is a stored balance, so closing a year is not
-  arithmetic — it is somebody satisfying themselves the year is complete and
-  saying so. The useful part is therefore the list of what is usually wrong
-  when somebody thinks a year is finished: invoices still in draft (which
-  means the year is understated), bills sitting in general expenses, large
-  purchases that never reached the asset register, and books that do not
-  balance. Drafts and an unbalanced sheet stop a close; the rest are flagged
-  and do not hold you up.
+8. TCS
+------
+  The mirror of TDS: added to a customer's bill, collected, and paid over. On
+  ordinary goods it starts only once your turnover passes ₹10 crore and you
+  have sold more than ₹50 lakh to one customer in a year; a scrap or timber
+  dealer meets it from the first sale.
 
-  The balance sheet now splits profit kept from earlier years from profit made
-  this year, instead of showing one figure covering every year you have
-  traded. Closing sets the period lock to the year end.
+  Charged only on the part above the threshold. Charging the whole amount is
+  the usual mistake, and it overcharges the customer rather than the
+  government. On the /tds screen, under what you hold back.
 
-3. ORDERS AND BILLS
--------------------
-  A purchase order is a promise to pay for a particular thing at a particular
-  price. The bill that arrives later is somebody else's account of the same
-  transaction, and the two disagree more often than anybody expects.
+9. CUSTOMER PORTAL
+------------------
+  A link a customer can open to see their invoice — no account, no password,
+  nothing of the business behind it beyond that one document.
 
-  Bills can now be linked to the order they came from — the form offers that
-  supplier's open orders — and the screen shows what was ordered against what
-  was billed, what is still committed, and anything billed above the order.
+  Two decisions worth knowing. The link is a credential, so it is long,
+  unguessable, avoids characters people misread aloud, is compared in constant
+  time, and can be withdrawn. And what is shared is a snapshot: changing the
+  invoice afterwards does not silently change what the customer was shown,
+  which protects both sides of an argument about what was sent.
 
-  It also catches the same bill entered twice, matched on the supplier and
-  bill number rather than the amount, because two bills for the same amount in
-  a month is ordinary and the same number twice is not. Paying a bill twice is
-  one of the few mistakes that costs real money and leaves no trace: the books
-  balance either way, the supplier is simply better off.
+  The snapshot is built field by field on the device rather than by copying
+  the document and deleting what should not go — under the second approach a
+  field added later would find its own way into a stranger's browser. The
+  server checks it again on arrival and refuses anything carrying a job id, a
+  cost, a supplier or an internal note.
 
-STILL PENDING
-  The API deploy, which is the only thing standing between you and logins,
-  team access, payment links and backups that are not one browser's local
-  storage.
+  Dormant until the API is deployed: the share button does not appear, and
+  /view says there is nothing at the link.
+
+WHAT IS LEFT
+  The API deploy. All nine features are in; the ones that need a server —
+  logins, sync, team, payment links, the portal — are written, tested and
+  waiting on a Cloudflare token and a D1 database. Five migrations now.

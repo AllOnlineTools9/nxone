@@ -159,3 +159,26 @@ export const paymentsArrived = () => call<{ payments: ArrivedPayment[] }>("/paym
 /** Tell the server they have been applied, so the same payment is never recorded twice. */
 export const paymentsApplied = (documentIds: string[]) =>
   call<{ ok: boolean; marked: number }>("/payments/applied", { method: "POST", body: JSON.stringify({ documentIds }) });
+
+/* ------------------------------------------------- sharing a document */
+
+/** Share a document with its customer by link, or refresh what an existing link shows. */
+export const shareDocument = (input: { documentId: string; number: string; snapshot: unknown; expiresInDays?: number }) =>
+  call<{ token: string; reused?: boolean }>("/portal/share", { method: "POST", body: JSON.stringify(input) });
+
+/** Withdraw the link, so it stops working. */
+export const revokeShare = (documentId: string) =>
+  call<{ ok: boolean }>("/portal/revoke", { method: "POST", body: JSON.stringify({ documentId }) });
+
+export interface SharedSummary {
+  documentId: string;
+  number: string;
+  token: string;
+  viewCount: number;
+  lastViewedAt?: string;
+  revoked: boolean;
+  expiresAt?: string;
+}
+
+/** Which documents are shared, and whether the customer has looked. */
+export const sharedDocuments = () => call<{ shared: SharedSummary[] }>("/portal/shared");

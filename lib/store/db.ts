@@ -1,7 +1,8 @@
 import type { DocumentKind } from "../documents/types";
 import { formatDate, todayIso } from "../format";
 import { PeriodClosed, isLocked, refusal } from "../books/lock";
-import { emptyWorkspace, type SavedAsset, type CatalogueItem, type Client, type Expense, type Profile, type RecurringTemplate, type SavedDocument, type SavedScenario, type SavedEmployee, type SavedPayRun, type Workspace } from "./types";
+import { changesBetween, trim, type AuditAction, type AuditEntry } from "./audit";
+import { emptyWorkspace, type SavedAsset, type SavedProject, type CatalogueItem, type Client, type Expense, type Profile, type RecurringTemplate, type SavedDocument, type SavedScenario, type SavedEmployee, type SavedPayRun, type Workspace } from "./types";
 
 /**
  * Everything a person saves lives on their own device. This is a small store over a storage
@@ -160,6 +161,37 @@ export class Store {
    * be moved *into* a closed period as well as edited inside one, and both have to be stopped
    * or the lock means nothing.
    */
+  /**
+   * Record what changed. Called from inside the write methods rather than by their callers, so
+   * nothing can be changed through this store without leaving a trace — a trail somebody has to
+   * remember to write is a trail with holes in it exactly where it matters.
+   */
+  private record(
+    what: string, recordId: string, label: string, action: AuditAction,
+    before?: Record<string, unknown>, after?: Record<string, unknown>,
+    /** Given directly when the change is known without comparing two versions. */
+    stated?: Array<{ field: string; from: string; to: string }>
+  ) {
+    const ws = this.read();
+    const changes = stated ?? (before && after ? changesBetween(before, after) : undefined);
+    // A save that changed nothing is not worth a line in the history.
+    if (action === "changed" && (!changes || changes.length === 0)) return;
+
+    const entry: AuditEntry = {
+      id: newId("au"), at: new Date().toISOString(), what, recordId, label, action, changes
+    };
+    this.write({ ...ws, audit: trim([...(ws.audit ?? []), entry]) });
+  }
+
+  /**
+   * Everything recorded, newest first. Several writes can land in the same millisecond, and
+   * sorting on the timestamp alone would order those arbitrarily — so the stored order breaks
+   * the tie, which is the order they actually happened in.
+   */
+  auditTrail(): AuditEntry[] {
+    return [...(this.read().audit ?? [])].reverse().sort((a, b) => b.at.localeCompare(a.at));
+  }
+
   private guardLock(what: "document" | "expense", ...dates: Array<string | undefined>) {
     const profile = this.read().profile;
     const lockedUpTo = profile?.lockedUpTo;
@@ -186,12 +218,15 @@ export class Store {
       : { ...input, id: newId("dc"), createdAt: now, updatedAt: now, version: 1 };
 
     this.write({ ...ws, documents: existing ? ws.documents.map((d) => (d.id === saved.id ? saved : d)) : [...ws.documents, saved] });
+    this.record("documents", saved.id, saved.number, existing ? "changed" : "created",
+      existing as unknown as Record<string, unknown>, saved as unknown as Record<string, unknown>);
     return saved;
   }
 
   setStatus(id: string, status: SavedDocument["status"], paidMinor?: number, paidOn?: string) {
     // The payment lands on the day the money arrived, so that is the date that must be open.
     this.guardLock("document", paidOn ?? todayIso());
+    let recordStatus: { number: string; from: string; to: string } | undefined;
     const ws = this.read();
     this.write({
       ...ws,
@@ -199,6 +234,7 @@ export class Store {
         if (d.id !== id) return d;
         const nowPaid = paidMinor ?? (status === "paid" ? d.totalMinor : d.paidMinor);
         const gotMoney = nowPaid > d.paidMinor;
+        recordStatus = { number: d.number, from: d.status, to: status };
         return {
           ...d, status, paidMinor: nowPaid,
           // Set the day the money arrived the first time money arrives, and leave it alone
@@ -208,11 +244,18 @@ export class Store {
         };
       })
     });
+
+    if (recordStatus && recordStatus.from !== recordStatus.to) {
+      this.record("documents", id, recordStatus.number, "status", undefined, undefined,
+        [{ field: "status", from: recordStatus.from, to: recordStatus.to }]);
+    }
   }
 
   deleteDocument(id: string) {
-    this.guardLock("document", this.read().documents.find((d) => d.id === id)?.issueDate);
+    const existing = this.read().documents.find((d) => d.id === id);
+    this.guardLock("document", existing?.issueDate);
     this.tombstone("documents", id);
+    if (existing) this.record("documents", id, existing.number, "deleted");
   }
 
   /* ---- expenses ---- */
@@ -233,22 +276,26 @@ export class Store {
       : { ...input, id: newId("ex"), createdAt: now, updatedAt: now, version: 1 };
 
     this.write({ ...ws, expenses: existing ? list.map((e) => (e.id === saved.id ? saved : e)) : [...list, saved] });
+    this.record("expenses", saved.id, `${saved.supplier}${saved.reference ? ` ${saved.reference}` : ""}`,
+      existing ? "changed" : "created", existing as unknown as Record<string, unknown>, saved as unknown as Record<string, unknown>);
     return saved;
   }
 
   deleteExpense(id: string) {
-    this.guardLock("expense", (this.read().expenses ?? []).find((e) => e.id === id)?.date);
+    const existing = (this.read().expenses ?? []).find((e) => e.id === id);
+    this.guardLock("expense", existing?.date);
     this.tombstone("expenses", id);
+    if (existing) this.record("expenses", id, `${existing.supplier}${existing.reference ? ` ${existing.reference}` : ""}`, "deleted");
   }
 
   /**
    * Deleting marks the row instead of removing it, so your other devices learn about it. A row the
    * server has never seen is dropped outright, since there is nobody to tell.
    */
-  private tombstone(collection: "clients" | "items" | "documents" | "expenses" | "recurring" | "scenarios" | "employees" | "payruns" | "assets", id: string) {
+  private tombstone(collection: "clients" | "items" | "documents" | "expenses" | "recurring" | "scenarios" | "employees" | "payruns" | "assets" | "projects", id: string) {
     const ws = this.read();
     const now = new Date().toISOString();
-    const list = (ws[collection] ?? []) as Array<Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun | SavedAsset>;
+    const list = (ws[collection] ?? []) as Array<Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun | SavedAsset | SavedProject>;
     const next = list
       .filter((row) => !(row.id === id && !row.syncedAt))
       .map((row) => (row.id === id ? { ...row, deletedAt: now, updatedAt: now, version: (row.version ?? 1) + 1 } : row));
@@ -326,10 +373,30 @@ export class Store {
       : { ...input, id: newId("as"), createdAt: now, updatedAt: now, version: 1 };
 
     this.write({ ...ws, assets: existing ? list.map((a) => (a.id === saved.id ? saved : a)) : [...list, saved] });
+    this.record("assets", saved.id, saved.name, existing ? "changed" : "created",
+      existing as unknown as Record<string, unknown>, saved as unknown as Record<string, unknown>);
     return saved;
   }
 
   deleteAsset(id: string) { this.tombstone("assets", id); }
+
+  projects(): SavedProject[] { return (this.read().projects ?? []).filter((p) => !p.deletedAt); }
+
+  saveProject(input: Omit<SavedProject, "id" | "createdAt" | "updatedAt"> & { id?: string }): SavedProject {
+    const now = new Date().toISOString();
+    const ws = this.read();
+    const list = ws.projects ?? [];
+    const existing = input.id ? list.find((p) => p.id === input.id) : undefined;
+
+    const saved: SavedProject = existing
+      ? { ...existing, ...input, id: existing.id, createdAt: existing.createdAt, updatedAt: now, version: (existing.version ?? 1) + 1, deletedAt: undefined }
+      : { ...input, id: newId("pj"), createdAt: now, updatedAt: now, version: 1 };
+
+    this.write({ ...ws, projects: existing ? list.map((p) => (p.id === saved.id ? saved : p)) : [...list, saved] });
+    return saved;
+  }
+
+  deleteProject(id: string) { this.tombstone("projects", id); }
 
   /**
    * Tie a document to the one it was made from — a quotation to the invoice it became. Both ends

@@ -1,5 +1,5 @@
 "use client";
-import { BookOpen, Building2, CalendarClock, CalendarSync, Calculator, ChartColumn, FileSpreadsheet, FileText, FlaskConical, FolderOpen, HandCoins, Landmark, LayoutDashboard, MessageCircleQuestion, Quote, Package, Receipt, Search, ShoppingCart, Stamp, Sun, UsersRound, TrendingDown, Users, Wallet, X, ShieldCheck, Scissors, CalendarCheck, ClipboardList } from "lucide-react";
+import { BookOpen, Building2, CalendarClock, CalendarSync, Calculator, ChartColumn, FileSpreadsheet, FileText, FlaskConical, FolderOpen, HandCoins, Landmark, LayoutDashboard, MessageCircleQuestion, Quote, Package, Receipt, Search, ShoppingCart, Stamp, Sun, UsersRound, TrendingDown, Users, Wallet, X, ShieldCheck, Scissors, CalendarCheck, ClipboardList, Scale, Target, Hammer, History } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
@@ -19,10 +19,14 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string;
       { href: "/cash-flow", label: "Cash", icon: Wallet },
       { href: "/scenarios", label: "What if", icon: FlaskConical },
       { href: "/reports", label: "Reports", icon: ChartColumn },
+      { href: "/budget", label: "Budget", icon: Target },
+      { href: "/jobs", label: "Jobs", icon: Hammer },
       { href: "/compliance", label: "Filing calendar", icon: CalendarClock },
       { href: "/gst-returns", label: "GST returns", icon: FileSpreadsheet },
+      { href: "/composition", label: "GST scheme", icon: Scale },
       { href: "/input-credit", label: "Input credit", icon: ShieldCheck },
       { href: "/tds", label: "TDS", icon: Scissors },
+      { href: "/advance-tax", label: "Advance tax", icon: CalendarClock },
       { href: "/e-invoicing", label: "E-invoicing", icon: Stamp }
     ]
   },
@@ -35,9 +39,11 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string;
       { href: "/stock", label: "Stock", icon: Package },
       { href: "/assets", label: "What you own", icon: Landmark },
       { href: "/payroll", label: "Payroll", icon: UsersRound },
+      { href: "/claims", label: "Claims", icon: Wallet },
       { href: "/bank-import", label: "Bank statement", icon: Landmark },
       { href: "/books", label: "Accounts", icon: BookOpen },
-      { href: "/year-end", label: "Year end", icon: CalendarCheck }
+      { href: "/year-end", label: "Year end", icon: CalendarCheck },
+      { href: "/history", label: "History", icon: History }
     ]
   },
   {

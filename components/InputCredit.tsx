@@ -2,6 +2,8 @@
 import { AlertTriangle, CheckCircle2, Mail, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { NotATwoB, chaseMessage, readTwoB, reconcile, type MatchState, type Reconciliation, type TwoBFile } from "@/lib/returns/gstr2b";
+import Link from "next/link";
+import { possiblyReverseCharge } from "@/lib/returns/rcm";
 import { formatDate, mailtoLink } from "@/lib/format";
 import { formatMoney, fromMinor } from "@/lib/money";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
@@ -45,6 +47,27 @@ export default function InputCredit() {
   );
 
   if (!ready) return <div className="h-64 animate-pulse rounded-xl border border-line bg-white/60" aria-hidden="true" />;
+
+  // A composition dealer files CMP-08, not these, and claims no credit at all. Showing them
+  // regular-scheme figures would invite a return nobody on this scheme may file.
+  if (ws.profile?.gstScheme === "composition") {
+    return (
+      <section className="card p-5">
+        <h2 className="font-display text-lg">This does not apply on the composition scheme</h2>
+        <p className="mt-1 max-w-2xl text-sm text-ink-soft">
+          You file CMP-08 each quarter instead, and claim no input credit — that is the trade for
+          the lower rate on turnover.
+        </p>
+        <Link href="/composition" className="btn-ghost mt-3 inline-flex">Go to the quarterly return</Link>
+      </section>
+    );
+  }
+
+
+  const missed = possiblyReverseCharge(db.expenses().map((e) => ({
+    id: e.id, date: e.date, supplier: e.supplier, description: e.description,
+    netMinor: e.netMinor, taxMinor: e.taxMinor, rcmCategory: e.rcmCategory, supplierGstin: e.supplierGstin
+  })));
 
   const currency = ws.profile?.currency ?? "INR";
   const country = ws.profile?.country ?? "IN";
@@ -101,6 +124,32 @@ export default function InputCredit() {
           </p>
         ) : null}
       </section>
+
+      {missed.length > 0 ? (
+        <section className="card border-warn/30 bg-warn/5 p-5">
+          <h2 className="flex items-center gap-2 font-display text-lg text-warn">
+            <AlertTriangle size={17} aria-hidden="true" />
+            {missed.length === 1 ? "A bill may be under reverse charge" : `${missed.length} bills may be under reverse charge`}
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm text-ink-soft">
+            Where reverse charge applies, you owe the GST yourself and the supplier's bill carries
+            none. Left unmarked it catches you twice: the tax is owed whether or not anybody
+            noticed, and the credit you were entitled to goes unclaimed.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {missed.slice(0, 6).map((s) => (
+              <li key={s.expenseId} className="border-t border-warn/20 pt-2 text-sm">
+                <span className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="font-medium">{s.supplier}</span>
+                  <span className="tabular text-ink-soft">{date(s.date)} · {money(s.netMinor)}</span>
+                </span>
+                <span className="mt-0.5 block text-ink-soft">{s.says}</span>
+              </li>
+            ))}
+          </ul>
+          <Link href="/expenses" className="mt-3 inline-block text-sm underline">Mark them on the bills</Link>
+        </section>
+      ) : null}
 
       {result ? (
         <>

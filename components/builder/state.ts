@@ -14,8 +14,8 @@ const KEY = "nxone.document.v1";
 /** Which saved document the current draft belongs to, so a refresh still updates rather than duplicates. */
 const LINK = "nxone.document.saved.v1";
 
-export function emptyLine(country: string, isoDate: string, interRegion = false): LineItem {
-  return { id: Math.random().toString(36).slice(2, 9), description: "", quantity: 1, rate: 0, taxRuleId: defaultTaxRuleId(country, isoDate, interRegion) };
+export function emptyLine(country: string, isoDate: string, interRegion = false, composition = false): LineItem {
+  return { id: Math.random().toString(36).slice(2, 9), description: "", quantity: 1, rate: 0, taxRuleId: defaultTaxRuleId(country, isoDate, interRegion, composition) };
 }
 
 /**
@@ -31,6 +31,8 @@ export function blankDocument(kind: DocumentKind, country: string): DocumentData
   const saved = profile?.nextNumbers?.[kind];
   return {
     kind, country: useCountry, currency: profile?.currency ?? pack.currency, issueDate,
+    // A business on the composition scheme issues a bill of supply, with no tax on it.
+    composition: profile?.gstScheme === "composition" || undefined,
     dueDate: cfg.secondDateLabel ? addDays(issueDate, cfg.secondDateDays ?? 0) : undefined,
     number: saved || `${cfg.numberPrefix}0001`,
     template: profile?.template ?? "classic",
@@ -46,7 +48,7 @@ export function blankDocument(kind: DocumentKind, country: string): DocumentData
     payment: cfg.showPaymentDetails ? { upiId: profile?.upiId, paymentLink: profile?.paymentLink, includeAmount: true } : undefined,
     buyer: { name: "", address: "", email: "", taxId: "", region: "" },
     placeOfSupply: "",
-    items: [emptyLine(country, issueDate)],
+    items: [emptyLine(useCountry, issueDate, false, profile?.gstScheme === "composition")],
     taxInclusive: false,
     roundOff: pack.code === "IN",
     terms: profile?.defaultTerms || cfg.defaultTerms || "",
@@ -224,7 +226,10 @@ export function useDocument(kind: DocumentKind) {
     const saved = store.saveDocument({
       id: savedId, kind: doc.kind, number: doc.number, clientName: doc.buyer.name || "No customer",
       issueDate: doc.issueDate, dueDate: doc.dueDate, currency: doc.currency,
-      totalMinor: t.total.minor, paidMinor, status: resolved, doc
+      totalMinor: t.total.minor, paidMinor, status: resolved, doc,
+      // Carried onto the saved record as well as the document, so the job's figures can be
+      // worked out without opening every invoice.
+      projectId: doc.projectId
     });
     setSavedId(saved.id);
     if (!savedId) advanceNumber(doc.kind, doc.number);

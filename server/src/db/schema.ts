@@ -188,3 +188,27 @@ export const paymentLinks = sqliteTable("payment_links", {
   byOrg: index("payment_links_org_idx").on(t.orgId),
   byDocument: index("payment_links_document_idx").on(t.documentId)
 }));
+
+/**
+ * A document shared with a customer by link. The snapshot is what they see: changing the
+ * invoice afterwards does not change what was already sent, which matters when the two sides
+ * disagree about what was agreed.
+ */
+export const sharedDocuments = sqliteTable("shared_documents", {
+  id: id(),
+  token: text("token").notNull(),
+  orgId: text("org_id").notNull().references(() => organisations.id),
+  documentId: text("document_id").notNull(),
+  number: text("number").notNull(),
+  snapshot: text("snapshot").notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+  revokedAt: integer("revoked_at", { mode: "timestamp_ms" }),
+  viewCount: integer("view_count").notNull().default(0),
+  lastViewedAt: integer("last_viewed_at", { mode: "timestamp_ms" }),
+  createdBy: text("created_by").notNull().references(() => users.id),
+  createdAt: created()
+}, (t) => ({
+  byToken: uniqueIndex("shared_documents_token_idx").on(t.token),
+  byOrg: index("shared_documents_org_idx").on(t.orgId),
+  byDocument: index("shared_documents_document_idx").on(t.documentId)
+}));

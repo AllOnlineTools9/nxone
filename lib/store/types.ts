@@ -28,6 +28,19 @@ export interface Profile extends Syncable {
    * Set when a return is filed, so what was filed and what the books say cannot drift apart.
    */
   lockedUpTo?: string;
+  /** Advance tax instalments already paid, so the year's dates can be checked against them. */
+  advanceTaxPaid?: Array<{ date: string; amountMinor: number }>;
+  /**
+   * Which GST scheme the business is on. Almost everything in the GST screens assumes regular
+   * registration, so a business on composition has to be known about rather than guessed at.
+   */
+  gstScheme?: "regular" | "composition" | "unregistered";
+  /** What the business meant to spend this year, per account. */
+  budgets?: Array<{ code: string; yearMinor: number; monthly?: Record<string, number> }>;
+  /** Expense claims owed to the people who work here. */
+  claims?: Claim[];
+  /** Which composition rate applies, when on that scheme. */
+  compositionRate?: string;
   /** What the business is registered for, which decides the filing calendar. */
   registrations?: Registration[];
   /** Indian businesses on the QRMP scheme file GST quarterly rather than monthly. */
@@ -128,6 +141,8 @@ export interface SavedDocument extends Syncable {
     * The document this one was made from, and the one made from it: a quotation and the invoice
     * it became. Named for documents rather than currencies, which convert too.
     */
+  /** The job this document belongs to, when the business works in jobs. */
+  projectId?: string;
   madeFrom?: { id: string; number: string };
   madeInto?: { id: string; kind: DocumentKind; number: string };
   doc: DocumentData;
@@ -154,6 +169,15 @@ export interface Expense extends Syncable {
   reference?: string;
   /** The purchase order this bill is against, so the two can be compared. */
   orderId?: string;
+  /** The job this cost belongs to, when the business works in jobs. */
+  projectId?: string;
+  /**
+   * The reverse charge category, when the tax on this bill is owed by you rather than charged
+   * by the supplier. The bill itself carries no GST in that case.
+   */
+  rcmCategory?: string;
+  /** The rate that would have applied had the supplier charged it. */
+  rcmRate?: number;
   /**
    * The supplier's GSTIN. Without it a purchase cannot be matched against GSTR-2B, which is
    * what decides whether the tax on it can actually be claimed.
@@ -241,6 +265,25 @@ export interface SavedAsset {
   syncedAt?: string;
 }
 
+/** A job: a piece of work with its own income and costs. */
+export interface SavedProject {
+  id: string;
+  name: string;
+  client?: string;
+  startedOn?: string;
+  quotedMinor?: number;
+  status: "open" | "done" | "abandoned";
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  version: number;
+  deletedAt?: string;
+  syncedAt?: string;
+}
+
+import type { AuditEntry } from "./audit";
+import type { Claim } from "../payroll/claims";
+
 export interface Workspace {
   version: 1;
   /** How far this device has caught up with the server, in milliseconds. */
@@ -256,7 +299,10 @@ export interface Workspace {
   scenarios: SavedScenario[];
   employees: SavedEmployee[];
   assets?: SavedAsset[];
+  projects?: SavedProject[];
+  /** What changed and when, so a figure queried months later can be traced. */
+  audit?: AuditEntry[];
   payruns: SavedPayRun[];
 }
 
-export const emptyWorkspace = (): Workspace => ({ version: 1, clients: [], items: [], documents: [], expenses: [], recurring: [], scenarios: [], employees: [], payruns: [], assets: [] });
+export const emptyWorkspace = (): Workspace => ({ version: 1, clients: [], items: [], documents: [], expenses: [], recurring: [], scenarios: [], employees: [], payruns: [], assets: [], projects: [] });

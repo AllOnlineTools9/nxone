@@ -75,6 +75,14 @@ export interface DocumentData {
   items: LineItem[];
   /** Whether the rates typed by the user already include tax. */
   taxInclusive: boolean;
+  /**
+   * Set when the business is on the composition scheme, which makes this a bill of supply with
+   * no tax on it. Carried on the document rather than read from the profile, so a document
+   * issued under one scheme still reads correctly after the business changes scheme.
+   */
+  composition?: boolean;
+  /** The job this document is for, when the business works in jobs. */
+  projectId?: string;
   /** Discount applied to the whole document, after line discounts. */
   discountPct?: number;
   shipping?: number;
