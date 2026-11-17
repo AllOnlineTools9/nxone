@@ -19,7 +19,7 @@ export default function Preview({ doc, totals }: { doc: DocumentData; totals: Do
   const accent = tpl.useAccent ? doc.accentColor || "#0B3D2E" : "#121712";
   // A composition dealer may not issue a tax invoice at all: the document is a bill of supply,
   // and calling it an invoice would assert a right to credit the customer does not have.
-  const title = documentTitleFor(doc.composition ? "composition" : "regular",
+  const title = documentTitleFor(doc.composition ? "composition" : doc.noGst ? "unregistered" : "regular",
     doc.kind === "invoice" ? pack.invoiceTitle : kind.title);
   const m = (v: { minor: number; currency: string }) => formatMoney(v, pack.locale);
   const hasTax = totals.taxRows.length > 0;

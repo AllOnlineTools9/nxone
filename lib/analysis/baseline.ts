@@ -13,7 +13,7 @@ import type { Baseline } from "./scenario";
  *
  * The scenario simulator needs four figures: sales, the costs that move with sales, the costs
  * that do not, and the cash in hand. Three of those come from an average of whole months already
- * recorded — the month in progress is left out, because a month that is four days old would halve
+ * recorded - the month in progress is left out, because a month that is four days old would halve
  * every figure. The fourth comes from the ledger as it stands today.
  *
  * Every figure is offered to the owner to correct. A "typical month" is a judgement, and the

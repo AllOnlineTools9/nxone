@@ -4,7 +4,7 @@
  * Normally the seller collects the tax and hands it over. For certain supplies the law turns it
  * around: the buyer pays the tax to the government directly, and the supplier's bill carries no
  * GST at all. Freight, an advocate's fee, a director's sitting fee, a service bought from
- * abroad — all ordinary things for a small business.
+ * abroad - all ordinary things for a small business.
  *
  * It catches people both ways at once, which is what makes it expensive. The tax is owed whether
  * or not anybody noticed, so missing it leaves an unpaid liability earning interest. And the

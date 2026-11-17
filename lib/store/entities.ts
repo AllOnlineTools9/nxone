@@ -6,7 +6,7 @@ import { keyForEntity, store, type StorageLike } from "./db";
  *
  * Plenty of people run two: a shop and a consultancy, a firm and a side trade. They are separate
  * businesses with separate books, separate tax numbers and often separate accountants, so they
- * are kept entirely apart here — separate documents, separate ledger, separate sync. Nothing is
+ * are kept entirely apart here - separate documents, separate ledger, separate sync. Nothing is
  * pooled, because two businesses sharing one ledger is not a feature, it is a mistake waiting to
  * be found at audit.
  *
@@ -112,8 +112,8 @@ export class Entities {
   }
 
   /**
-   * Start another business. It begins empty — no documents, no customers, its own profile to fill
-   * in — and is opened straight away, because the only reason to add one is to work in it.
+   * Start another business. It begins empty - no documents, no customers, its own profile to fill
+   * in - and is opened straight away, because the only reason to add one is to work in it.
    */
   add(name = ""): EntityRef {
     const state = this.state();

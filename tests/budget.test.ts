@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { budgetForMonth, fromLastYear, monthsOfYear, reviewBudget, type BudgetLine } from "@/lib/analysis/budget";
+import { budgetForMonth, firstDraft, fromLastYear, fromThisYear, monthsOfYear, reviewBudget, type BudgetLine } from "@/lib/analysis/budget";
 import { ledgerFor } from "@/lib/ledger/posting";
 import type { Expense } from "@/lib/store/types";
 
@@ -110,5 +110,37 @@ describe("a first draft from last year", () => {
 
   it("offers nothing for a business with no history", () => {
     expect(fromLastYear([], "INR", "2026-11-16")).toEqual([]);
+  });
+});
+
+describe("a first draft for a business with no last year", () => {
+  const thisYear = [bill("e1", "2026-07-10", 3_000_000, "6040"), bill("e2", "2026-08-10", 1_000_000, "6050")];
+
+  it("falls back to this year, scaled to a full year, instead of doing nothing", () => {
+    const out = firstDraft(ledgerFor([], thisYear, "INR"), "INR", "2026-10-01");
+    expect(out.source).toBe("this-year");
+    // Half the year gone and ₹30,000 spent: about ₹60,000 for the year.
+    expect(out.lines[0].code).toBe("6040");
+    expect(out.lines[0].yearMinor).toBeGreaterThan(5_800_000);
+    expect(out.lines[0].yearMinor).toBeLessThan(6_200_000);
+  });
+
+  it("rounds to the nearest hundred, so it reads as a target", () => {
+    const out = firstDraft(ledgerFor([], thisYear, "INR"), "INR", "2026-10-01");
+    expect(out.lines.every((l) => l.yearMinor % 10_000 === 0)).toBe(true);
+  });
+
+  it("still prefers last year when there is one", () => {
+    const withHistory = [...thisYear, bill("e3", "2025-06-10", 9_000_000, "6010")];
+    expect(firstDraft(ledgerFor([], withHistory, "INR"), "INR", "2026-10-01").source).toBe("last-year");
+  });
+
+  it("says plainly when there is nothing at all to start from", () => {
+    expect(firstDraft([], "INR", "2026-10-01")).toEqual({ lines: [], source: "nothing" });
+  });
+
+  it("does not multiply up a few days of spending", () => {
+    const out = fromThisYear(ledgerFor([], [bill("e1", "2026-04-03", 500_000, "6040")], "INR"), "INR", "2026-04-05");
+    expect(out[0].yearMinor).toBe(500_000);
   });
 });

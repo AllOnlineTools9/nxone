@@ -7,7 +7,7 @@ import { entities } from "@/lib/store/entities";
  * Keeping the app usable with no signal, and saying so.
  *
  * Two small jobs. It registers the service worker, which is what lets NXOne open at all when
- * there is nothing to reach. And when the signal goes, it says one sentence — because the thing a
+ * there is nothing to reach. And when the signal goes, it says one sentence - because the thing a
  * person needs to know at that moment is not that the connection failed, but that their work is
  * still safe and they can carry on.
  *

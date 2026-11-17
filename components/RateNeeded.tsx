@@ -7,7 +7,7 @@ import { useHydrated, useWorkspace } from "@/lib/store/useStore";
 /**
  * The one thing a set of books must never do is leave money out without saying so.
  *
- * An invoice billed in another currency with no exchange rate cannot be added to anything — there
+ * An invoice billed in another currency with no exchange rate cannot be added to anything - there
  * is no honest number to add. So rather than quietly excluding it and showing a total that looks
  * complete, every screen that adds money up carries this, naming what is missing and how much of
  * it there is.

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { calculate } from "@/lib/documents/totals";
 import {
   COMPOSITION_DECLARATION, COMPOSITION_EXCLUSIONS, COMPOSITION_RATES, LIMITS,
   cmp08, compositionQuarter, compositionRate, documentTitleFor, outgrown
@@ -123,5 +124,38 @@ describe("what does not apply on this scheme", () => {
     expect(COMPOSITION_EXCLUSIONS.length).toBeGreaterThanOrEqual(5);
     expect(COMPOSITION_EXCLUSIONS.every((e) => e.why.length > 20)).toBe(true);
     expect(COMPOSITION_EXCLUSIONS.map((e) => e.what).join(" ")).toContain("Input credit");
+  });
+});
+
+describe("a document with no GST", () => {
+  const doc = (over = {}) => ({
+    kind: "invoice", country: "IN", currency: "INR", issueDate: "2026-11-17", number: "INV-1",
+    seller: { name: "Corner Shop", region: "KA" }, buyer: { name: "Globex", region: "KA" },
+    placeOfSupply: "KA", taxInclusive: false,
+    items: [{ id: "l", description: "Work", quantity: 1, rate: 1000, taxRuleId: "in-gst-18" }],
+    ...over
+  }) as never;
+
+  it("charges no tax on any line, even one that still carries a rate", () => {
+    const t = calculate(doc({ noGst: true }));
+    expect(t.taxTotal.minor).toBe(0);
+    expect(t.taxRows).toHaveLength(0);
+    expect(t.total.minor).toBe(100_000);
+  });
+
+  it("puts the rates straight back when GST is switched on again", () => {
+    expect(calculate(doc()).taxTotal.minor).toBe(18_000);
+  });
+
+  it("is an invoice, not a tax invoice, when no tax is charged", () => {
+    expect(documentTitleFor("unregistered", "Tax Invoice")).toBe("Invoice");
+  });
+
+  it("leaves a quotation's title alone", () => {
+    expect(documentTitleFor("unregistered", "Quotation")).toBe("Quotation");
+  });
+
+  it("charges no tax on a composition document either, whatever a line says", () => {
+    expect(calculate(doc({ composition: true })).taxTotal.minor).toBe(0);
   });
 });

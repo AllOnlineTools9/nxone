@@ -34,6 +34,7 @@ interface Props {
 
 export default function Editor({ doc, totals, update, updateItem, addItem, removeItem, moveItem, setCountry, documentId }: Props) {
   const jobs = likelyProjects(store.projects(), doc.buyer.name);
+  const chargesNoTax = Boolean(doc.noGst || doc.composition);
   const [ws, db] = useWorkspace();
   const hydrated = useHydrated();
   const pack = packFor(doc.country);
@@ -141,7 +142,33 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
       ) : null}
 
       {pack.code === "IN" ? <ExportBox doc={doc} update={update} /> : null}
-      {pack.code === "IN" && !doc.export?.enabled ? <SupplyType doc={doc} totals={totals} update={update} /> : null}
+      {pack.code === "IN" ? (
+        <section className="card p-5">
+          <h2 className="font-display text-lg">GST</h2>
+          {doc.composition ? (
+            <p className="mt-1 text-sm text-ink-soft">
+              You are on the composition scheme, so no GST is charged and this is a bill of supply.
+            </p>
+          ) : (
+            <>
+              <label className="mt-2 flex items-center gap-3 text-sm">
+                <input
+                  type="checkbox" className="h-4 w-4"
+                  checked={!doc.noGst}
+                  onChange={(e) => update({ noGst: e.target.checked ? undefined : true })}
+                />
+                Charge GST on this {kind.title.toLowerCase()}
+              </label>
+              <p className="mt-1 text-xs text-ink-faint">
+                {doc.noGst
+                  ? "No GST is added to any line, and an invoice is titled Invoice rather than Tax Invoice. Right for a business that is not registered for GST."
+                  : "Untick if your business is not registered for GST. Each line keeps its rate, so ticking it again puts them back."}
+              </p>
+            </>
+          )}
+        </section>
+      ) : null}
+      {pack.code === "IN" && !doc.export?.enabled && !doc.noGst && !doc.composition ? <SupplyType doc={doc} totals={totals} update={update} /> : null}
 
       <section className="card p-5">
         <h2 className="font-display text-lg">Your details</h2>
@@ -211,7 +238,7 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
                   <Num className="sm:col-span-2" label="Qty" value={item.quantity} onChange={(v) => updateItem(item.id, { quantity: v })} />
                   <Num className="sm:col-span-3" label={`Rate (${doc.currency})`} value={item.rate} onChange={(v) => updateItem(item.id, { rate: v, ...autoTax(item.code, v) })} />
                   <Num className="sm:col-span-2" label="Disc %" value={item.discountPct ?? 0} onChange={(v) => updateItem(item.id, { discountPct: v || undefined })} />
-                  <div className="sm:col-span-3">
+                  <div className={`sm:col-span-3 ${chargesNoTax ? "hidden" : ""}`}>
                     <label className="label" htmlFor={`t-${item.id}`}>{pack.taxLabel}</label>
                     <select id={`t-${item.id}`} className="field" value={item.taxRuleId || ""} onChange={(e) => updateItem(item.id, { taxRuleId: e.target.value || undefined })}>
                       <option value="">No {pack.taxLabel.toLowerCase()}</option>
@@ -251,14 +278,14 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
 
       {jobs.length > 0 ? (
         <section className="card p-5">
-          <h2 className="font-display text-lg">Which job</h2>
-          <p className="mt-1 text-sm text-ink-soft">Tagging it lets this document count towards that job&apos;s figures.</p>
+          <h2 className="font-display text-lg">Which contract</h2>
+          <p className="mt-1 text-sm text-ink-soft">Tagging it lets this document count towards that contract&apos;s figures.</p>
           <select
             className="field mt-3 max-w-sm" value={doc.projectId ?? ""}
             onChange={(e) => update({ projectId: e.target.value || undefined })}
           >
-            <option value="">Not against a job</option>
-            {jobs.map((p) => <option key={p.id} value={p.id}>{p.name}{p.client ? ` — ${p.client}` : ""}</option>)}
+            <option value="">Not against a contract</option>
+            {jobs.map((p) => <option key={p.id} value={p.id}>{p.name}{p.client ? ` - ${p.client}` : ""}</option>)}
           </select>
         </section>
       ) : null}
@@ -309,7 +336,7 @@ function Num({ label, value, onChange, className = "" }: { label: string; value:
  * The rate, asked for only when it is actually needed.
  *
  * A business billing in its own currency never sees this. One billing abroad is asked once per
- * invoice, with the last rate it used offered as a starting point and labelled as exactly that —
+ * invoice, with the last rate it used offered as a starting point and labelled as exactly that -
  * a starting point, from a date, not a quotation. NXOne has no rate feed and says so rather than
  * implying the number came from somewhere authoritative.
  */
@@ -338,7 +365,7 @@ function ExchangeRate({ doc, base, documents, update }: { doc: DocumentData; bas
       <p className="mt-1 text-xs text-ink-soft">
         {showing
           ? `${describeRate({ from: doc.currency, to: base, rate: showing, source: "recorded" })}. Your books are kept in ${base}, and this is the rate they will use for this invoice.`
-          : `Your books are kept in ${base}. Without this rate the invoice stays off your reports, cash and returns. Use the rate your bank gave you — NXOne has no rate feed and will not make one up.`}
+          : `Your books are kept in ${base}. Without this rate the invoice stays off your reports, cash and returns. Use the rate your bank gave you - NXOne has no rate feed and will not make one up.`}
       </p>
     </div>
   );

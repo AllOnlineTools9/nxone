@@ -4,7 +4,7 @@ import { financialYearOf } from "../tds/sections";
  * Advance tax: paying the year's income tax in four goes, before the year ends.
  *
  * Nobody sends a bill for this. The dates pass, the instalments are missed, and interest runs
- * from each one — so a business that pays its whole tax on time in July still pays interest for
+ * from each one - so a business that pays its whole tax on time in July still pays interest for
  * the three quarters it was supposed to have paid earlier. It is the quietest recurring penalty
  * a small business meets, and the only thing needed to avoid it is knowing the dates and roughly
  * what the year will make, both of which the books already contain.
@@ -214,7 +214,7 @@ export function advanceTaxYear(input: {
   const basis = input.statedProfitMinor !== undefined
     ? "Your own estimate for the year."
     : elapsed > 0.05
-      ? `The books show ${Math.round(elapsed * 100)}% of the year gone, so this projects the rest at the same rate. Change it if you know better — a quiet month or a big job in March moves it a long way.`
+      ? `The books show ${Math.round(elapsed * 100)}% of the year gone, so this projects the rest at the same rate. Change it if you know better - a quiet month or a big job in March moves it a long way.`
       : "Too little of the year has gone to project anything; this is what the books show so far.";
 
   const tax = taxOnProfit(projected, input.kind);

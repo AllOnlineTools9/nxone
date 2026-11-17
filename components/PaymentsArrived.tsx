@@ -13,8 +13,8 @@ import { useHydrated, useWorkspace } from "@/lib/store/useStore";
  * Checked once when a screen opens rather than on a timer: a business does not need to know
  * within thirty seconds, and a device that polls all day is a device with a flat battery.
  *
- * Anything that cannot be applied cleanly — an invoice already settled, an amount that would
- * overshoot, a cancelled invoice — is shown rather than forced through. Money appearing twice
+ * Anything that cannot be applied cleanly - an invoice already settled, an amount that would
+ * overshoot, a cancelled invoice - is shown rather than forced through. Money appearing twice
  * in the books is worse than money appearing a day late.
  */
 export default function PaymentsArrived() {

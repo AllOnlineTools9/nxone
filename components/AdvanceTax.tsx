@@ -129,7 +129,7 @@ export default function AdvanceTax() {
               </h2>
               <p className="mt-1 text-sm text-ink-soft">
                 Interest of about {money(year.interestMinor)} is running. Paying the whole year&apos;s tax
-                later does not stop it — the interest is for the quarters it should have been paid in.
+                later does not stop it - the interest is for the quarters it should have been paid in.
               </p>
             </section>
           ) : null}

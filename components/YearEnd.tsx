@@ -15,7 +15,7 @@ import { useHydrated, useWorkspace } from "@/lib/store/useStore";
 /**
  * Finishing a year.
  *
- * Nothing here is a stored balance, so closing a year is not arithmetic — it is somebody looking
+ * Nothing here is a stored balance, so closing a year is not arithmetic - it is somebody looking
  * at the year, satisfying themselves it is complete, and saying so. The useful part is therefore
  * the list of things that are usually wrong when somebody thinks a year is finished, not the
  * closing figures, which the books could produce at any time.
@@ -72,7 +72,7 @@ export default function YearEnd() {
             <label className="block">
               <span className="block text-xs font-medium uppercase tracking-wider text-ink-faint">Year</span>
               <select className="field mt-1" value={label} onChange={(e) => { setChosen(e.target.value); setClosed(false); }}>
-                {years.map((y) => <option key={y} value={y}>{y}{y === thisYear ? " — still running" : ""}</option>)}
+                {years.map((y) => <option key={y} value={y}>{y}{y === thisYear ? " - still running" : ""}</option>)}
               </select>
             </label>
           ) : null}
@@ -153,7 +153,7 @@ export default function YearEnd() {
           <>
             <p className="mt-1 max-w-3xl text-sm text-ink-soft">
               Closing locks the books to {date(closing.to)}. Nothing dated inside the year can be
-              edited, deleted or paid into afterwards — which is what keeps the year you filed on
+              edited, deleted or paid into afterwards - which is what keeps the year you filed on
               and the year in your books the same year.
             </p>
             <button type="button" className="btn-primary mt-3" onClick={close} disabled={!verdict.clear}>

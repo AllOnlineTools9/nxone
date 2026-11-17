@@ -5,7 +5,7 @@ import type { Expense } from "../store/types";
  *
  * It is a cost like any other, but it moves differently: the money left the employee's pocket,
  * not the business's, so until it is repaid the business owes them. Treating a claim as paid the
- * day it is approved understates what is owed and overstates the bank — and the person who is
+ * day it is approved understates what is owed and overstates the bank - and the person who is
  * out of pocket is the one who notices.
  */
 

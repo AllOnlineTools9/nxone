@@ -8,7 +8,7 @@ import {
  *
  * A salary run is arithmetic over a structure, so the structure is the thing worth getting right.
  * Everything a payslip shows traces to a named rule with a date on it, and anything the rules
- * cannot answer — a state whose professional tax we do not hold — is carried through to the
+ * cannot answer - a state whose professional tax we do not hold - is carried through to the
  * payslip as a question rather than filled in with a nil.
  */
 

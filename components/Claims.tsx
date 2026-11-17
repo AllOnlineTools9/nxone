@@ -11,7 +11,7 @@ import { useHydrated, useWorkspace } from "@/lib/store/useStore";
 /**
  * Money your people spent that you owe them back.
  *
- * A claim is a cost like any other, but the money left somebody's own pocket — so until it is
+ * A claim is a cost like any other, but the money left somebody's own pocket - so until it is
  * repaid the business owes them, and the person who is out of pocket is the one keeping count.
  * The figure that matters here is not the total claimed, it is how long somebody has been
  * waiting.
@@ -103,7 +103,7 @@ export default function Claims() {
 
         {employees.length === 0 ? (
           <p className="mt-3 text-sm text-ink-soft">
-            Add somebody in Payroll first — a claim has to be owed to a person.
+            Add somebody in Payroll first - a claim has to be owed to a person.
           </p>
         ) : null}
 
@@ -144,7 +144,7 @@ export default function Claims() {
         {claims.length === 0 ? (
           <p className="mt-4 max-w-2xl text-sm text-ink-soft">
             Nothing claimed yet. A claim is dated the day the money was spent, not the day it is
-            approved — so a September lunch stays a September cost however long it waits.
+            approved - so a September lunch stays a September cost however long it waits.
           </p>
         ) : (
           <ul className="mt-4 divide-y divide-line">

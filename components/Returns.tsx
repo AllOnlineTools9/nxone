@@ -21,7 +21,7 @@ import { useHydrated, useWorkspace } from "@/lib/store/useStore";
  * be rejected listed before anything is downloaded.
  *
  * Nothing is filed from here. The portal is where a return is signed, and the offline utility
- * checks what it is given — a check worth keeping. What this removes is the evening of copying.
+ * checks what it is given - a check worth keeping. What this removes is the evening of copying.
  */
 export default function Returns() {
   const [ws, db] = useWorkspace();
@@ -53,10 +53,25 @@ export default function Returns() {
       <section className="card p-5">
         <h2 className="font-display text-lg">This does not apply on the composition scheme</h2>
         <p className="mt-1 max-w-2xl text-sm text-ink-soft">
-          You file CMP-08 each quarter instead, and claim no input credit — that is the trade for
+          You file CMP-08 each quarter instead, and claim no input credit - that is the trade for
           the lower rate on turnover.
         </p>
         <Link href="/composition" className="btn-ghost mt-3 inline-flex">Go to the quarterly return</Link>
+      </section>
+    );
+  }
+
+  // Not registered at all: there is no return to file and no credit to claim.
+  if (ws.profile?.gstScheme === "unregistered") {
+    return (
+      <section className="card p-5">
+        <h2 className="font-display text-lg">You are not registered for GST</h2>
+        <p className="mt-1 max-w-2xl text-sm text-ink-soft">
+          So there are no GST returns to file and no input credit to claim, and your invoices go
+          out without GST. If your turnover passes the registration limit, register, then change
+          your scheme and this will apply.
+        </p>
+        <Link href="/composition" className="btn-ghost mt-3 inline-flex">Change your GST scheme</Link>
       </section>
     );
   }
@@ -162,15 +177,15 @@ export default function Returns() {
             </tr>
           </thead>
           <tbody>
-            <Section name="B2B — sales to registered customers" rows={one.b2b.length}
+            <Section name="B2B - sales to registered customers" rows={one.b2b.length}
               taxable={one.b2b.reduce((a, r) => a + r.lines.reduce((x, l) => x + l.taxableMinor, 0), 0)}
               tax={one.b2b.reduce((a, r) => a + r.lines.reduce((x, l) => x + l.igstMinor + l.cgstMinor + l.sgstMinor, 0), 0)}
               file={files.find((f) => f.name === "b2b.csv")} onSave={save} m={m} />
-            <Section name="B2CL — large inter-state sales to everyone else" rows={one.b2cl.length}
+            <Section name="B2CL - large inter-state sales to everyone else" rows={one.b2cl.length}
               taxable={one.b2cl.reduce((a, r) => a + r.lines.reduce((x, l) => x + l.taxableMinor, 0), 0)}
               tax={one.b2cl.reduce((a, r) => a + r.lines.reduce((x, l) => x + l.igstMinor, 0), 0)}
               file={files.find((f) => f.name === "b2cl.csv")} onSave={save} m={m} />
-            <Section name="B2CS — everything else, summarised" rows={one.b2cs.length}
+            <Section name="B2CS - everything else, summarised" rows={one.b2cs.length}
               taxable={one.b2cs.reduce((a, r) => a + r.taxableMinor, 0)}
               tax={one.b2cs.reduce((a, r) => a + r.igstMinor + r.cgstMinor + r.sgstMinor, 0)}
               file={files.find((f) => f.name === "b2cs.csv")} onSave={save} m={m} />
@@ -203,7 +218,7 @@ export default function Returns() {
 
         <p className="border-t border-line px-5 py-3 text-xs text-ink-soft">
           Place of supply above the {m(one.threshold.amountMinor)} threshold is listed invoice by invoice, below it summarised.
-          {one.threshold.status === "unverified" ? ` That figure comes from ${one.threshold.source}, which we have not verified ourselves — worth confirming.` : ""}
+          {one.threshold.status === "unverified" ? ` That figure comes from ${one.threshold.source}, which we have not verified ourselves - worth confirming.` : ""}
         </p>
       </section>
 
@@ -303,9 +318,9 @@ function Section({ name, rows, taxable, tax, file, onSave, m }: {
   return (
     <tr className={`border-t border-line ${rows ? "" : "text-ink-faint"}`}>
       <td className="px-5 py-2.5">{name}</td>
-      <td className="px-5 py-2.5 text-right tabular">{rows || "—"}</td>
-      <td className="px-5 py-2.5 text-right tabular">{rows ? m(taxable) : "—"}</td>
-      <td className="px-5 py-2.5 text-right tabular">{rows ? m(tax) : "—"}</td>
+      <td className="px-5 py-2.5 text-right tabular">{rows || "-"}</td>
+      <td className="px-5 py-2.5 text-right tabular">{rows ? m(taxable) : "-"}</td>
+      <td className="px-5 py-2.5 text-right tabular">{rows ? m(tax) : "-"}</td>
       <td className="px-5 py-2.5 text-right">
         {file ? <button type="button" className="btn-quiet text-sm" onClick={() => onSave(file.name, file.csv)}>CSV</button> : null}
       </td>

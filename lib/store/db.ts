@@ -163,7 +163,7 @@ export class Store {
    */
   /**
    * Record what changed. Called from inside the write methods rather than by their callers, so
-   * nothing can be changed through this store without leaving a trace — a trail somebody has to
+   * nothing can be changed through this store without leaving a trace - a trail somebody has to
    * remember to write is a trail with holes in it exactly where it matters.
    */
   private record(
@@ -185,7 +185,7 @@ export class Store {
 
   /**
    * Everything recorded, newest first. Several writes can land in the same millisecond, and
-   * sorting on the timestamp alone would order those arbitrarily — so the stored order breaks
+   * sorting on the timestamp alone would order those arbitrarily - so the stored order breaks
    * the tie, which is the order they actually happened in.
    */
   auditTrail(): AuditEntry[] {
@@ -399,7 +399,7 @@ export class Store {
   deleteProject(id: string) { this.tombstone("projects", id); }
 
   /**
-   * Tie a document to the one it was made from — a quotation to the invoice it became. Both ends
+   * Tie a document to the one it was made from - a quotation to the invoice it became. Both ends
    * are recorded, so either can be opened and the other found, and the quotation can show that it
    * was taken up rather than looking forgotten.
    */

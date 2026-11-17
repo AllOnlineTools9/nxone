@@ -4,7 +4,7 @@
  * Every rule here is dated and sourced, the way the tax rules are, because these figures change
  * at budgets and notifications and a payroll run from March must not be recomputed with April's
  * numbers. Where a rule is one we have not checked against the notification ourselves it says so,
- * and where we simply do not have it — a state whose professional tax slab we have not encoded —
+ * and where we simply do not have it - a state whose professional tax slab we have not encoded -
  * it says that too instead of returning nil, which would look like an answer.
  *
  * Money is integer minor units: paise.
@@ -187,7 +187,7 @@ export interface PtRule extends Dated {
  * Professional tax, which is a state tax with a different answer in every state.
  *
  * Only the states we have encoded are here. For anywhere else `professionalTax` says it does not
- * know rather than returning nil — a wrong nil is indistinguishable from a correct one on a
+ * know rather than returning nil - a wrong nil is indistinguishable from a correct one on a
  * payslip, and that is how an employer finds out at assessment.
  */
 export const PT_RULES: PtRule[] = [

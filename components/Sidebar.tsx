@@ -20,7 +20,7 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string;
       { href: "/scenarios", label: "What if", icon: FlaskConical },
       { href: "/reports", label: "Reports", icon: ChartColumn },
       { href: "/budget", label: "Budget", icon: Target },
-      { href: "/jobs", label: "Jobs", icon: Hammer },
+      { href: "/contracts", label: "Contracts", icon: Hammer },
       { href: "/compliance", label: "Filing calendar", icon: CalendarClock },
       { href: "/gst-returns", label: "GST returns", icon: FileSpreadsheet },
       { href: "/composition", label: "GST scheme", icon: Scale },

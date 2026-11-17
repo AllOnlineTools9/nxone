@@ -12,7 +12,7 @@ import { useHydrated, useWorkspace } from "@/lib/store/useStore";
  *
  * Two things live here because they are the same habit: checking that what arrived is what was
  * agreed. Being billed above an order is the one that costs money quietly, and a bill entered
- * twice is the one that costs money invisibly — the books balance either way, the supplier is
+ * twice is the one that costs money invisibly - the books balance either way, the supplier is
  * simply better off.
  */
 

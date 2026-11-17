@@ -58,7 +58,7 @@ export default function SendBox({
       <h2 className="flex items-center gap-2 font-display text-lg"><Send size={17} className="text-ink-faint" aria-hidden="true" />Send it</h2>
       <p className="mt-1 text-sm text-ink-soft">
         {downloaded
-          ? `Your PDF is saved. Attach it to whichever of these you use — the message is already written.`
+          ? `Your PDF is saved. Attach it to whichever of these you use - the message is already written.`
           : `Save the PDF first, then attach it to one of these. The message is already written; the attachment is the one thing we cannot put in for you.`}
       </p>
 

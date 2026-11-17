@@ -16,8 +16,8 @@ import { useHydrated, useWorkspace } from "@/lib/store/useStore";
  * The composition scheme.
  *
  * Two jobs: let a business say it is on the scheme, which changes what its invoices are allowed
- * to do, and produce the quarterly return once it has. The scheme is a smaller bargain — a
- * percentage of turnover instead of tax on each sale — and the things it gives up are listed
+ * to do, and produce the quarterly return once it has. The scheme is a smaller bargain - a
+ * percentage of turnover instead of tax on each sale - and the things it gives up are listed
  * plainly rather than left to be discovered by a customer asking for credit they cannot have.
  */
 export default function Composition() {
@@ -83,7 +83,7 @@ export default function Composition() {
         <h2 className="font-display text-lg">Which GST scheme you are on</h2>
         <p className="mt-1 max-w-3xl text-sm text-ink-soft">
           Everything else in the GST screens assumes ordinary registration. If you are on the
-          composition scheme, say so here — it changes what your invoices are allowed to do.
+          composition scheme, say so here - it changes what your invoices are allowed to do.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           {([
@@ -107,7 +107,7 @@ export default function Composition() {
               onChange={(e) => store.saveProfile({ ...ws.profile!, compositionRate: e.target.value })}
             >
               {COMPOSITION_RATES.map((r) => (
-                <option key={r.id} value={r.id}>{r.label} — {(r.rate * 100).toFixed(0)}% of turnover</option>
+                <option key={r.id} value={r.id}>{r.label} - {(r.rate * 100).toFixed(0)}% of turnover</option>
               ))}
             </select>
             <p className="mt-1 text-xs text-ink-faint">{rate.describes}</p>

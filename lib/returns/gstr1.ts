@@ -7,12 +7,12 @@ import { checkGstin, placeOfSupply, stateByRegion } from "./states";
 /**
  * GSTR-1: everything you sold, in the shape the return asks for.
  *
- * The books already hold what a return needs — taxable value per rate, whether the tax was IGST or
+ * The books already hold what a return needs - taxable value per rate, whether the tax was IGST or
  * CGST and SGST, the place of supply, the HSN of each line. What has been missing is the sorting
  * into the government's own boxes, which is the part people pay a fee every month to have done.
  *
- * Nothing here is invented. Where a figure cannot be known from the books — a reverse charge flag
- * nobody recorded, which threshold applies on a given date — it is reported as something to check
+ * Nothing here is invented. Where a figure cannot be known from the books - a reverse charge flag
+ * nobody recorded, which threshold applies on a given date - it is reported as something to check
  * rather than filled in with a guess, because a return is signed by the person filing it.
  */
 

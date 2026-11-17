@@ -325,7 +325,7 @@ export function reconcile(portal: TwoBInvoice[], books: PurchaseRecord[]): Recon
       rows.push(entry.kind === "credit-note"
         ? {
             ...common, state: "credit-note-not-recorded",
-            advice: "Your supplier has raised a credit note against you that is not in your books. Your claim has to come down by this much — record it against that supplier before you file."
+            advice: "Your supplier has raised a credit note against you that is not in your books. Your claim has to come down by this much - record it against that supplier before you file."
           }
         : {
             ...common, state: "only-on-the-portal",
@@ -342,7 +342,7 @@ export function reconcile(portal: TwoBInvoice[], books: PurchaseRecord[]): Recon
       rows.push({
         ...common, state: "different-amount", purchaseId: match.id, booksTaxMinor: match.taxMinor, differenceMinor: difference,
         advice: difference < 0
-          ? "Your books claim more tax than the portal allows. Claiming the larger figure is what triggers a notice — check the bill, then ask your supplier to correct their filing."
+          ? "Your books claim more tax than the portal allows. Claiming the larger figure is what triggers a notice - check the bill, then ask your supplier to correct their filing."
           : "The portal shows more tax than your books recorded. Check the bill: you may be claiming less than you are entitled to."
       });
     }
@@ -355,7 +355,7 @@ export function reconcile(portal: TwoBInvoice[], books: PurchaseRecord[]): Recon
     rows.push({
       state: "only-in-your-books", supplier: record.supplier, supplierGstin: record.supplierGstin,
       number: record.reference, date: record.date, booksTaxMinor: record.taxMinor, purchaseId: record.id,
-      advice: "Your supplier has not filed this. The credit is not available until they do — worth a message before the month closes."
+      advice: "Your supplier has not filed this. The credit is not available until they do - worth a message before the month closes."
     });
   }
 
@@ -417,7 +417,7 @@ export function chaseMessage(
   const lines = theirs.map((r) => `  ${r.number}  ${date(r.date)}  ${money(r.booksTaxMinor ?? 0)} of GST`);
 
   return {
-    subject: `GST credit not showing for ${period} — ${from}`,
+    subject: `GST credit not showing for ${period} - ${from}`,
     body: [
       `Hello,`,
       ``,

@@ -10,7 +10,7 @@ import { useEntities, useHydrated, useWorkspace } from "@/lib/store/useStore";
  *
  * Each one's books can be taken out without opening it, which matters once there is more than
  * one: nobody should have to switch back and forth to take two backups. And nothing is removed
- * until its books have been downloaded — the files are on this device and nowhere else, so a
+ * until its books have been downloaded - the files are on this device and nowhere else, so a
  * removal with no copy is a loss, not a tidy-up.
  */
 export default function Businesses() {

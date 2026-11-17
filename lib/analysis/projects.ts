@@ -5,7 +5,7 @@ import type { Expense, SavedDocument } from "../store/types";
  * What each job actually made.
  *
  * A business that is profitable overall can be losing money on half of what it does, and the
- * profit and loss will never say so — it adds the good jobs to the bad ones and reports the
+ * profit and loss will never say so - it adds the good jobs to the bad ones and reports the
  * difference. The only way to know is to tag the income and the costs to the job they belong
  * to, which nobody does unless it takes two seconds.
  *
@@ -86,9 +86,9 @@ export function resultsFor(
       quotedMinor: project.quotedMinor,
       overQuoteMinor: overQuote,
       says: profitMinor < 0
-        ? `This job has cost ${money(-profitMinor)} more than it earned. Worth knowing why before quoting the next one like it.`
+        ? `This contract has cost ${money(-profitMinor)} more than it earned. Worth knowing why before quoting the next one like it.`
         : revenueMinor > 0 && profitMinor / revenueMinor < 0.1
-          ? "Barely above its costs. A job at this margin pays for itself and nothing else."
+          ? "Barely above its costs. A contract at this margin pays for itself and nothing else."
           : project.quotedMinor !== undefined && overQuote !== undefined && overQuote < -1
             ? `${money(-overQuote)} of the quoted price has not been invoiced yet.`
             : undefined

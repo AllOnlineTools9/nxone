@@ -79,7 +79,7 @@ export interface Fx {
  * The same entry, in the books' currency.
  *
  * Each amount is converted on its own, which can leave the entry a minor unit or two out of
- * balance — convert a total and its parts separately and the parts need not add back up. Rather
+ * balance - convert a total and its parts separately and the parts need not add back up. Rather
  * than let that through, or silently round the receivable (which is what the customer actually
  * owes, and must be exact), the difference is given to the anchor line: income on a sale, the
  * cost itself on a bill. That is where a rounding difference belongs.
@@ -180,7 +180,7 @@ export function postPayment(input: PaymentInput): JournalEntry {
  * An expense, narrowed to what the ledger needs.
  *
  * Written once because it has been written three times by hand, and each time a newly added
- * field was silently left behind — stock quantities once, tax deducted nearly a second time.
+ * field was silently left behind - stock quantities once, tax deducted nearly a second time.
  * A field added to Expense now reaches the books everywhere or nowhere, which is a failure
  * somebody notices.
  */
@@ -290,7 +290,7 @@ export function postOpeningBalance(amountMinor: number, date: string, currency: 
  * The ledger for everything saved, in the books' own currency.
  *
  * A document billed in another currency is converted at its own rate. One with no rate is left
- * out — there is no honest number to put in — but it is never left out quietly: `unrated` in
+ * out - there is no honest number to put in - but it is never left out quietly: `unrated` in
  * lib/fx lists exactly what is missing, and the screens ask for it. Leaving money out without
  * saying so is the one failure nobody would catch.
  */
@@ -301,7 +301,7 @@ export function ledgerFor(
   opening?: { amountMinor: number; date: string },
   /**
    * Stock, when the business keeps any. Bills charged to the stock account have already been
-   * posted as an asset by the loop below — this adds the other half: the cost of what was sold,
+   * posted as an asset by the loop below - this adds the other half: the cost of what was sold,
    * moving value off the shelf and into cost of sales in the month it left. Left out, the
    * accounts behave exactly as they did before stock existed, so nothing can be counted twice.
    */
@@ -466,7 +466,7 @@ function costOfSalesEntries(
  * A month's payroll in the accounts.
  *
  * Salaries stop being a lump sum typed into an expense. The gross is the cost, what is held back
- * from it is money the business owes somebody else — the fund, the insurer, the tax department —
+ * from it is money the business owes somebody else - the fund, the insurer, the tax department -
  * and only the net is owed to the person. The employer's own contributions are a separate cost,
  * because an employer who cannot see them does not know what their staff actually cost.
  *

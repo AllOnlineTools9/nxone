@@ -9,7 +9,7 @@
  *
  * Every rule here carries the date it applies from and where it came from. None is marked
  * published, because all of it was read from commentary rather than from the department's own
- * notification — these figures decide what somebody pays, so the screen says so and tells people
+ * notification - these figures decide what somebody pays, so the screen says so and tells people
  * to confirm with their accountant rather than presenting it as settled.
  */
 
@@ -87,7 +87,7 @@ export const TDS_SECTIONS: TdsSection[] = [
     threshold: { basis: "monthly", aggregateMinor: 5_000_000 },
     noPanRate: 0.20,
     appliesFrom: "2025-04-01",
-    source: "Monthly basis of ₹50,000 (some sources state it as ₹6,00,000 a year — worth confirming)",
+    source: "Monthly basis of ₹50,000 (some sources state it as ₹6,00,000 a year - worth confirming)",
     status: "unverified"
   },
   {
@@ -99,7 +99,7 @@ export const TDS_SECTIONS: TdsSection[] = [
     threshold: { basis: "monthly", aggregateMinor: 5_000_000 },
     noPanRate: 0.20,
     appliesFrom: "2025-04-01",
-    source: "Monthly basis of ₹50,000 (some sources state it as ₹6,00,000 a year — worth confirming)",
+    source: "Monthly basis of ₹50,000 (some sources state it as ₹6,00,000 a year - worth confirming)",
     status: "unverified"
   },
   {

@@ -176,7 +176,7 @@ class SyncEngine {
    * Joining somebody else's business.
    *
    * This device may already hold work of its own, and the next sync would push it into the
-   * organisation being joined — somebody's personal invoices landing in their employer's books.
+   * organisation being joined - somebody's personal invoices landing in their employer's books.
    * So the choice is made here, deliberately, rather than assumed: bring it, or clear this device
    * first. Clearing is only ever offered beside a backup.
    */

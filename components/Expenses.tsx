@@ -164,10 +164,10 @@ export default function Expenses() {
           <div><label className="label" htmlFor="ex-ref">Bill number</label><input id="ex-ref" className="field" value={form.reference} onChange={(e) => set({ reference: e.target.value })} /></div>
           {openProjects.length > 0 ? (
             <div>
-              <label className="label" htmlFor="ex-project">Which job</label>
+              <label className="label" htmlFor="ex-project">Which contract</label>
               <select id="ex-project" className="field" value={form.projectId} onChange={(e) => set({ projectId: e.target.value })}>
-                <option value="">Not against a job</option>
-                {openProjects.map((p) => <option key={p.id} value={p.id}>{p.name}{p.client ? ` — ${p.client}` : ""}</option>)}
+                <option value="">Not against a contract</option>
+                {openProjects.map((p) => <option key={p.id} value={p.id}>{p.name}{p.client ? ` - ${p.client}` : ""}</option>)}
               </select>
             </div>
           ) : null}
@@ -177,7 +177,7 @@ export default function Expenses() {
               <select id="ex-order" className="field" value={form.orderId} onChange={(e) => set({ orderId: e.target.value })}>
                 <option value="">Not against an order</option>
                 {openOrders.map((o) => (
-                  <option key={o.id} value={o.id}>{o.number} — {m(o.outstandingMinor)} still to bill</option>
+                  <option key={o.id} value={o.id}>{o.number} - {m(o.outstandingMinor)} still to bill</option>
                 ))}
               </select>
               <p className="mt-1 text-xs text-ink-faint">Linking it lets the bill be checked against what you agreed to pay.</p>
@@ -200,12 +200,12 @@ export default function Expenses() {
                 <label className="label" htmlFor="ex-rcm">Who pays the GST</label>
                 <select id="ex-rcm" className="field" value={form.rcmCategory} onChange={(e) => set({ rcmCategory: e.target.value })}>
                   <option value="">The supplier charged it on the bill</option>
-                  {RCM_CATEGORIES.map((c) => <option key={c.id} value={c.id}>I owe it — {c.label.toLowerCase()}</option>)}
+                  {RCM_CATEGORIES.map((c) => <option key={c.id} value={c.id}>I owe it - {c.label.toLowerCase()}</option>)}
                 </select>
                 {form.rcmCategory ? (
                   <p className="mt-1 text-xs text-ink-soft">
                     {rcmById(form.rcmCategory)?.creditable
-                      ? `You owe ${m(Math.round(Math.round(form.net * 100) * 0.18))} to the government on this, and claim the same amount back. It costs nothing in the end, but it has to be paid in cash — it cannot come out of credit you already hold.`
+                      ? `You owe ${m(Math.round(Math.round(form.net * 100) * 0.18))} to the government on this, and claim the same amount back. It costs nothing in the end, but it has to be paid in cash - it cannot come out of credit you already hold.`
                       : `You owe ${m(Math.round(Math.round(form.net * 100) * 0.18))} to the government on this, and it cannot be claimed back. That is a real cost on top of the bill.`}
                   </p>
                 ) : null}
@@ -213,7 +213,7 @@ export default function Expenses() {
               <div>
                 <label className="label" htmlFor="ex-tds">Tax to hold back</label>
                 <select id="ex-tds" className="field" value={form.tdsSection} onChange={(e) => set({ tdsSection: e.target.value })}>
-                  <option value="">None — nothing to deduct</option>
+                  <option value="">None - nothing to deduct</option>
                   {TDS_SECTIONS.map((sec) => <option key={sec.id} value={sec.id}>{sec.label} ({sec.id})</option>)}
                 </select>
                 {form.tdsSection ? (

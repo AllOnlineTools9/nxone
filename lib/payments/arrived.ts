@@ -72,7 +72,7 @@ export function applyArrived(
       paidOn: payment.paidOn,
       reference: payment.reference,
       describes: settled
-        ? `${document.number} was paid in full — ${money(payment.amountMinor)}${payment.method ? ` by ${payment.method}` : ""}.`
+        ? `${document.number} was paid in full - ${money(payment.amountMinor)}${payment.method ? ` by ${payment.method}` : ""}.`
         : `${money(payment.amountMinor)} came in against ${document.number}, leaving ${money(document.totalMinor - after)}.`
     });
   }

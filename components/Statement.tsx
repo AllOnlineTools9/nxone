@@ -11,7 +11,7 @@ import { useHydrated, useWorkspace } from "@/lib/store/useStore";
  *
  * The chase list says who to chase and gives you nothing to send them. A total is arguable; six
  * dated lines with what was paid against each are not. The lines go in the message itself rather
- * than an attachment — a statement is short, and an email you have to open a file to understand
+ * than an attachment - a statement is short, and an email you have to open a file to understand
  * is an email that waits until tomorrow.
  */
 export default function Statement() {
@@ -80,7 +80,7 @@ export default function Statement() {
           <span className="block text-xs font-medium uppercase tracking-wider text-ink-faint">Customer</span>
           <select className="field mt-1" value={chosen} onChange={(e) => setCustomer(e.target.value)}>
             {owing.map(([name, owed]) => (
-              <option key={name} value={name}>{name}{owed > 0 ? ` — ${money(owed)} owed` : ""}</option>
+              <option key={name} value={name}>{name}{owed > 0 ? ` - ${money(owed)} owed` : ""}</option>
             ))}
           </select>
         </label>
@@ -97,8 +97,8 @@ export default function Statement() {
                 <td className="py-2 pr-4 tabular text-ink-soft">{formatDate(l.date, country)}</td>
                 <td className="py-2 pr-4">{l.number}</td>
                 <td className="py-2 pr-4 text-right tabular">{money(l.chargedMinor)}</td>
-                <td className="py-2 pr-4 text-right tabular text-ink-soft">{l.paidMinor ? money(l.paidMinor) : "—"}</td>
-                <td className="py-2 pr-4 text-right tabular font-medium">{l.outstandingMinor ? money(l.outstandingMinor) : "—"}</td>
+                <td className="py-2 pr-4 text-right tabular text-ink-soft">{l.paidMinor ? money(l.paidMinor) : "-"}</td>
+                <td className="py-2 pr-4 text-right tabular font-medium">{l.outstandingMinor ? money(l.outstandingMinor) : "-"}</td>
                 <td className="py-2 text-xs text-warn">{l.daysLate > 0 ? `${l.daysLate} days late` : ""}</td>
               </tr>
             ))}

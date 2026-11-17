@@ -1,5 +1,5 @@
 /**
- * How fast the things a business owns wear out — on paper, twice over.
+ * How fast the things a business owns wear out - on paper, twice over.
  *
  * India measures this two different ways and a business has to keep both. The books use a useful
  * life: a laptop lasts three years, so a third of its cost is a cost each year. The tax
@@ -119,8 +119,8 @@ export const classById = (id: string): AssetClass | undefined => ASSET_CLASSES.f
 /**
  * Whether a purchase is big enough and long-lived enough to be worth treating as an asset.
  *
- * There is no legal floor in India — a ₹2,000 kettle could in principle be depreciated over ten
- * years — but doing so is a waste of everybody's time, and most accountants write small things
+ * There is no legal floor in India - a ₹2,000 kettle could in principle be depreciated over ten
+ * years - but doing so is a waste of everybody's time, and most accountants write small things
  * off at once. This is a prompt, not a rule, so the number is deliberately a round one.
  */
 export const WORTH_CAPITALISING_MINOR = 1_000_000;

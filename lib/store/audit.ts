@@ -2,7 +2,7 @@
  * A record of what changed.
  *
  * Books that can be edited silently are books nobody can rely on. The question an audit trail
- * answers is not "who is to blame" — on a single device the answer is always "you" — it is "what
+ * answers is not "who is to blame" - on a single device the answer is always "you" - it is "what
  * did this invoice say before somebody changed it", which comes up every time a figure is
  * queried months later and nobody can remember.
  *
@@ -38,7 +38,7 @@ const MATERIAL = new Set([
 ]);
 
 const show = (value: unknown): string => {
-  if (value === undefined || value === null) return "—";
+  if (value === undefined || value === null) return "-";
   if (typeof value === "number") return String(value);
   if (typeof value === "string") return value.length > 60 ? `${value.slice(0, 57)}…` : value;
   if (typeof value === "boolean") return value ? "yes" : "no";

@@ -157,7 +157,7 @@ describe("the note that goes with the folder", () => {
   const message = packMessage(input());
 
   it("says what it is and for when", () => {
-    expect(message.subject).toBe("Brightline Studio — books for September 2026");
+    expect(message.subject).toBe("Brightline Studio - books for September 2026");
   });
 
   it("puts the figures in the message, so a phone is enough to spot something wrong", () => {

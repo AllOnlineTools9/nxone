@@ -38,7 +38,7 @@ export function refusal(what: "document" | "expense", date: string, lockedUpTo: 
   const fix = what === "document"
     ? "To correct it, raise a credit note dated today and a fresh invoice."
     : "To correct it, record the adjustment with today's date instead.";
-  return `${thing} is dated ${show(date)}, and the books are closed to ${show(lockedUpTo)}. ${fix} If you really must change it, move the lock date back in Settings first — but anything already filed will then no longer match your books.`;
+  return `${thing} is dated ${show(date)}, and the books are closed to ${show(lockedUpTo)}. ${fix} If you really must change it, move the lock date back in Settings first - but anything already filed will then no longer match your books.`;
 }
 
 /**

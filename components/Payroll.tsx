@@ -14,8 +14,8 @@ import RateNeeded from "./RateNeeded";
  *
  * The calendar has been telling employers for months that provident fund is due on the 15th. This
  * is the part that says how much. Everything on a payslip traces to a dated rule, and the two
- * things the arithmetic cannot know — a professional tax slab we do not hold, a tax declaration
- * nobody has made — are shown as questions rather than filled in with a nil.
+ * things the arithmetic cannot know - a professional tax slab we do not hold, a tax declaration
+ * nobody has made - are shown as questions rather than filled in with a nil.
  */
 
 const BLANK: Omit<Employee, "id"> = {
@@ -111,7 +111,7 @@ export default function Payroll() {
                     </button>
                     {person.left ? <span className="ml-2 text-xs text-ink-faint">left {person.left}</span> : null}
                   </td>
-                  <td className="px-5 py-2.5 text-ink-soft">{person.region || "—"}</td>
+                  <td className="px-5 py-2.5 text-ink-soft">{person.region || "-"}</td>
                   <td className="px-5 py-2.5 text-right tabular">{m(person.basicMinor)}</td>
                   <td className="px-5 py-2.5 text-right tabular">
                     {m(person.basicMinor + (person.daMinor ?? 0) + (person.hraMinor ?? 0) + (person.otherAllowancesMinor ?? 0))}
@@ -202,10 +202,10 @@ export default function Payroll() {
                         {slip.paidDays < slip.monthDays ? <span className="ml-2 text-xs text-ink-faint">{slip.paidDays} of {slip.monthDays} days</span> : null}
                       </td>
                       <td className="px-5 py-2.5 text-right tabular">{m(slip.grossMinor)}</td>
-                      <td className="px-5 py-2.5 text-right tabular text-ink-soft">{find("Provident fund") ? m(find("Provident fund")) : "—"}</td>
-                      <td className="px-5 py-2.5 text-right tabular text-ink-soft">{find("Employee insurance") ? m(find("Employee insurance")) : "—"}</td>
+                      <td className="px-5 py-2.5 text-right tabular text-ink-soft">{find("Provident fund") ? m(find("Provident fund")) : "-"}</td>
+                      <td className="px-5 py-2.5 text-right tabular text-ink-soft">{find("Employee insurance") ? m(find("Employee insurance")) : "-"}</td>
                       <td className="px-5 py-2.5 text-right tabular text-ink-soft">
-                        {find("Tax deducted at source") + find("Professional tax") ? m(find("Tax deducted at source") + find("Professional tax")) : "—"}
+                        {find("Tax deducted at source") + find("Professional tax") ? m(find("Tax deducted at source") + find("Professional tax")) : "-"}
                       </td>
                       <td className="px-5 py-2.5 text-right tabular font-medium">{m(slip.netMinor)}</td>
                     </tr>

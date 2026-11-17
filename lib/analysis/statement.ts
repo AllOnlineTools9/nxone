@@ -131,7 +131,7 @@ export function statementMessage(
     `Hello ${firstName},`,
     ``,
     unpaid.length === 0
-      ? `Here is your account with ${from.businessName} as at ${date(statement.asOf)}. Everything is settled — nothing is outstanding. Thank you.`
+      ? `Here is your account with ${from.businessName} as at ${date(statement.asOf)}. Everything is settled - nothing is outstanding. Thank you.`
       : `Here is your account with ${from.businessName} as at ${date(statement.asOf)}.`,
     ...(unpaid.length === 0 ? [] : [
       ``,
@@ -141,7 +141,7 @@ export function statementMessage(
       ``,
       unpaid.some((l) => l.daysLate > 0)
         ? `Could you let me know when these will be paid? If any of them is in dispute, tell me which and I will look into it.`
-        : `No action needed yet — this is for your records.`
+        : `No action needed yet - this is for your records.`
     ]),
     ``,
     `Thanks,`,
@@ -149,7 +149,7 @@ export function statementMessage(
   ].join("\n");
 
   return {
-    subject: `Statement of account — ${from.businessName}`,
+    subject: `Statement of account - ${from.businessName}`,
     body,
     short: unpaid.length === 0
       ? `Your account with ${from.businessName} is fully settled as at ${date(statement.asOf)}. Thank you.`

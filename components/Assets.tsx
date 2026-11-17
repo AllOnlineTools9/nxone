@@ -97,7 +97,7 @@ export default function Assets() {
           <ul className="mt-2 space-y-1 text-sm">
             {maybeAssets.slice(0, 5).map((e) => (
               <li key={e.id} className="flex flex-wrap items-baseline justify-between gap-2 border-t border-line/60 pt-1.5">
-                <span>{e.supplier}{e.description ? ` — ${e.description}` : ""}</span>
+                <span>{e.supplier}{e.description ? ` - ${e.description}` : ""}</span>
                 <span className="flex items-center gap-3">
                   <span className="tabular text-ink-soft">{money(e.netMinor)}</span>
                   <button
@@ -112,7 +112,7 @@ export default function Assets() {
             ))}
           </ul>
           <p className="mt-2 text-xs text-ink-faint">
-            Recording it here keeps the bill where it is and spreads the cost — it is not counted twice.
+            Recording it here keeps the bill where it is and spreads the cost - it is not counted twice.
           </p>
         </section>
       ) : null}
@@ -158,7 +158,7 @@ export default function Assets() {
 
         {register.length === 0 ? (
           <p className="mt-4 text-sm text-ink-soft">
-            Nothing recorded yet. A laptop, a van, the fit-out of a shop — anything you will still
+            Nothing recorded yet. A laptop, a van, the fit-out of a shop - anything you will still
             be using in two years belongs here rather than in a single month&apos;s costs.
           </p>
         ) : (
@@ -191,7 +191,7 @@ export default function Assets() {
                     <td className="py-2 pr-4 tabular text-ink-soft">{date(row.asset.purchasedOn)}</td>
                     <td className="py-2 pr-4 text-right tabular">{money(row.costMinor)}</td>
                     <td className="py-2 pr-4 text-right tabular text-ink-soft">{money(row.depreciatedMinor)}</td>
-                    <td className="py-2 pr-4 text-right tabular font-medium">{row.gone ? "—" : money(row.carryingMinor)}</td>
+                    <td className="py-2 pr-4 text-right tabular font-medium">{row.gone ? "-" : money(row.carryingMinor)}</td>
                     <td className="py-2">
                       <span className="flex justify-end gap-1">
                         {!row.gone ? (
@@ -244,7 +244,7 @@ export default function Assets() {
           <h2 className="font-display text-lg">The same things, for tax</h2>
           <p className="mt-1 max-w-3xl text-sm text-ink-soft">
             The tax computation does not use the figures above. It pools assets into blocks and
-            writes each block down at its own rate — and anything bought with fewer than 180 days
+            writes each block down at its own rate - and anything bought with fewer than 180 days
             left in the year gets half that rate. The two answers differ on purpose.
           </p>
           <table className="mt-4 w-full text-sm">
@@ -263,8 +263,8 @@ export default function Assets() {
                   <td className="py-2 pr-4 text-right tabular">{(b.rate * 100).toFixed(0)}%</td>
                   <td className="py-2 pr-4 text-right tabular text-ink-soft">{money(b.openingMinor)}</td>
                   <td className="py-2 pr-4 text-right tabular">{money(b.additionsFullRateMinor)}</td>
-                  <td className="py-2 pr-4 text-right tabular">{b.additionsHalfRateMinor ? money(b.additionsHalfRateMinor) : "—"}</td>
-                  <td className="py-2 pr-4 text-right tabular">{b.disposalsMinor ? money(b.disposalsMinor) : "—"}</td>
+                  <td className="py-2 pr-4 text-right tabular">{b.additionsHalfRateMinor ? money(b.additionsHalfRateMinor) : "-"}</td>
+                  <td className="py-2 pr-4 text-right tabular">{b.disposalsMinor ? money(b.disposalsMinor) : "-"}</td>
                   <td className="py-2 pr-4 text-right tabular font-medium">{money(b.depreciationMinor)}</td>
                   <td className="py-2 text-right tabular">{money(b.closingMinor)}</td>
                 </tr>

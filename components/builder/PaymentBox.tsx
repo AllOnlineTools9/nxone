@@ -38,7 +38,7 @@ export default function PaymentBox({ doc, update, totals, documentId }: {
     if (!result.data.url) { setNote(result.data.note ?? "No link could be made."); return; }
     set({ paymentLink: result.data.url });
     setNote(result.data.reused
-      ? "That invoice already had a live link, so this is the same one — two links for one bill is how a customer pays twice."
+      ? "That invoice already had a live link, so this is the same one - two links for one bill is how a customer pays twice."
       : "Done. It is on the invoice, and the invoice will mark itself paid when the money arrives.");
   };
 

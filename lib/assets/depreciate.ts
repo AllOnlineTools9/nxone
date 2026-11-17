@@ -54,7 +54,7 @@ const daysInYear = (from: string, to: string) => Math.round((Date.parse(to) - Da
  * The books view: what the thing costs the business each year it is used.
  *
  * Pro-rated by days in the year it is bought and the year it goes, because a laptop bought in
- * March has not cost you a year's wear by the 31st. Stops at the salvage value — depreciation
+ * March has not cost you a year's wear by the 31st. Stops at the salvage value - depreciation
  * that takes an asset below what it is worth is not depreciation, it is a mistake.
  */
 export function booksSchedule(asset: AssetInput, upTo: string): YearOfLife[] {
@@ -134,7 +134,7 @@ export const HALF_RATE_DAYS = 180;
  * The tax view: assets pooled into blocks, each written down at its own rate.
  *
  * Two rules do most of the work and are both commonly missed. An asset put to use for under
- * 180 days in the year it was bought gets half the year's rate — not half a year's, half the
+ * 180 days in the year it was bought gets half the year's rate - not half a year's, half the
  * rate. And a sale does not produce a gain or loss at all: the proceeds simply come off the
  * block, and only a block emptied or driven negative is settled up.
  */
@@ -229,8 +229,8 @@ export function disposalOf(asset: AssetInput, money: (minor: number) => string):
     describes: result === 0
       ? `Sold for exactly what the books said it was worth, ${money(carrying)}.`
       : result > 0
-        ? `Sold for ${money(proceeds)}, which is ${money(result)} more than the books said it was worth. That difference is a gain in your profit and loss. For tax it is not a gain at all — the ${money(proceeds)} simply comes off the block.`
-        : `Sold for ${money(proceeds)}, which is ${money(-result)} less than the books said it was worth. That difference is a loss in your profit and loss. For tax it is not a loss — the ${money(proceeds)} simply comes off the block.`
+        ? `Sold for ${money(proceeds)}, which is ${money(result)} more than the books said it was worth. That difference is a gain in your profit and loss. For tax it is not a gain at all - the ${money(proceeds)} simply comes off the block.`
+        : `Sold for ${money(proceeds)}, which is ${money(-result)} less than the books said it was worth. That difference is a loss in your profit and loss. For tax it is not a loss - the ${money(proceeds)} simply comes off the block.`
   };
 }
 
@@ -246,7 +246,7 @@ export interface DepreciationEntry {
 
 /**
  * One depreciation entry per asset per completed year. Dated the last day of the year, which is
- * when an accountant books it, and never for a year that has not finished — depreciating a year
+ * when an accountant books it, and never for a year that has not finished - depreciating a year
  * that is still running would make this month's profit depend on a guess about next March.
  */
 export function depreciationEntries(assets: AssetInput[], today: string): DepreciationEntry[] {

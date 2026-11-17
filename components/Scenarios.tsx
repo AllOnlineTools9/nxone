@@ -235,13 +235,13 @@ export default function Scenarios() {
                 <Row label="Standing costs" before={m(sim.before.monthlyFixedCostMinor)} after={m(sim.after.monthlyFixedCostMinor)}
                   delta={signed(sim.after.monthlyFixedCostMinor - sim.before.monthlyFixedCostMinor, m)} good={sim.after.monthlyFixedCostMinor <= sim.before.monthlyFixedCostMinor} />
                 <Row label="Profit" before={m(sim.before.monthlyProfitMinor)} after={m(sim.after.monthlyProfitMinor)} delta={signed(sim.delta.monthlyProfitMinor, m)} good={sim.delta.monthlyProfitMinor >= 0} strong />
-                <Row label="Margin" before={sim.before.marginPercent === null ? "—" : `${sim.before.marginPercent}%`}
-                  after={sim.after.marginPercent === null ? "—" : `${sim.after.marginPercent}%`}
-                  delta={sim.delta.marginPoints === null || sim.delta.marginPoints === 0 ? "—" : `${sim.delta.marginPoints > 0 ? "+" : "−"}${Math.abs(sim.delta.marginPoints)} pts`}
+                <Row label="Margin" before={sim.before.marginPercent === null ? "-" : `${sim.before.marginPercent}%`}
+                  after={sim.after.marginPercent === null ? "-" : `${sim.after.marginPercent}%`}
+                  delta={sim.delta.marginPoints === null || sim.delta.marginPoints === 0 ? "-" : `${sim.delta.marginPoints > 0 ? "+" : "−"}${Math.abs(sim.delta.marginPoints)} pts`}
                   good={(sim.delta.marginPoints ?? 0) >= 0} />
-                <Row label="Sales needed to break even" before={sim.before.breakEvenIncomeMinor === null ? "—" : m(sim.before.breakEvenIncomeMinor)}
+                <Row label="Sales needed to break even" before={sim.before.breakEvenIncomeMinor === null ? "-" : m(sim.before.breakEvenIncomeMinor)}
                   after={sim.after.breakEvenIncomeMinor === null ? "Not possible" : m(sim.after.breakEvenIncomeMinor)}
-                  delta={sim.delta.breakEvenIncomeMinor === null ? "—" : signed(sim.delta.breakEvenIncomeMinor, m)}
+                  delta={sim.delta.breakEvenIncomeMinor === null ? "-" : signed(sim.delta.breakEvenIncomeMinor, m)}
                   good={(sim.delta.breakEvenIncomeMinor ?? 0) <= 0} />
                 <Row label={`Cash after ${horizon} months`} before={m(sim.before.cashAtHorizonMinor)} after={m(sim.after.cashAtHorizonMinor)}
                   delta={signed(sim.delta.cashAtHorizonMinor, m)} good={sim.delta.cashAtHorizonMinor >= 0} />
@@ -329,7 +329,7 @@ function Row({ label, before, after, delta, good, strong }: { label: string; bef
   );
 }
 
-const signed = (minor: number, m: (minor: number) => string) => (minor === 0 ? "—" : `${minor > 0 ? "+" : "−"}${m(Math.abs(minor))}`);
+const signed = (minor: number, m: (minor: number) => string) => (minor === 0 ? "-" : `${minor > 0 ? "+" : "−"}${m(Math.abs(minor))}`);
 
 function detailOf(c: Change, m: (minor: number) => string): string {
   const when = "startsInMonths" in c && c.startsInMonths ? `, from month ${c.startsInMonths}` : c.kind === "one-off" && c.inMonths ? `, in month ${c.inMonths}` : "";
@@ -337,14 +337,14 @@ function detailOf(c: Change, m: (minor: number) => string): string {
     case "hire":
     case "let-go":
     case "fixed-cost":
-      return ` — ${m(c.monthlyCostMinor)} a month${when}`;
+      return ` - ${m(c.monthlyCostMinor)} a month${when}`;
     case "lose-customer":
     case "win-customer":
-      return ` — ${m(c.monthlyIncomeMinor)} of sales a month${when}`;
+      return ` - ${m(c.monthlyIncomeMinor)} of sales a month${when}`;
     case "one-off":
-      return ` — ${m(Math.abs(c.amountMinor))}${when}`;
+      return ` - ${m(Math.abs(c.amountMinor))}${when}`;
     case "price-change":
-      return c.volumePercent ? ` — with ${Math.abs(c.volumePercent)}% ${c.volumePercent < 0 ? "fewer" : "more"} orders` : "";
+      return c.volumePercent ? ` - with ${Math.abs(c.volumePercent)}% ${c.volumePercent < 0 ? "fewer" : "more"} orders` : "";
     default:
       return "";
   }

@@ -6,7 +6,7 @@ import type { Expense, SavedDocument } from "../store/types";
  *
  * A purchase order is a promise to pay for a particular thing at a particular price. The bill
  * that turns up later is somebody else's account of the same transaction, and the two disagree
- * more often than anybody expects — a price that crept up, a quantity nobody queried, a bill
+ * more often than anybody expects - a price that crept up, a quantity nobody queried, a bill
  * sent twice because the first one went to the wrong address.
  *
  * Nobody checks, because checking means finding the order, and finding the order means
@@ -66,11 +66,11 @@ export function matchOrders(
 
     const advice =
       state === "over-billed"
-        ? `Billed ${money(-outstanding)} more than the order was for. Check the bill against the order before paying it — a price that moved after the order was placed is the usual reason, and it is usually not agreed.`
+        ? `Billed ${money(-outstanding)} more than the order was for. Check the bill against the order before paying it - a price that moved after the order was placed is the usual reason, and it is usually not agreed.`
         : state === "part-billed"
           ? `${money(outstanding)} of this order has not been billed yet. That is money you have committed to spend but have not been asked for.`
           : state === "not-billed"
-            ? `Nothing billed against this order yet — ${money(orderedMinor)} committed.`
+            ? `Nothing billed against this order yet - ${money(orderedMinor)} committed.`
             : undefined;
 
     return {
@@ -112,7 +112,7 @@ export interface PossibleDuplicate {
  *
  * A supplier sends a bill, it gets entered; a reminder arrives a fortnight later and gets
  * entered again. Both get paid. This is one of the few mistakes in a small business that costs
- * real money and leaves no trace in the books — everything balances, the supplier is simply
+ * real money and leaves no trace in the books - everything balances, the supplier is simply
  * better off.
  *
  * Matched on the supplier and the bill number rather than on the amount, because two bills for

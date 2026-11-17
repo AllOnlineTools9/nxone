@@ -4,7 +4,7 @@
  *
  * Two decisions shape this. The files are kept in IndexedDB rather than with the rest of the
  * books, because a few PDFs would fill the small box the books live in and take the books down
- * with them. And only the fact of a file — its name, size and type — is kept with the record;
+ * with them. And only the fact of a file - its name, size and type - is kept with the record;
  * the bytes stay on the device they were added on. A file that cannot be on another device is
  * better said out loud than quietly missing, so every screen that shows one says where it lives.
  */

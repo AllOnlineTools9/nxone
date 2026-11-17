@@ -124,7 +124,7 @@ export default function Join() {
               <input type="radio" className="mt-1" name="work" checked={!bringMyWork} onChange={() => setBringMyWork(false)} />
               <span>
                 <span className="font-medium">Keep it out of it.</span>{" "}
-                <span className="text-ink-soft">This device is cleared and filled with the business books instead. Take a backup first — it is the only copy.</span>
+                <span className="text-ink-soft">This device is cleared and filled with the business books instead. Take a backup first - it is the only copy.</span>
               </span>
             </label>
           </div>

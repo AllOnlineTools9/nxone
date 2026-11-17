@@ -19,7 +19,7 @@ export interface Problem {
 
 /**
  * The rates the portal accepts. It keeps its own list, and a rate outside it is refused even when
- * the law allows it — which happens for a while after every rate change, including the 2025 one
+ * the law allows it - which happens for a while after every rate change, including the 2025 one
  * that brought in 40%.
  */
 export const ALLOWED_RATES = [0, 0.1, 0.25, 1, 1.5, 3, 5, 6, 7.5, 12, 18, 28, 40];

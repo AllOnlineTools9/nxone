@@ -7,7 +7,7 @@ import { describeSize, FileTooBig, VaultFull, vault, type Attachment } from "@/l
  * The paperwork beside the record it belongs to.
  *
  * Everything here is about being honest regarding where a file actually is. It is on this device
- * — not on a server, not on the owner's other phone — so the component says so once, plainly, and
+ * - not on a server, not on the owner's other phone - so the component says so once, plainly, and
  * marks any file whose bytes are not here rather than showing a button that would do nothing.
  */
 export default function Attachments({

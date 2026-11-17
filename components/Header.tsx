@@ -24,7 +24,12 @@ export default function Header() {
             ))}
           </ul>
         </nav>
-        <Link href="/invoice-generator" className="btn-primary ml-auto">Create an invoice</Link>
+        <div className="ml-auto flex items-center gap-2">
+          {/* For somebody coming back: the books live on their device, and signing in is how
+              the same books appear on another one. */}
+          <Link href="/sign-in/" className="btn-ghost">Sign in</Link>
+          <Link href="/invoice-generator" className="btn-primary">Create an invoice</Link>
+        </div>
       </div>
     </header>
   );

@@ -5,7 +5,7 @@ import type { CatalogueItem, Expense, SavedDocument } from "../store/types";
  * What is on the shelf, what it cost, and what went out of the door.
  *
  * A shop that buys to sell cannot read its profit from its bank account. Stock bought in March
- * and sold in May is not March's cost — it is an asset until it is sold, and the month it sells
+ * and sold in May is not March's cost - it is an asset until it is sold, and the month it sells
  * is the month it becomes a cost. Without that, every monthly profit figure is wrong in both
  * directions and the error only cancels out over a long enough period to be useless.
  *
@@ -73,7 +73,7 @@ const round = (n: number) => Math.round(n);
  * Sales pulled out of the invoices themselves, rather than recorded twice.
  *
  * The invoices already say what was sold. Asking somebody to enter it again in a stock screen is
- * asking them to disagree with themselves, so the moves are derived — matched by code first,
+ * asking them to disagree with themselves, so the moves are derived - matched by code first,
  * because that is unambiguous, and by description only when there is no code.
  */
 export function salesMoves(documents: SavedDocument[], items: StockItem[]): StockMove[] {
@@ -128,7 +128,7 @@ export function purchaseMoves(expenses: Expense[], items: StockItem[]): StockMov
  * Where everything stands, having replayed every movement in date order.
  *
  * Replaying rather than storing a balance means a movement entered late, or corrected, is simply
- * right next time this runs — the same reason the ledger is derived from documents rather than
+ * right next time this runs - the same reason the ledger is derived from documents rather than
  * kept as a running total.
  */
 export function stockPosition(opts: {

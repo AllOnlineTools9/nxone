@@ -18,7 +18,7 @@ export interface BudgetLine {
   code: string;
   /** The amount for the whole year, in minor units. */
   yearMinor: number;
-  /** Set when a particular month differs — rent that goes up in October, say. */
+  /** Set when a particular month differs - rent that goes up in October, say. */
   monthly?: Record<string, number>;
 }
 
@@ -84,7 +84,7 @@ export function reviewBudget(input: {
   const goneMonths = months.filter((m) => m <= input.today.slice(0, 7));
 
   // Two different measures, because they answer different questions. The budget for the year so
-  // far is owed in whole months — April's budget is due in April. The rate of spending has to be
+  // far is owed in whole months - April's budget is due in April. The rate of spending has to be
   // measured in days, or the first week of April counts as a twelfth of the year and five days
   // of spending gets projected across the whole of it.
   const elapsed = Math.min(1, goneMonths.length / 12);
@@ -159,4 +159,39 @@ export function fromLastYear(entries: JournalEntry[], currency: string, today: s
     .filter((row) => row.type === "expense" && row.balance.minor > 0)
     .map((row) => ({ code: row.code, yearMinor: row.balance.minor }))
     .sort((a, b) => b.yearMinor - a.yearMinor);
+}
+
+/**
+ * A first draft for a business with no last year to copy: this year's spending so far, scaled
+ * to a whole year and rounded to the nearest hundred so it reads as a target, not a calculation.
+ *
+ * Under about a month of trading the rate says nothing, so the figures so far are used as they
+ * stand rather than multiplied up from a few days.
+ */
+export function fromThisYear(entries: JournalEntry[], currency: string, today: string): BudgetLine[] {
+  const fy = financialYearOf(today);
+  const elapsed = Math.min(1, Math.max(0,
+    (Date.parse(today) - Date.parse(fy.from)) / (Date.parse(fy.to) - Date.parse(fy.from))));
+  const scale = elapsed >= 1 / 12 ? 1 / elapsed : 1;
+
+  return balances(entries, currency, fy.from, today)
+    .filter((row) => row.type === "expense" && row.balance.minor > 0)
+    .map((row) => ({ code: row.code, yearMinor: Math.round((row.balance.minor * scale) / 10_000) * 10_000 }))
+    .filter((line) => line.yearMinor > 0)
+    .sort((a, b) => b.yearMinor - a.yearMinor);
+}
+
+/**
+ * The best first draft available, and where it came from, so the screen can say so rather than
+ * presenting an extrapolation as though it were last year's actual figures.
+ */
+export function firstDraft(entries: JournalEntry[], currency: string, today: string): {
+  lines: BudgetLine[];
+  source: "last-year" | "this-year" | "nothing";
+} {
+  const last = fromLastYear(entries, currency, today);
+  if (last.length > 0) return { lines: last, source: "last-year" };
+  const current = fromThisYear(entries, currency, today);
+  if (current.length > 0) return { lines: current, source: "this-year" };
+  return { lines: [], source: "nothing" };
 }

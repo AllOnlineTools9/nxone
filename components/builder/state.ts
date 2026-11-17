@@ -33,6 +33,8 @@ export function blankDocument(kind: DocumentKind, country: string): DocumentData
     kind, country: useCountry, currency: profile?.currency ?? pack.currency, issueDate,
     // A business on the composition scheme issues a bill of supply, with no tax on it.
     composition: profile?.gstScheme === "composition" || undefined,
+    // Not registered for GST: no tax on anything this business issues, unless switched on.
+    noGst: profile?.gstScheme === "unregistered" || undefined,
     dueDate: cfg.secondDateLabel ? addDays(issueDate, cfg.secondDateDays ?? 0) : undefined,
     number: saved || `${cfg.numberPrefix}0001`,
     template: profile?.template ?? "classic",

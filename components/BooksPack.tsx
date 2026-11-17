@@ -75,7 +75,7 @@ export default function BooksPack() {
       <h2 className="font-display text-lg">Send the books to your accountant</h2>
       <p className="mt-1 max-w-2xl text-sm text-ink-soft">
         One folder holding the profit and loss, the balance sheet, the trial balance, every posting
-        behind them and the documents they came from — as CSV, which every accounting package imports.
+        behind them and the documents they came from - as CSV, which every accounting package imports.
       </p>
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -113,7 +113,7 @@ export default function BooksPack() {
 
       <p className="mt-3 text-sm text-ink-soft">
         {done
-          ? "The folder is saved. Attach it to the email — that is the one thing we cannot do for you."
+          ? "The folder is saved. Attach it to the email - that is the one thing we cannot do for you."
           : "Download the folder first, then attach it to the email."}
       </p>
 

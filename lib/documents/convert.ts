@@ -7,7 +7,7 @@ import type { DocumentData, DocumentKind } from "./types";
  *
  * A quotation that gets accepted becomes an invoice. An invoice that gets paid becomes a receipt.
  * An invoice sent in error becomes a credit note. These are the ordinary next steps of a job, and
- * until now each one meant typing the whole thing again — which is both tedious and the most
+ * until now each one meant typing the whole thing again - which is both tedious and the most
  * reliable way to introduce a difference between two documents that are supposed to agree.
  *
  * The new document keeps everything that is still true (who, what, how much, the tax treatment)

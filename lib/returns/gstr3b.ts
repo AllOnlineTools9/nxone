@@ -7,7 +7,7 @@ import type { Gstr1 } from "./gstr1";
  * GSTR-3B: the monthly summary, and the money.
  *
  * It is built from the same documents as GSTR-1 rather than typed again, so the two returns
- * cannot disagree with each other — which is the mismatch that brings a notice.
+ * cannot disagree with each other - which is the mismatch that brings a notice.
  *
  * One figure is genuinely beyond the books: input tax credit. The expenses here record how much
  * tax was paid but not whether it was IGST or CGST and SGST, and nothing here has seen the

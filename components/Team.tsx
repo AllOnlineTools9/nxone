@@ -13,7 +13,7 @@ import {
  *
  * Everything that costs money is said before it is done: the price of the next seat is on the
  * invite button itself, not in the receipt afterwards. And removing somebody says plainly what it
- * does and does not do — their copy on their own laptop is theirs, and we cannot reach it.
+ * does and does not do - their copy on their own laptop is theirs, and we cannot reach it.
  */
 export default function Team() {
   const [view, setView] = useState<TeamView | null>(null);
@@ -177,7 +177,7 @@ export default function Team() {
         <section className="card p-5">
           <h2 className="font-display text-lg">Ask somebody to join</h2>
           <p className="mt-0.5 text-sm text-ink-soft">
-            They get an email with a link. Opening it signs them in — there is no password to choose or share.
+            They get an email with a link. Opening it signs them in - there is no password to choose or share.
           </p>
 
           {!view.seats.allowed ? (

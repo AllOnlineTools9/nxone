@@ -20,7 +20,7 @@ import { useHydrated, useWorkspace } from "@/lib/store/useStore";
  * and an invoice with three faults otherwise takes three attempts to fix.
  *
  * Nothing is registered from here. That needs credentials this has none of, and claiming
- * otherwise would be worse than useless — somebody would believe their invoices were filed.
+ * otherwise would be worse than useless - somebody would believe their invoices were filed.
  */
 export default function EInvoicing() {
   const [ws, db] = useWorkspace();
@@ -193,7 +193,7 @@ export default function EInvoicing() {
           </table>
         ) : (
           <p className="px-5 py-6 text-sm text-ink-soft">
-            Nothing waiting. Only invoices to customers with a GSTIN are registered — counter sales and anything to somebody unregistered never go to the portal.
+            Nothing waiting. Only invoices to customers with a GSTIN are registered - counter sales and anything to somebody unregistered never go to the portal.
           </p>
         )}
 
@@ -219,7 +219,7 @@ export default function EInvoicing() {
       ) : null}
 
       <p className="text-sm text-ink-faint">
-        Prepared, not registered. Upload the JSON through the portal or your usual agent, and put the number it returns back on the invoice. Registering from here would need credentials from the portal, and NXOne has none — telling you an invoice was filed when it was not would be worse than not offering it at all.
+        Prepared, not registered. Upload the JSON through the portal or your usual agent, and put the number it returns back on the invoice. Registering from here would need credentials from the portal, and NXOne has none - telling you an invoice was filed when it was not would be worse than not offering it at all.
       </p>
     </div>
   );

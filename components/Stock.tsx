@@ -12,7 +12,7 @@ import { useHydrated, useWorkspace } from "@/lib/store/useStore";
  *
  * A shop that buys to sell cannot read its profit from its bank balance: stock bought in March
  * and sold in May is an asset until it sells. Switching an item on here is what makes the
- * accounts treat it that way — purchases become stock, and the cost appears in the month the
+ * accounts treat it that way - purchases become stock, and the cost appears in the month the
  * thing actually left the shop.
  *
  * Sales are read from the invoices rather than entered again, because asking somebody to record
@@ -144,10 +144,10 @@ export default function Stock() {
                     {level.unit ? <span className="text-ink-faint"> / {level.unit}</span> : null}
                   </td>
                   <td className={`px-5 py-2.5 text-right tabular ${level.quantity < 0 ? "text-bad" : ""}`}>{level.quantity}</td>
-                  <td className="px-5 py-2.5 text-right tabular text-ink-soft">{level.averageCostMinor ? m(level.averageCostMinor) : "—"}</td>
+                  <td className="px-5 py-2.5 text-right tabular text-ink-soft">{level.averageCostMinor ? m(level.averageCostMinor) : "-"}</td>
                   <td className="px-5 py-2.5 text-right tabular">{m(level.valueMinor)}</td>
                   <td className={`px-5 py-2.5 text-right tabular ${margin && margin.marginMinor < 0 ? "text-bad" : "text-ink-soft"}`}>
-                    {margin && level.averageCostMinor ? `${m(margin.marginMinor)}${margin.marginPercent === null ? "" : ` · ${margin.marginPercent}%`}` : "—"}
+                    {margin && level.averageCostMinor ? `${m(margin.marginMinor)}${margin.marginPercent === null ? "" : ` · ${margin.marginPercent}%`}` : "-"}
                   </td>
                   <td className="px-5 py-2.5 text-right">
                     <input

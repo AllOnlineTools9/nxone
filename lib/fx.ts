@@ -4,14 +4,14 @@ import type { Expense, SavedDocument } from "./store/types";
 /**
  * Money in more than one currency.
  *
- * The books are kept in one currency — whatever the business itself counts in. An invoice billed
+ * The books are kept in one currency - whatever the business itself counts in. An invoice billed
  * in another currency is converted at a rate recorded on the invoice, not at whatever rate
  * happens to be true today, because the amount earned was settled on the day it was earned.
  *
  * No rate is ever invented. NXOne has no connection to a rate feed and will not pretend to one:
  * the rate is typed by the person billing, who knows what their bank gave them, and it is carried
  * forward from the last invoice in that currency as a starting point rather than as a fact. A
- * document without a rate is not quietly left out of the accounts — it is reported, and the
+ * document without a rate is not quietly left out of the accounts - it is reported, and the
  * screens ask for the missing number.
  */
 
@@ -123,7 +123,7 @@ export type Converted<T> = T & { convertedFrom?: { currency: string; rate: numbe
  * currency, converted at each document's own rate.
  *
  * The document itself is left alone. An invoice is a document sent to a customer and it says what
- * it said — only the summary figures the screens add up are converted, and each carries a note of
+ * it said - only the summary figures the screens add up are converted, and each carries a note of
  * where it came from so a screen can show both. Anything without a rate is left out here and
  * listed by `unrated`, so it can be asked for rather than lost.
  */

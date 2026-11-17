@@ -7,7 +7,7 @@
  *
  * It matters here because almost everything else in this product assumes regular registration.
  * A composition dealer who used the GST screens as they stand would collect tax they are not
- * allowed to collect and claim credit they are not entitled to — so the honest thing is to know
+ * allowed to collect and claim credit they are not entitled to - so the honest thing is to know
  * which scheme a business is on, and be plain about what does and does not apply.
  *
  * Rates are read from published summaries rather than from the notifications, so nothing here is
@@ -80,7 +80,13 @@ export const COMPOSITION_DECLARATION =
  * scheme is a claim nobody is allowed to make.
  */
 export const documentTitleFor = (scheme: GstScheme, fallback: string): string =>
-  scheme === "composition" ? "Bill of Supply" : fallback;
+  scheme === "composition"
+    ? "Bill of Supply"
+    // Calling it a tax invoice when no tax is charged would assert a right to credit that the
+    // customer does not have. It is simply an invoice.
+    : scheme === "unregistered" && fallback === "Tax Invoice"
+      ? "Invoice"
+      : fallback;
 
 export interface Cmp08 {
   quarter: string;
@@ -127,7 +133,7 @@ export function cmp08(input: {
     "No credit is claimed against this. That is the bargain: a lower rate, and nothing to set off."
   ];
   if (reverseCharge > 0) {
-    notes.push("Reverse charge still applies on this scheme, and is paid on top at the ordinary rate — being on composition does not exempt you from it.");
+    notes.push("Reverse charge still applies on this scheme, and is paid on top at the ordinary rate - being on composition does not exempt you from it.");
   }
 
   return {
@@ -190,7 +196,7 @@ export function outgrown(turnoverMinor: number, kind: "goods" | "services", spec
     leftMinor: left,
     over: left < 0,
     says: left < 0
-      ? "Turnover has passed the limit for this scheme. You have to move to regular registration — and from that point you charge GST on your sales and can claim credit on your purchases."
+      ? "Turnover has passed the limit for this scheme. You have to move to regular registration - and from that point you charge GST on your sales and can claim credit on your purchases."
       : left < limit * 0.1
         ? "Turnover is close to the limit for this scheme. Worth planning the switch to regular registration before it happens rather than after."
         : undefined

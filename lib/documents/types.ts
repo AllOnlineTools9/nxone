@@ -81,6 +81,12 @@ export interface DocumentData {
    * issued under one scheme still reads correctly after the business changes scheme.
    */
   composition?: boolean;
+  /**
+   * No GST on this document at all. Set by default for a business that is not registered, and
+   * switchable per document. Carried on the document itself, like composition, so a document
+   * issued without GST still reads that way after the business registers.
+   */
+  noGst?: boolean;
   /** The job this document is for, when the business works in jobs. */
   projectId?: string;
   /** Discount applied to the whole document, after line discounts. */

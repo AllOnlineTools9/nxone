@@ -170,7 +170,7 @@ export function coveringNote(input: PackInput): string {
     "  and the statements cannot disagree.",
     bs.balanced
       ? "  The balance sheet balances."
-      : "  NOTE: the balance sheet does not balance. Something is missing — please look at journal.csv.",
+      : "  NOTE: the balance sheet does not balance. Something is missing - please look at journal.csv.",
     "",
     "  Prepared by the business, not by an accountant, and not reviewed by one. Opening balances",
     "  are whatever was entered when the books were started. Please check these before filing",
@@ -230,7 +230,7 @@ export function packMessage(input: PackInput, locale = "en-IN"): PackMessage {
   ].join("\n");
 
   return {
-    subject: `${input.businessName} — books for ${label}`,
+    subject: `${input.businessName} - books for ${label}`,
     body,
     short: `Books for ${input.businessName}, ${label}. Net profit ${money(pl.netProfit.minor)}. Sending the folder now.`
   };

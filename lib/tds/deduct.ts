@@ -4,7 +4,7 @@ import { TDS_SECTIONS, depositBy, financialYearOf, quarterOf, sectionById, type 
  * Working out what should have been deducted, and what was.
  *
  * The part people get wrong is not the rate, it is the threshold. Under 194C you deduct nothing
- * until payments to that supplier cross ₹1,00,000 in the year — and then you deduct on the whole
+ * until payments to that supplier cross ₹1,00,000 in the year - and then you deduct on the whole
  * lot, including the payments you already made without deducting. That retrospective step is
  * what catches businesses out, so it is the thing this module exists to catch.
  */
@@ -95,7 +95,7 @@ export function deductionsFor(payments: PaymentInput[], sectionId: string): Dedu
 
     if (!crossed && byAggregate) {
       // The year's total has just gone past the line, so everything paid earlier becomes
-      // deductible too — the retrospective step that catches people out.
+      // deductible too - the retrospective step that catches people out.
       crossed = true;
       for (const earlier of waiting) out.push(describe(earlier, section, true, true));
       waiting.length = 0;

@@ -4,7 +4,7 @@
  * The mirror image of TDS. There it is held back from what you pay a supplier; here it is added
  * to what you charge a customer, collected with the invoice, and paid to the government. The one
  * most small businesses meet is on the sale of goods, which only bites once the business is
- * large enough — but a scrap dealer or a timber merchant meets it from the first sale.
+ * large enough - but a scrap dealer or a timber merchant meets it from the first sale.
  *
  * Read from published summaries rather than from the Act, so nothing here is marked published.
  */

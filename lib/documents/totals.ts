@@ -39,10 +39,15 @@ export function calculate(doc: DocumentData): DocumentTotals {
   const documentDiscount = doc.discountPct ? percentOf(afterLineDiscount, doc.discountPct) : zero(cur);
   const shares = allocate(documentDiscount, base.map((b) => Math.max(0, b.net.minor)));
 
+  const chargesNoTax = Boolean(doc.noGst || doc.composition);
+
   const lines = base.map((b, i) => {
     const netAfterDoc = subtract(b.net, shares[i] ?? zero(cur));
-    const rule = b.item.taxRuleId ? ruleById(pack, b.item.taxRuleId) : undefined;
-    const rate = b.item.taxRateOverride ?? rule?.rate ?? 0;
+    // A no-GST or composition document charges no tax on any line, whatever rule a line still
+    // carries from before the switch was flipped. Decided here, once, rather than by clearing
+    // every line's rule, so turning GST back on restores the rates that were there.
+    const rule = !chargesNoTax && b.item.taxRuleId ? ruleById(pack, b.item.taxRuleId) : undefined;
+    const rate = chargesNoTax ? 0 : b.item.taxRateOverride ?? rule?.rate ?? 0;
 
     if (rule && (rule.effectiveFrom > doc.issueDate || (rule.effectiveUntil && rule.effectiveUntil <= doc.issueDate))) {
       warnings.push(`"${rule.label}" was not in force on ${doc.issueDate}. Check the rate for this date.`);

@@ -1,7 +1,8 @@
 "use client";
 import { Sparkles, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
-import { fromLastYear, reviewBudget, type BudgetLine } from "@/lib/analysis/budget";
+import { firstDraft, reviewBudget, type BudgetLine } from "@/lib/analysis/budget";
+import Link from "next/link";
 import { ledgerFor, toAssetForBooks } from "@/lib/ledger/posting";
 import { openingOf } from "@/lib/ledger/opening";
 import { accountsOfType } from "@/lib/ledger/accounts";
@@ -14,7 +15,7 @@ import { useHydrated, useWorkspace } from "@/lib/store/useStore";
 /**
  * What you meant to spend, against what you did.
  *
- * The number worth showing is not the variance to date — that is history by the time anybody
+ * The number worth showing is not the variance to date - that is history by the time anybody
  * reads it. It is the rate: at this pace, what will the year come to, and is that more than was
  * set aside. Knowing in July that one account is running at twice its rate is a decision;
  * knowing in March is a post-mortem.
@@ -23,6 +24,8 @@ export default function Budget() {
   const [ws, db] = useWorkspace();
   const ready = useHydrated();
   const [editing, setEditing] = useState(false);
+  /** Said once a draft is made, so nobody mistakes a projection for last year's figures. */
+  const [drafted, setDrafted] = useState("");
 
   const entries = useMemo(() => ledgerFor(
     db.documents(), db.expenses(), ws.profile?.currency ?? "INR",
@@ -30,7 +33,18 @@ export default function Budget() {
     { list: db.assets().map(toAssetForBooks) }
   ), [db, ws.profile]);
 
-  if (!ready || !ws.profile) return null;
+  if (!ready) return null;
+
+  // Without a business there is nothing to budget for, but a blank page reads as broken.
+  if (!ws.profile) {
+    return (
+      <section className="card p-5">
+        <h2 className="font-display text-lg">Set up your business first</h2>
+        <p className="mt-1 text-sm text-ink-soft">A budget is set against your own accounts, so it needs your business details first.</p>
+        <Link href="/welcome/" className="btn-primary mt-3 inline-flex">Set up your business</Link>
+      </section>
+    );
+  }
 
   const currency = ws.profile.currency ?? "INR";
   const money = (minor: number) => formatMoney(fromMinor(minor, currency));
@@ -45,10 +59,19 @@ export default function Budget() {
     save(yearMinor > 0 ? [...rest, { code, yearMinor }] : rest);
   };
 
-  const startFromLastYear = () => {
-    const draft = fromLastYear(entries, currency, todayIso());
-    if (draft.length === 0) return;
-    save(draft);
+  // This used to do nothing at all for a business with no last year, which is every new one:
+  // the button was pressed and the page did not change. Now it falls back to this year, and
+  // failing that opens a blank budget, and in every case says which it did.
+  const startFromHistory = () => {
+    const draft = firstDraft(entries, currency, todayIso());
+    if (draft.lines.length > 0) save(draft.lines);
+    setDrafted(
+      draft.source === "last-year"
+        ? "Filled in from what you actually spent last year. Change anything that will be different this year."
+        : draft.source === "this-year"
+          ? "There is no last year to copy, so this is what you have spent so far this year, scaled up to a full year. Treat it as a first guess."
+          : "Nothing has been spent yet to start from, so here is a blank budget. Put a figure against the accounts you care about."
+    );
     setEditing(true);
   };
 
@@ -60,18 +83,18 @@ export default function Budget() {
         <h2 className="font-display text-lg">No budget set</h2>
         <p className="mt-1 max-w-2xl text-sm text-ink-soft">
           A budget is only useful if it is checked while there is still time to act on it. Set a
-          figure for the year against the accounts you care about, and this will tell you — in
-          July, not in March — which of them are running faster than planned.
+          figure for the year against the accounts you care about, and this will tell you - in
+          July, not in March - which of them are running faster than planned.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" className="btn-primary" onClick={startFromLastYear}>
-            <Sparkles size={16} /> Start from what you spent last year
+          <button type="button" className="btn-primary" onClick={startFromHistory}>
+            <Sparkles size={16} /> Start from what you have spent
           </button>
           <button type="button" className="btn-ghost" onClick={() => setEditing(true)}>Start from nothing</button>
         </div>
         <p className="mt-2 text-xs text-ink-faint">
-          Last year&apos;s figures are a first draft, not a target. Arguing with a number already on
-          the page is easier than inventing one.
+          Uses last year if there is one, otherwise this year so far. Either way it is a first
+          draft, not a target: arguing with a number already on the page is easier than inventing one.
         </p>
       </section>
     );
@@ -111,6 +134,10 @@ export default function Budget() {
         </section>
       ) : null}
 
+      {drafted ? (
+        <p className="rounded-lg border border-line bg-canvas p-3 text-sm text-ink-soft">{drafted}</p>
+      ) : null}
+
       <section className="card p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-display text-lg">Account by account</h2>
@@ -147,13 +174,13 @@ export default function Budget() {
                         />
                       ) : <span className="tabular">{money(line?.yearMinor ?? 0)}</span>}
                     </td>
-                    <td className="py-2 pr-4 text-right tabular text-ink-soft">{line ? money(line.expectedToDateMinor) : "—"}</td>
-                    <td className="py-2 pr-4 text-right tabular">{line ? money(line.actualToDateMinor) : "—"}</td>
+                    <td className="py-2 pr-4 text-right tabular text-ink-soft">{line ? money(line.expectedToDateMinor) : "-"}</td>
+                    <td className="py-2 pr-4 text-right tabular">{line ? money(line.actualToDateMinor) : "-"}</td>
                     <td className={`py-2 text-right tabular ${
                       line?.outlook === "well-over" ? "font-semibold text-bad"
                         : line?.outlook === "over" ? "text-warn"
                           : line?.outlook === "under" ? "text-ink-soft" : ""
-                    }`}>{line ? money(line.projectedMinor) : "—"}</td>
+                    }`}>{line ? money(line.projectedMinor) : "-"}</td>
                   </tr>
                 );
               })}

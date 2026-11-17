@@ -20,7 +20,7 @@ const hex = (h: string) => {
 
 /** Standard PDF fonts cover Latin only, so currency symbols such as the rupee sign are written as codes. */
 const amount = (m: Money) => `${m.currency} ${toMajor(m).toLocaleString("en-US", { minimumFractionDigits: decimalsFor(m.currency), maximumFractionDigits: decimalsFor(m.currency) })}`;
-const safe = (s: string) => (s || "").replace(/[^\x20-\x7E\n]/g, (c) => ({ "₹": "Rs.", "€": "EUR ", "£": "GBP ", "–": "-", "—": "-", "’": "'", "‘": "'", "“": '"', "”": '"', "•": "-" }[c] ?? " "));
+const safe = (s: string) => (s || "").replace(/[^\x20-\x7E\n]/g, (c) => ({ "₹": "Rs.", "€": "EUR ", "£": "GBP ", "–": "-", "-": "-", "’": "'", "‘": "'", "“": '"', "”": '"', "•": "-" }[c] ?? " "));
 
 function wrap(text: string, font: PDFFont, size: number, width: number): string[] {
   const out: string[] = [];

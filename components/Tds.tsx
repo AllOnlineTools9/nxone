@@ -63,7 +63,7 @@ export default function Tds() {
         <section className="card p-5">
           <h2 className="font-display text-lg">Nothing marked for deduction yet</h2>
           <p className="mt-1 max-w-2xl text-sm text-ink-soft">
-            Tax has to be held back from some payments — a contractor, a landlord, a professional —
+            Tax has to be held back from some payments - a contractor, a landlord, a professional -
             and handed to the government yourself. Mark the section on an expense and it is counted
             here, with the thresholds watched for you.
           </p>
@@ -91,7 +91,7 @@ export default function Tds() {
           <p className="mt-1 max-w-3xl text-sm text-ink-soft">
             {money(review.shortfallMinor)} across {review.missed.length}{" "}
             {review.missed.length === 1 ? "payment" : "payments"}. Paying the supplier in full does
-            not end it: the tax is still owed, with interest, and the expense can be disallowed —
+            not end it: the tax is still owed, with interest, and the expense can be disallowed -
             so you would pay tax on money you have already spent.
           </p>
           <table className="mt-4 w-full text-sm">
@@ -121,7 +121,7 @@ export default function Tds() {
           <h2 className="font-display text-lg">Getting close to a threshold</h2>
           <p className="mt-1 max-w-3xl text-sm text-ink-soft">
             Once a supplier goes past, the deduction applies to everything you have already paid
-            them this year — not just the bill that crossed it. Easier to start deducting on the
+            them this year - not just the bill that crossed it. Easier to start deducting on the
             next one than to go back.
           </p>
           <ul className="mt-3 divide-y divide-line">
@@ -129,7 +129,7 @@ export default function Tds() {
               <li key={`${a.supplier}-${a.sectionId}`} className="flex flex-wrap items-baseline justify-between gap-2 py-2.5">
                 <span className="font-medium">{a.supplier}</span>
                 <span className="text-sm text-ink-soft">
-                  {money(a.spentMinor)} of {money(a.thresholdMinor)} —{" "}
+                  {money(a.spentMinor)} of {money(a.thresholdMinor)} -{" "}
                   <span className="font-medium text-warn">{money(a.leftMinor)} left</span>{" "}
                   under {sectionById(a.sectionId)?.label}
                 </span>
@@ -148,7 +148,7 @@ export default function Tds() {
             {review.owed.map((o) => (
               <li key={o.depositBy} className="flex items-baseline justify-between gap-3 py-2.5">
                 <span className={o.late ? "font-medium text-bad" : ""}>
-                  By {date(o.depositBy)}{o.late ? " — overdue" : ""}
+                  By {date(o.depositBy)}{o.late ? " - overdue" : ""}
                 </span>
                 <span className="tabular font-medium">{money(o.minor)}</span>
               </li>
@@ -207,7 +207,7 @@ export default function Tds() {
         <h2 className="font-display text-lg">Tax you collect from customers</h2>
         <p className="mt-1 max-w-3xl text-sm text-ink-soft">
           The other direction: added to a customer&apos;s bill, collected with it, and paid over.
-          Most businesses never meet it — on ordinary goods it starts only once your turnover
+          Most businesses never meet it - on ordinary goods it starts only once your turnover
           passes ₹10 crore and you have sold more than ₹50 lakh to one customer in a year. A scrap
           or timber dealer meets it from the first sale.
         </p>
@@ -221,7 +221,7 @@ export default function Tds() {
           ))}
         </ul>
         <p className="mt-3 text-xs text-ink-faint">
-          Where there is a threshold, it is charged only on the part above it — charging the whole
+          Where there is a threshold, it is charged only on the part above it - charging the whole
           amount is the usual mistake, and it overcharges the customer rather than the government.
         </p>
       </section>

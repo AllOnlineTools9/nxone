@@ -7,8 +7,8 @@ import type { Expense, SavedDocument } from "../store/types";
 /**
  * Closing a financial year.
  *
- * Nothing in these books is a stored balance — every figure is derived from the documents and
- * bills behind it — so closing a year is not an act of arithmetic. It is an act of agreement:
+ * Nothing in these books is a stored balance - every figure is derived from the documents and
+ * bills behind it - so closing a year is not an act of arithmetic. It is an act of agreement:
  * somebody looks at the year, satisfies themselves it is complete, and says so. After that the
  * period is locked, and corrections become credit notes rather than edits.
  *
@@ -119,7 +119,7 @@ export function readyToClose(input: {
     checks.push({
       id: "unpaid", severity: "look", count: unpaid.length,
       title: `${unpaid.length} ${unpaid.length === 1 ? "invoice is" : "invoices are"} still owed`,
-      says: "Not a problem in itself — they carry forward as money owed to you. But a year end is the moment to decide whether any of them are never going to be paid, because writing one off belongs in the year it went bad.",
+      says: "Not a problem in itself - they carry forward as money owed to you. But a year end is the moment to decide whether any of them are never going to be paid, because writing one off belongs in the year it went bad.",
       fixAt: "/receivables"
     });
   }

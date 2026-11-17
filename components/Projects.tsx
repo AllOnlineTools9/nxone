@@ -11,7 +11,7 @@ import { useHydrated, useWorkspace } from "@/lib/store/useStore";
  * What each job actually made.
  *
  * A business can be profitable overall and losing money on half of what it does, and the profit
- * and loss will never say so — it adds the good jobs to the bad ones and reports the difference.
+ * and loss will never say so - it adds the good jobs to the bad ones and reports the difference.
  * The jobs are listed worst first, because the loss-making one is the only entry anybody needs
  * to act on.
  */
@@ -49,7 +49,7 @@ export default function Projects() {
     <div className="space-y-6">
       {projects.length > 0 ? (
         <section className="grid gap-3 sm:grid-cols-3">
-          <Figure label="Earned on jobs" value={money(summary.revenueMinor)} />
+          <Figure label="Earned on contracts" value={money(summary.revenueMinor)} />
           <Figure label="Spent on them" value={money(summary.costMinor)} />
           <Figure label="Left" value={money(summary.profitMinor)} tone={summary.profitMinor < 0 ? "bad" : "plain"} />
         </section>
@@ -59,19 +59,19 @@ export default function Projects() {
         <section className="rounded-lg border border-bad/30 bg-bad/5 p-4">
           <h2 className="flex items-center gap-2 font-medium text-bad">
             <TriangleAlert size={17} aria-hidden="true" />
-            {summary.losing.length === 1 ? "A job is losing money" : `${summary.losing.length} jobs are losing money`}
+            {summary.losing.length === 1 ? "A contract is losing money" : `${summary.losing.length} contracts are losing money`}
           </h2>
           <ul className="mt-2 space-y-1 text-sm">
-            {summary.losing.map((r) => <li key={r.project.id}>{r.project.name} — {r.says}</li>)}
+            {summary.losing.map((r) => <li key={r.project.id}>{r.project.name} - {r.says}</li>)}
           </ul>
         </section>
       ) : null}
 
       <section className="card p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-display text-lg">Jobs</h2>
+          <h2 className="font-display text-lg">Contracts</h2>
           <button type="button" className="btn-ghost" onClick={() => setAdding(!adding)}>
-            <Plus size={16} /> Add a job
+            <Plus size={16} /> Add a contract
           </button>
         </div>
 
@@ -99,7 +99,7 @@ export default function Projects() {
 
         {projects.length === 0 ? (
           <p className="mt-4 max-w-2xl text-sm text-ink-soft">
-            No jobs yet. Add one, then tag invoices and bills to it as they come in — the tagging
+            No contracts yet. Add one, then tag invoices and bills to it as they come in - the tagging
             is a dropdown on each. After a few of them this will tell you which kind of work is
             worth doing and which only looks like it is.
           </p>
@@ -108,7 +108,7 @@ export default function Projects() {
             <table className="w-full text-sm">
               <thead className="text-left text-xs uppercase tracking-wider text-ink-faint">
                 <tr>
-                  <th className="py-2 pr-4">Job</th>
+                  <th className="py-2 pr-4">Contract</th>
                   <th className="py-2 pr-4 text-right">Earned</th>
                   <th className="py-2 pr-4 text-right">Cost</th>
                   <th className="py-2 pr-4 text-right">Left</th>
@@ -130,7 +130,7 @@ export default function Projects() {
                     <td className="py-2 pr-4 text-right tabular text-ink-soft">{money(r.costMinor)}</td>
                     <td className={`py-2 pr-4 text-right tabular font-medium ${r.profitMinor < 0 ? "text-bad" : ""}`}>{money(r.profitMinor)}</td>
                     <td className={`py-2 pr-4 text-right tabular ${r.marginPercent < 10 ? "text-warn" : ""}`}>
-                      {r.revenueMinor === 0 ? "—" : `${r.marginPercent.toFixed(0)}%`}
+                      {r.revenueMinor === 0 ? "-" : `${r.marginPercent.toFixed(0)}%`}
                     </td>
                     <td className="py-2 text-right">
                       <select
@@ -155,7 +155,7 @@ export default function Projects() {
       {projects.length > 0 && (summary.untaggedRevenueMinor > 0 || summary.untaggedCostMinor > 0) ? (
         <p className="rounded-lg border border-line bg-canvas p-3 text-sm text-ink-soft">
           {money(summary.untaggedRevenueMinor)} earned and {money(summary.untaggedCostMinor)} spent
-          are not against any job. Some of that is overheads, which belong nowhere; the rest is
+          are not against any contract. Some of that is overheads, which belong nowhere; the rest is
           tagging that was not kept up, and it makes every margin above look better than it is.
         </p>
       ) : null}

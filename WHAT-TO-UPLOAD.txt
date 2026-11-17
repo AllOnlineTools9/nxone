@@ -1,82 +1,44 @@
-NXONE — HISTORY, CLAIMS, TCS, CUSTOMER PORTAL
-=============================================
+NXONE - CONTRACTS, BUDGET FIX, NO GST, SIGN IN, DASHES
+=====================================================
 
-The last four of the nine. 922 app tests, 104 server tests, build clean, all
-screens driven in a browser.
+78 files. 932 app tests, 104 server tests, build clean, every change checked
+in a browser.
 
   cd /workspaces/nxone
-  unzip -q nxone-history-claims-tcs-portal.zip
-  cp -r nxone-history-claims-tcs-portal/. .
-  rm -rf nxone-history-claims-tcs-portal nxone-history-claims-tcs-portal.zip
+  unzip -q nxone-fixes.zip
+  cp -r nxone-fixes/. .
+  rm -rf nxone-fixes nxone-fixes.zip
   npm test && npm run build
-  git add -A && git commit -m "Audit trail, claims, TCS, customer portal" && git push
-  npm run deploy
+  git add -A && git commit -m "Contracts, budget fix, No GST, sign in, hyphens" && git push
+  npx wrangler deploy
 
-Apply after the previous two zips. New screens: /history, /claims, and a
-public /view/<token> page. TCS sits on the existing /tds screen.
+Site only. The API does not need redeploying.
 
+JOBS ARE NOW CONTRACTS
+  Every label a person sees. The page is /contracts; /jobs forwards there so
+  an old bookmark still lands. Stored data keeps its field names, so nothing
+  already tagged is lost.
 
-6. HISTORY
-----------
-  Books that can be edited silently are books nobody can rely on. The question
-  is never who did it — on one device it is always you — it is what this
-  invoice said before somebody changed it, which comes up whenever a figure is
-  queried months later.
+THE EMPTY BUDGET PAGE
+  "Start from what you spent last year" did nothing for a business with no
+  last year - every new one. It now uses last year if there is one, otherwise
+  this year's spending scaled to a full year, otherwise a blank budget, and
+  says which. With no business set up, the page says so instead of going blank.
 
-  Recorded inside the store's own write methods rather than by their callers,
-  so nothing can change through NXOne without leaving a trace: a trail
-  somebody has to remember to write has holes exactly where it matters. Saves
-  that changed nothing are not recorded. Changes that move the books are
-  marked, and the last 500 are kept — older history is dropped rather than
-  filling the space the books need.
+NO GST
+  A "Charge GST on this ..." switch on every document. Off: no GST on any line,
+  and an invoice is titled Invoice rather than Tax Invoice. Switched off in one
+  place, the totals, so no line can carry GST onto a no-GST document; ticking
+  it again restores each line's rate. New documents start from your scheme:
+  set "Not registered for GST" on the GST scheme screen and they begin with GST
+  off. That option previously did nothing. The GST return and input credit
+  screens now tell an unregistered business they don't apply.
 
-  A bug caught here: several writes can land in the same millisecond, and
-  sorting on the timestamp alone ordered those arbitrarily, so the newest was
-  not reliably first. The stored order now breaks the tie.
+SIGN IN
+  Beside "Create an invoice" in the header, on every public page including
+  the home page.
 
-7. CLAIMS
----------
-  Money your people spent that you owe them back. The cost is dated the day
-  the money was spent, not the day it was approved — a September lunch stays a
-  September cost however long it waits — and until it is repaid it sits as
-  owed to the person rather than paid out of a bank account.
-
-  The figure shown is not the total claimed, it is how long somebody has been
-  out of pocket. Claims cannot move backwards: once repaid, a correction is a
-  correction rather than a rewrite of what happened.
-
-8. TCS
-------
-  The mirror of TDS: added to a customer's bill, collected, and paid over. On
-  ordinary goods it starts only once your turnover passes ₹10 crore and you
-  have sold more than ₹50 lakh to one customer in a year; a scrap or timber
-  dealer meets it from the first sale.
-
-  Charged only on the part above the threshold. Charging the whole amount is
-  the usual mistake, and it overcharges the customer rather than the
-  government. On the /tds screen, under what you hold back.
-
-9. CUSTOMER PORTAL
-------------------
-  A link a customer can open to see their invoice — no account, no password,
-  nothing of the business behind it beyond that one document.
-
-  Two decisions worth knowing. The link is a credential, so it is long,
-  unguessable, avoids characters people misread aloud, is compared in constant
-  time, and can be withdrawn. And what is shared is a snapshot: changing the
-  invoice afterwards does not silently change what the customer was shown,
-  which protects both sides of an argument about what was sent.
-
-  The snapshot is built field by field on the device rather than by copying
-  the document and deleting what should not go — under the second approach a
-  field added later would find its own way into a stranger's browser. The
-  server checks it again on arrival and refuses anything carrying a job id, a
-  cost, a supplier or an internal note.
-
-  Dormant until the API is deployed: the share button does not appear, and
-  /view says there is nothing at the link.
-
-WHAT IS LEFT
-  The API deploy. All nine features are in; the ones that need a server —
-  logins, sync, team, payment links, the portal — are written, tested and
-  waiting on a Cloudflare token and a D1 database. Five migrations now.
+DASHES
+  Every em dash on the site is now a hyphen: 190 across 67 files. One remains
+  inside the PDF library's character table, which maps glyphs for printing and
+  is never shown.

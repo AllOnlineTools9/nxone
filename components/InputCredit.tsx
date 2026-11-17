@@ -12,8 +12,8 @@ import { useHydrated, useWorkspace } from "@/lib/store/useStore";
  * Matching what you claimed against what the government says you may claim.
  *
  * This is the only GST screen that is not about your own records: it is about whether your
- * suppliers filed. The number that matters is the one at risk — tax you have claimed on bills
- * your supplier has not declared — because that is money you will have to give back, with
+ * suppliers filed. The number that matters is the one at risk - tax you have claimed on bills
+ * your supplier has not declared - because that is money you will have to give back, with
  * interest, if nobody chases it before the month closes.
  */
 
@@ -55,10 +55,25 @@ export default function InputCredit() {
       <section className="card p-5">
         <h2 className="font-display text-lg">This does not apply on the composition scheme</h2>
         <p className="mt-1 max-w-2xl text-sm text-ink-soft">
-          You file CMP-08 each quarter instead, and claim no input credit — that is the trade for
+          You file CMP-08 each quarter instead, and claim no input credit - that is the trade for
           the lower rate on turnover.
         </p>
         <Link href="/composition" className="btn-ghost mt-3 inline-flex">Go to the quarterly return</Link>
+      </section>
+    );
+  }
+
+  // Not registered at all: there is no return to file and no credit to claim.
+  if (ws.profile?.gstScheme === "unregistered") {
+    return (
+      <section className="card p-5">
+        <h2 className="font-display text-lg">You are not registered for GST</h2>
+        <p className="mt-1 max-w-2xl text-sm text-ink-soft">
+          So there are no GST returns to file and no input credit to claim, and your invoices go
+          out without GST. If your turnover passes the registration limit, register, then change
+          your scheme and this will apply.
+        </p>
+        <Link href="/composition" className="btn-ghost mt-3 inline-flex">Change your GST scheme</Link>
       </section>
     );
   }
@@ -72,7 +87,7 @@ export default function InputCredit() {
   const currency = ws.profile?.currency ?? "INR";
   const country = ws.profile?.country ?? "IN";
   const money = (minor: number) => formatMoney(fromMinor(minor, currency));
-  const date = (iso: string) => (iso ? formatDate(iso, country) : "—");
+  const date = (iso: string) => (iso ? formatDate(iso, country) : "-");
 
   const read = async (chosen: File | undefined) => {
     if (!chosen) return;
@@ -237,11 +252,11 @@ export default function InputCredit() {
                         {rows.map((row, i) => (
                           <tr key={`${row.number}-${i}`} className="border-t border-line">
                             <td className="px-5 py-2">{row.supplier}</td>
-                            <td className="px-5 py-2">{row.number || "—"}</td>
+                            <td className="px-5 py-2">{row.number || "-"}</td>
                             <td className="px-5 py-2 tabular text-ink-soft">{date(row.date)}</td>
-                            <td className="px-5 py-2 text-right tabular">{row.portalTaxMinor === undefined ? "—" : money(row.portalTaxMinor)}</td>
+                            <td className="px-5 py-2 text-right tabular">{row.portalTaxMinor === undefined ? "-" : money(row.portalTaxMinor)}</td>
                             <td className={`px-5 py-2 text-right tabular ${row.differenceMinor ? "font-semibold text-bad" : ""}`}>
-                              {row.booksTaxMinor === undefined ? "—" : money(row.booksTaxMinor)}
+                              {row.booksTaxMinor === undefined ? "-" : money(row.booksTaxMinor)}
                             </td>
                           </tr>
                         ))}

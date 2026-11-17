@@ -2,7 +2,7 @@
  * The service worker, so NXOne opens and works without a signal.
  *
  * It is a cautious one. The books already live in this browser rather than on a server, so being
- * offline costs nothing but the files the page is made of — which is exactly what this keeps.
+ * offline costs nothing but the files the page is made of - which is exactly what this keeps.
  *
  * Two rules worth knowing. Nothing but this site is ever touched: a request to the API, or to
  * anywhere else, goes straight to the network and is never stored, because a cached answer about

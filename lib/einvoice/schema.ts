@@ -10,7 +10,7 @@ import type { Profile, SavedDocument } from "../store/types";
  * Above a turnover threshold an Indian business must send each B2B invoice to the government's
  * registration portal and put the number it hands back on the document. An invoice that should
  * have been registered and was not is not a valid invoice, and the customer cannot claim credit
- * on it — which is how a supplier finds out, months later, from an annoyed customer.
+ * on it - which is how a supplier finds out, months later, from an annoyed customer.
  *
  * This builds the payload the portal takes and checks it first. It does not register anything:
  * that needs credentials from the portal, which this has none of, and it says so rather than
@@ -184,7 +184,7 @@ function partyOf(party: { name?: string; tradeName?: string; address?: string; t
  * The payload for one invoice.
  *
  * Everything is in rupees to two decimals, as the portal expects, and converted first where the
- * invoice was billed in another currency — the portal takes rupees whatever the customer paid in.
+ * invoice was billed in another currency - the portal takes rupees whatever the customer paid in.
  */
 export function buildEInvoice(d: SavedDocument, profile: Profile | undefined, documents: SavedDocument[] = []): EInvoicePayload | undefined {
   const fit = eligibility(d);

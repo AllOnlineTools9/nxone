@@ -4,8 +4,8 @@
  * "What if I hire someone." "What if I lose my biggest customer." "What if I put prices up ten
  * per cent and a tenth of the orders go away."
  *
- * The engine takes a baseline month — sales, the costs that move with sales, the costs that do
- * not, and the cash in hand — and a list of changes, and reports what happens to profit, margin,
+ * The engine takes a baseline month - sales, the costs that move with sales, the costs that do
+ * not, and the cash in hand - and a list of changes, and reports what happens to profit, margin,
  * break-even and cash. It imports nothing, so the arithmetic can be read and tested on its own.
  * Where the arithmetic cannot answer honestly it says so instead of printing a number.
  *
@@ -290,7 +290,7 @@ function sentences(before: Outcome, after: Outcome, baseline: Baseline, changes:
   } else {
     const nowWord = after.monthlyProfitMinor < 0 ? `a loss of ${m(after.monthlyProfitMinor)}` : `a profit of ${m(after.monthlyProfitMinor)}`;
     const wasWord = before.monthlyProfitMinor < 0 ? `a loss of ${m(before.monthlyProfitMinor)}` : m(before.monthlyProfitMinor);
-    lines.push(`You would ${profitShift > 0 ? "make" : "keep"} ${m(profitShift)} ${profitShift > 0 ? "more" : "less"} a month — ${nowWord} instead of ${wasWord}.`);
+    lines.push(`You would ${profitShift > 0 ? "make" : "keep"} ${m(profitShift)} ${profitShift > 0 ? "more" : "less"} a month - ${nowWord} instead of ${wasWord}.`);
   }
 
   /* ---- margin ---- */
@@ -320,7 +320,7 @@ function sentences(before: Outcome, after: Outcome, baseline: Baseline, changes:
   const cashShift = after.cashAtHorizonMinor - before.cashAtHorizonMinor;
   if (after.cash.length) {
     const compared = cashShift === 0 ? "the same as if nothing changed" : `${m(cashShift)} ${cashShift > 0 ? "more" : "less"} than if nothing changed`;
-    lines.push(`In ${monthWord(horizonMonths)} you would have ${m(after.cashAtHorizonMinor)}${after.cashAtHorizonMinor < 0 ? " short" : ""} in hand — ${compared}.`);
+    lines.push(`In ${monthWord(horizonMonths)} you would have ${m(after.cashAtHorizonMinor)}${after.cashAtHorizonMinor < 0 ? " short" : ""} in hand - ${compared}.`);
   }
 
   const floor = baseline.minimumCashMinor ?? 0;
