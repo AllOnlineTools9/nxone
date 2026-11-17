@@ -6,13 +6,11 @@ import type { DocumentData, DocumentTotals } from "./types";
 /**
  * Getting the document to the person who has to act on it.
  *
- * NXOne has no server of its own to send mail from, and will not pretend otherwise: these
- * open the person's own email or WhatsApp with the message already written, and the document
- * goes as the PDF they have just saved. It is their message, from their address, which is also
- * the version a customer is most likely to reply to.
- *
- * The one thing a draft like this cannot do is attach the file, so every screen that offers it
- * says so plainly rather than letting somebody send an empty-handed email.
+ * The same words serve three ways of sending: an email NXOne sends with the PDF attached, a
+ * phone's share sheet carrying the PDF into WhatsApp, and a draft opened in the person's own
+ * email or WhatsApp. A draft cannot carry a file, so it carries a link to the document instead,
+ * and the text says which of these the customer is getting rather than promising an attachment
+ * that is not there.
  */
 
 export interface SendMessage {
@@ -42,7 +40,12 @@ function payBy(doc: DocumentData): string[] {
   return ways;
 }
 
-export function sendMessage(doc: DocumentData, totals: DocumentTotals, locale = "en-IN", viewUrl?: string): SendMessage {
+export interface SendOptions {
+  /** The PDF goes with the message, so the text says it is attached. */
+  attached?: boolean;
+}
+
+export function sendMessage(doc: DocumentData, totals: DocumentTotals, locale = "en-IN", viewUrl?: string, opts: SendOptions = {}): SendMessage {
   const cfg = kindConfig(doc.kind);
   const business = doc.seller.name || "us";
   const who = firstName(doc.buyer.name);
@@ -80,7 +83,9 @@ export function sendMessage(doc: DocumentData, totals: DocumentTotals, locale = 
     opening[doc.kind] ?? `Here is ${title} ${doc.number} for ${amount}.`,
     // A link they can open on a phone, instead of an attachment neither WhatsApp nor an email
     // draft can carry. Without one, the PDF goes as an attachment the sender adds.
-    ...(viewUrl ? ["", "You can view and download it here:", viewUrl] : []),
+    ...(opts.attached
+      ? ["", viewUrl ? "The PDF is attached. You can also view and download it here:" : "The PDF is attached.", ...(viewUrl ? [viewUrl] : [])]
+      : viewUrl ? ["", "You can view and download it here:", viewUrl] : []),
     ...(what ? [`It is for ${what}.`] : []),
     ...(ways.length ? ["", "You can pay by:", ...ways.map((w) => `  ${w}`)] : []),
     ...(closing[doc.kind] ? ["", closing[doc.kind]] : []),
@@ -90,7 +95,9 @@ export function sendMessage(doc: DocumentData, totals: DocumentTotals, locale = 
   ];
 
   const shortWays = doc.payment?.upiId ? ` Pay by UPI to ${doc.payment.upiId}.` : "";
-  const tail = viewUrl ? ` View or download it here: ${viewUrl}` : " Sending the PDF now.";
+  const tail = opts.attached
+    ? (viewUrl ? ` PDF attached. Also here: ${viewUrl}` : " PDF attached.")
+    : viewUrl ? ` View or download it here: ${viewUrl}` : " Sending the PDF now.";
   const short = doc.kind === "invoice"
     ? `${cfg.title} ${doc.number} for ${amount}${when ? `, due ${when}` : ""}.${shortWays}${tail}`
     : `${cfg.title} ${doc.number} for ${amount}.${tail}`;
@@ -111,8 +118,8 @@ export interface SendLinks {
   hasPhone: boolean;
 }
 
-export function sendLinks(doc: DocumentData, totals: DocumentTotals, locale = "en-IN", viewUrl?: string): SendLinks {
-  const text = sendMessage(doc, totals, locale, viewUrl);
+export function sendLinks(doc: DocumentData, totals: DocumentTotals, locale = "en-IN", viewUrl?: string, opts: SendOptions = {}): SendLinks {
+  const text = sendMessage(doc, totals, locale, viewUrl, opts);
   const email = doc.buyer.email?.trim() ?? "";
   const phone = doc.buyer.phone?.trim() ?? "";
 

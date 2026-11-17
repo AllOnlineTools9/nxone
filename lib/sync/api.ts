@@ -163,8 +163,9 @@ export const paymentsApplied = (documentIds: string[]) =>
 /* ------------------------------------------------- sharing a document */
 
 /** Share a document with its customer by link, or refresh what an existing link shows. */
-export const shareDocument = (input: { documentId: string; number: string; snapshot: unknown; expiresInDays?: number }) =>
-  call<{ token: string; reused?: boolean }>("/portal/share", { method: "POST", body: JSON.stringify(input) });
+export const shareDocument = (input: { documentId: string; number: string; snapshot: unknown; expiresInDays?: number; pdf?: string }) =>
+  call<{ token: string; reused?: boolean; hasPdf?: boolean }>("/portal/share", { method: "POST", body: JSON.stringify(input) });
+
 
 /** Withdraw the link, so it stops working. */
 export const revokeShare = (documentId: string) =>

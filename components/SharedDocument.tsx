@@ -1,4 +1,5 @@
 "use client";
+import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { API_URL, syncAvailable } from "@/lib/sync/api";
 import { formatMoney, fromMinor } from "@/lib/money";
@@ -31,6 +32,7 @@ export default function SharedDocument() {
   const [doc, setDoc] = useState<Shared | undefined>();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [pdfUrl, setPdfUrl] = useState("");
 
   useEffect(() => {
     // The address is /view/<token>/, served by the one shared page; anything else has no token.
@@ -43,11 +45,12 @@ export default function SharedDocument() {
       try {
         const res = await fetch(`${API_URL}/portal/view/${encodeURIComponent(token)}`);
         if (!res.ok) {
-          const body = await res.json().catch(() => ({})) as { detail?: string; title?: string };
-          setError(body.detail ?? body.title ?? "This link no longer works.");
+          const body = await res.json().catch(() => ({})) as { error?: string; detail?: string; title?: string };
+          setError(body.error ?? body.detail ?? body.title ?? "This link no longer works.");
         } else {
-          const body = await res.json() as { document: Shared };
+          const body = await res.json() as { document: Shared; hasPdf?: boolean };
           setDoc(body.document);
+          if (body.hasPdf) setPdfUrl(`${API_URL}/portal/pdf/${encodeURIComponent(token)}`);
         }
       } catch {
         setError("That could not be loaded just now. Try again in a moment.");
@@ -73,6 +76,13 @@ export default function SharedDocument() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+      {pdfUrl ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-ink-soft">{doc.kind} {doc.number} from {doc.seller.name}</p>
+          {/* The API answers with the file as a download, so a plain link is enough on every phone. */}
+          <a className="btn-primary" href={pdfUrl} rel="noopener"><Download size={16} />Download PDF</a>
+        </div>
+      ) : null}
       <article className="card p-6 sm:p-10">
         <header className="flex flex-wrap items-start justify-between gap-6">
           <div>

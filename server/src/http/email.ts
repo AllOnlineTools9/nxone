@@ -41,6 +41,16 @@ export function emailSender(env: { EMAIL_PROVIDER?: string; RESEND_API_KEY?: str
   if (env.EMAIL_PROVIDER === "resend" && env.RESEND_API_KEY) {
     return new ResendEmail(env.RESEND_API_KEY, env.EMAIL_FROM ?? "NXOne <hello@nxone.io>");
   }
+
+  // Falling back quietly is how sign-in looked fine and sent nothing: the link went to the log,
+  // the person waited for an email, and nothing anywhere said why. Say it on every send.
+  if (env.EMAIL_PROVIDER === "resend") {
+    console.error("EMAIL NOT SENT: EMAIL_PROVIDER is resend but the RESEND_API_KEY secret is not set. Run: npx wrangler secret put RESEND_API_KEY");
+  } else if (env.RESEND_API_KEY) {
+    console.error(`EMAIL NOT SENT: a RESEND_API_KEY is set but EMAIL_PROVIDER is "${env.EMAIL_PROVIDER ?? "unset"}". Set it to "resend" in wrangler.jsonc and deploy.`);
+  } else {
+    console.warn("Email is in log-only mode (EMAIL_PROVIDER is not resend). The message below was not sent.");
+  }
   return new ConsoleEmail();
 }
 

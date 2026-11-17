@@ -8,6 +8,7 @@ import { PLANS, TRIAL_DAYS, entitlementsFor, planById, priceFor } from "./billin
 import { paymentProvider } from "./billing/provider";
 import { linkProvider, type PaymentNotice } from "./payments/links";
 import { leaks, newToken, refusalFor, stateOf } from "./portal/share";
+import { checkPdf, safeFileName } from "./portal/outgoing";
 import * as schema from "./db/schema";
 import { emailSender, inviteEmail, loginEmail } from "./http/email";
 import { corsHeaders, json, problem, rateLimit } from "./http/respond";
@@ -66,6 +67,25 @@ async function allowance(db: DrizzleD1Database<typeof schema>, orgId: string) {
   const org = (await db.select().from(schema.organisations).where(eq(schema.organisations.id, orgId)).limit(1))[0];
   if (!org) return null;
   return { org, ...entitlementsFor(org.plan, org.trialEndsAt?.getTime() ?? null) };
+}
+
+/**
+ * Keeps the PDF behind a shared link in KV, beside the sessions, so the link can offer a download.
+ * Returns whether a PDF is now there. A missing or bad PDF clears any older one rather than
+ * failing the share: the page still works without the download.
+ */
+async function keepPdf(env: Env, token: string, pdf: unknown, number: string, expiresAt: Date | null): Promise<boolean> {
+  const checked = pdf === undefined ? null : checkPdf(pdf);
+  if (!checked || !checked.ok) {
+    if (checked && !checked.ok) console.warn("Shared without a PDF:", checked.says);
+    await Promise.all([env.SESSIONS.delete(`pdf:${token}`), env.SESSIONS.delete(`pdfname:${token}`)]);
+    return false;
+  }
+  const ttl = expiresAt ? Math.max(60, Math.ceil((expiresAt.getTime() - Date.now()) / 1000)) : undefined;
+  const options = ttl ? { expirationTtl: ttl } : undefined;
+  await env.SESSIONS.put(`pdf:${token}`, checked.bytes, options);
+  await env.SESSIONS.put(`pdfname:${token}`, safeFileName(number), options);
+  return true;
 }
 
 /** An invitation is good for a week: long enough for somebody on holiday, short enough to matter. */
@@ -564,7 +584,7 @@ export default {
         if (!found?.session.orgId) return reply(problem(401, "Not signed in."));
 
         const body = await req.json().catch(() => null) as {
-          documentId?: string; number?: string; snapshot?: unknown; expiresInDays?: number;
+          documentId?: string; number?: string; snapshot?: unknown; expiresInDays?: number; pdf?: string;
         } | null;
         if (!body?.documentId || !body.number || !body.snapshot) {
           return reply(problem(400, "A document and its contents are needed."));
@@ -599,18 +619,21 @@ export default {
           await db.update(schema.sharedDocuments)
             .set({ snapshot: JSON.stringify(body.snapshot), number: body.number })
             .where(eq(schema.sharedDocuments.id, existing[0].id));
-          return reply(json({ token: existing[0].token, reused: true }));
+          // The PDF is replaced with the page, or removed, so the download never shows an older version.
+          const hasPdf = await keepPdf(env, existing[0].token, body.pdf, body.number, existing[0].expiresAt ?? null);
+          return reply(json({ token: existing[0].token, reused: true, hasPdf }));
         }
 
         const token = newToken();
+        const expiresAt = body.expiresInDays ? new Date(Date.now() + body.expiresInDays * 86_400_000) : null;
         await db.insert(schema.sharedDocuments).values({
           id: uid("sd"), token, orgId: found.session.orgId, documentId: body.documentId,
           number: body.number, snapshot: JSON.stringify(body.snapshot),
-          expiresAt: body.expiresInDays ? new Date(Date.now() + body.expiresInDays * 86_400_000) : null,
-          viewCount: 0, createdBy: found.session.userId, createdAt: new Date()
+          expiresAt, viewCount: 0, createdBy: found.session.userId, createdAt: new Date()
         });
+        const hasPdf = await keepPdf(env, token, body.pdf, body.number, expiresAt);
 
-        return reply(json({ token }));
+        return reply(json({ token, hasPdf }));
       }
 
       /* ---------- what the customer actually opens, with no sign-in ---------- */
@@ -638,7 +661,45 @@ export default {
           .set({ viewCount: (record.viewCount ?? 0) + 1, lastViewedAt: new Date() })
           .where(eq(schema.sharedDocuments.id, record.id));
 
-        return reply(json({ document: JSON.parse(record.snapshot) }));
+        const hasPdf = Boolean(await env.SESSIONS.get(`pdfname:${token}`));
+        return reply(json({ document: JSON.parse(record.snapshot), hasPdf }));
+      }
+
+      /* ---------- the PDF behind a shared link, for anyone holding the link ---------- */
+      if (url.pathname.startsWith("/portal/pdf/") && req.method === "GET") {
+        const token = url.pathname.slice("/portal/pdf/".length);
+        if (!token || token.length < 16) return reply(problem(404, "There is nothing at this link."));
+
+        const rows = await db.select().from(schema.sharedDocuments)
+          .where(eq(schema.sharedDocuments.token, token)).limit(1);
+        const record = rows[0];
+        const state = stateOf(record ? {
+          ...record,
+          createdAt: record.createdAt ?? new Date(),
+          expiresAt: record.expiresAt ?? undefined,
+          revokedAt: record.revokedAt ?? undefined
+        } as never : undefined);
+        // A withdrawn link withdraws the file with it.
+        if (state !== "live" || !record) {
+          const refusal = refusalFor(state);
+          return reply(problem(refusal.status, refusal.says));
+        }
+
+        const [bytes, name] = await Promise.all([
+          env.SESSIONS.get(`pdf:${token}`, "arrayBuffer"),
+          env.SESSIONS.get(`pdfname:${token}`)
+        ]);
+        if (!bytes) return reply(problem(404, "There is no PDF for this document yet. Ask whoever sent it for a copy."));
+
+        const fileName = name ?? safeFileName(record.number);
+        return reply(new Response(bytes, {
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `${url.searchParams.has("inline") ? "inline" : "attachment"}; filename="${fileName}"`,
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff"
+          }
+        }));
       }
 
       /* ---------- withdrawing a link ---------- */
@@ -648,11 +709,17 @@ export default {
         const body = await req.json().catch(() => null) as { documentId?: string } | null;
         if (!body?.documentId) return reply(problem(400, "Which document?"));
 
+        const withdrawn = await db.select({ token: schema.sharedDocuments.token }).from(schema.sharedDocuments)
+          .where(and(
+            eq(schema.sharedDocuments.orgId, found.session.orgId),
+            eq(schema.sharedDocuments.documentId, body.documentId)
+          ));
         await db.update(schema.sharedDocuments).set({ revokedAt: new Date() })
           .where(and(
             eq(schema.sharedDocuments.orgId, found.session.orgId),
             eq(schema.sharedDocuments.documentId, body.documentId)
           ));
+        await Promise.all(withdrawn.flatMap((w) => [env.SESSIONS.delete(`pdf:${w.token}`), env.SESSIONS.delete(`pdfname:${w.token}`)]));
 
         return reply(json({ ok: true }));
       }
