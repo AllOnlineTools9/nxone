@@ -8,22 +8,24 @@
     {
       "binding": "DB",
       "database_name": "nxone",
-      // replace with the id printed by: npx wrangler d1 create nxone
-      "database_id": "local-development",
+      "database_id": "b1dd30b4-4852-4701-a1c7-14833f8029d0",
       "migrations_dir": "migrations"
     }
   ],
   "kv_namespaces": [
     {
       "binding": "SESSIONS",
-      // replace with the id printed by: npx wrangler kv namespace create SESSIONS
-      "id": "local-development"
+      "id": "c5f9ec3a9d8849b891dd04c78ff63f13"
     }
   ],
   // once a week, early on Monday. The handler itself refuses to send twice in a day.
   "triggers": {
     "crons": ["0 3 * * 1"]
   },
+  // Same registrable domain as the site, so the session cookie is sent.
+  "routes": [
+    { "pattern": "api.nxone.io", "custom_domain": true }
+  ],
   "vars": {
     "APP_ORIGIN": "https://nxone.io",
     "EMAIL_PROVIDER": "console"

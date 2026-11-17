@@ -9,5 +9,11 @@
     "html_handling": "auto-trailing-slash",
     // Unknown addresses get our own 404 page instead of Cloudflare's.
     "not_found_handling": "404-page"
-  }
+  },
+  // The site and the API must share a registrable domain, or the browser treats them as
+  // different sites and never sends the session cookie. workers.dev is on the Public Suffix
+  // List, so two workers.dev subdomains do not count as the same site.
+  "routes": [
+    { "pattern": "nxone.io", "custom_domain": true }
+  ]
 }
