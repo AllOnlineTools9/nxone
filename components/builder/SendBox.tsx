@@ -1,5 +1,5 @@
 "use client";
-import { Check, Copy, Link2, Mail, MessageCircle, Send } from "lucide-react";
+import { Check, Copy, Loader2, Mail, MessageCircle } from "lucide-react";
 import { useState } from "react";
 import { sendLinks } from "@/lib/documents/send";
 import { snapshotFor } from "@/lib/documents/share";
@@ -8,123 +8,126 @@ import type { DocumentData, DocumentTotals } from "@/lib/documents/types";
 import { kindConfig } from "@/lib/documents/kinds";
 
 /**
- * Sending the document to the person who has to act on it.
+ * Sending the document: WhatsApp or email, and nothing else to decide.
  *
- * NXOne has no mail server and does not pretend to: these open the person's own email or
- * WhatsApp with the message already written, so it arrives from their address and a reply comes
- * back to them. The one thing a draft like this cannot do is carry the PDF, so that is said
- * first, in plain words, rather than discovered by a customer receiving an empty email.
+ * Neither a WhatsApp message nor an email draft can carry an attachment, which used to mean
+ * saving the PDF and attaching it by hand. So when you are signed in, each message carries a link
+ * to the document instead, which the customer opens on their phone with nothing to attach. When
+ * you are not, the PDF is saved for you as the message opens, and the screen says to attach it.
  */
 export default function SendBox({
-  doc, totals, downloaded, onDownload, documentId
+  doc, totals, onDownload, documentId, ensureSaved
 }: {
   doc: DocumentData;
   totals: DocumentTotals;
+  /** Not used for the decision any more, kept so the builder's call stays the same shape. */
+  downloaded?: boolean;
+  onDownload: () => void | Promise<void>;
   /** Set once saved, so a link can point at something that will still be here. */
   documentId?: string;
-  /** Whether the PDF has been saved in this sitting, so the reminder can relax once it has. */
-  downloaded: boolean;
-  onDownload: () => void;
+  /** Saves the document as sent and returns its id, for a link to point at. */
+  ensureSaved?: () => string | undefined;
 }) {
-  const [copied, setCopied] = useState<"body" | "short" | "link" | null>(null);
-  const [link, setLink] = useState("");
-  const [sharing, setSharing] = useState(false);
-
-  /**
-   * A link the customer can open instead of an attachment. The snapshot is built here and
-   * checked again on the server: what a customer sees is the document, and nothing else the
-   * business knows about them.
-   */
-  const share = async () => {
-    if (!documentId) return;
-    setSharing(true);
-    const result = await shareDocument({ documentId, number: doc.number, snapshot: snapshotFor(doc) });
-    setSharing(false);
-    if (result.ok) setLink(`${window.location.origin}/view/${result.data.token}/`);
-  };
-  const links = sendLinks(doc, totals);
+  const [busy, setBusy] = useState<"whatsapp" | "email" | null>(null);
+  const [note, setNote] = useState("");
+  const [copied, setCopied] = useState(false);
   const what = kindConfig(doc.kind).title.toLowerCase();
+  const preview = sendLinks(doc, totals);
 
-  const copy = async (which: "body" | "short") => {
+  const send = async (channel: "whatsapp" | "email") => {
+    // WhatsApp opens in a new tab, and a browser only allows that inside the click itself. The
+    // link is made after a network call, so the tab is opened now and pointed at it after.
+    const tab = channel === "whatsapp" ? window.open("", "_blank") : null;
+    setBusy(channel);
+    setNote("");
+
+    let id = documentId;
     try {
-      await navigator.clipboard.writeText(which === "body" ? links.text.body : links.text.short);
-      setCopied(which);
-      setTimeout(() => setCopied(null), 2000);
-    } catch { /* clipboard blocked: the text is on screen to copy by hand */ }
+      id = id ?? ensureSaved?.();
+    } catch (e) {
+      tab?.close();
+      setBusy(null);
+      setNote(e instanceof Error ? e.message : "This could not be saved, so it cannot be sent yet.");
+      return;
+    }
+
+    let viewUrl: string | undefined;
+    if (syncAvailable() && id) {
+      const shared = await shareDocument({ documentId: id, number: doc.number, snapshot: snapshotFor(doc) });
+      if (shared.ok) viewUrl = `${window.location.origin}/view/${shared.data.token}/`;
+    }
+
+    // No link means not signed in, or the API could not be reached: fall back to the PDF.
+    if (!viewUrl) await onDownload();
+
+    const links = sendLinks(doc, totals, "en-IN", viewUrl);
+    if (channel === "whatsapp") {
+      if (tab) tab.location.href = links.whatsapp;
+      else window.location.href = links.whatsapp;
+    } else {
+      window.location.href = links.mail;
+    }
+
+    const to = channel === "whatsapp"
+      ? (links.hasPhone ? "" : " Choose who to send it to in WhatsApp.")
+      : (links.hasEmail ? "" : " Add their email address in the To line.");
+    setNote(viewUrl
+      ? `The message has a link to this ${what}, so there is nothing to attach.${to}`
+      : `Sign in and the message will carry a link instead. For now the PDF is saved: attach it to the message.${to}`);
+    setBusy(null);
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(preview.text.body);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* on screen to copy by hand */ }
   };
 
   return (
     <section className="no-print card p-5">
-      <h2 className="flex items-center gap-2 font-display text-lg"><Send size={17} className="text-ink-faint" aria-hidden="true" />Send it</h2>
+      <h2 className="font-display text-lg">Send it</h2>
       <p className="mt-1 text-sm text-ink-soft">
-        {downloaded
-          ? `Your PDF is saved. Attach it to whichever of these you use - the message is already written.`
-          : `Save the PDF first, then attach it to one of these. The message is already written; the attachment is the one thing we cannot put in for you.`}
+        {syncAvailable()
+          ? `The message is written for you, with a link to the ${what} so there is nothing to attach.`
+          : `The message is written for you. Attach the PDF, which is saved as it opens.`}
       </p>
 
-      {links.noContact ? (
-        <p className="mt-3 rounded-lg border border-line bg-canvas p-3 text-sm text-ink-soft">
-          There is no email address or phone number on this {what}, so there is nowhere to send it.
-          Add one to the customer above, or copy the message and send it yourself.
-        </p>
-      ) : null}
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        {!downloaded ? (
-          <button type="button" className="btn-primary" onClick={onDownload}>Save the PDF first</button>
-        ) : null}
-
-        {links.mail ? (
-          <a className={downloaded ? "btn-primary" : "btn-ghost"} href={links.mail}>
-            <Mail size={16} /> Write the email
-          </a>
-        ) : null}
-
-        {links.whatsapp ? (
-          <a className="btn-ghost" href={links.whatsapp} target="_blank" rel="noopener noreferrer">
-            <MessageCircle size={16} /> Send on WhatsApp
-          </a>
-        ) : null}
-
-        <button type="button" className="btn-quiet" onClick={() => copy("body")}>
-          {copied === "body" ? <><Check size={15} className="text-ok" />Copied</> : <><Copy size={15} />Copy the message</>}
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <button
+          type="button" onClick={() => send("whatsapp")} disabled={busy !== null}
+          className="btn-primary justify-center py-3 text-base"
+        >
+          {busy === "whatsapp" ? <Loader2 size={18} className="animate-spin" /> : <MessageCircle size={18} />}
+          WhatsApp
         </button>
-        {syncAvailable() && documentId ? (
-          <button type="button" className="btn-quiet" onClick={share} disabled={sharing}>
-            <Link2 size={15} />{sharing ? "Making a link" : link ? "Refresh the link" : "Share a link instead"}
-          </button>
-        ) : null}
-        <button type="button" className="btn-quiet" onClick={() => copy("short")}>
-          {copied === "short" ? <><Check size={15} className="text-ok" />Copied</> : <><Copy size={15} />Copy the short one</>}
+        <button
+          type="button" onClick={() => send("email")} disabled={busy !== null}
+          className="btn-ghost justify-center py-3 text-base"
+        >
+          {busy === "email" ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
+          Email
         </button>
       </div>
 
-      {link ? (
-        <p className="mt-3 rounded-lg border border-line bg-canvas p-3 text-sm">
-          <span className="block text-ink-soft">
-            Anyone with this link can read this {what}. Nothing else of yours is behind it, and you
-            can withdraw it later.
-          </span>
-          <span className="mt-2 flex flex-wrap items-center gap-2">
-            <code className="break-all text-xs">{link}</code>
-            <button
-              type="button" className="btn-quiet text-sm"
-              onClick={async () => {
-                try { await navigator.clipboard.writeText(link); setCopied("link"); setTimeout(() => setCopied(null), 2000); } catch { /* on screen to copy */ }
-              }}
-            >{copied === "link" ? <><Check size={14} className="text-ok" />Copied</> : <><Copy size={14} />Copy</>}</button>
-          </span>
-        </p>
-      ) : null}
+      <p className="mt-2 text-xs text-ink-faint">
+        {preview.hasPhone ? `WhatsApp goes to ${doc.buyer.phone}. ` : "No phone number on this, so WhatsApp will ask who to send it to. "}
+        {preview.hasEmail ? `Email goes to ${doc.buyer.email}.` : "No email address on this, so you will fill one in."}
+      </p>
+
+      {note ? <p className="mt-3 rounded-lg border border-line bg-canvas p-3 text-sm">{note}</p> : null}
 
       <details className="mt-4">
-        <summary className="cursor-pointer text-sm text-ink-soft">See what it says</summary>
-        <p className="mt-2 text-xs font-medium uppercase tracking-wider text-ink-faint">Subject</p>
-        <p className="text-sm">{links.text.subject}</p>
-        <p className="mt-3 text-xs font-medium uppercase tracking-wider text-ink-faint">Message</p>
-        <pre className="mt-1 whitespace-pre-wrap rounded-lg border border-line bg-canvas p-3 text-sm">{links.text.body}</pre>
-        <p className="mt-3 text-xs font-medium uppercase tracking-wider text-ink-faint">On WhatsApp</p>
-        <p className="rounded-lg border border-line bg-canvas p-3 text-sm">{links.text.short}</p>
+        <summary className="cursor-pointer text-sm text-ink-soft">See the message</summary>
+        <p className="mt-2 text-xs font-medium uppercase tracking-wider text-ink-faint">Email - {preview.text.subject}</p>
+        <pre className="mt-1 whitespace-pre-wrap rounded-lg border border-line bg-canvas p-3 text-sm">{preview.text.body}</pre>
+        <p className="mt-3 text-xs font-medium uppercase tracking-wider text-ink-faint">WhatsApp</p>
+        <p className="rounded-lg border border-line bg-canvas p-3 text-sm">{preview.text.short}</p>
+        <p className="mt-2 text-xs text-ink-faint">The link to the {what} is added when you send.</p>
+        <button type="button" className="btn-quiet mt-2 text-sm" onClick={copy}>
+          {copied ? <><Check size={14} className="text-ok" />Copied</> : <><Copy size={14} />Copy the email text</>}
+        </button>
       </details>
     </section>
   );

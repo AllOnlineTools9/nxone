@@ -206,14 +206,33 @@ describe("where the message goes", () => {
     expect(sendLinks(doc, calculate(doc)).whatsapp).toContain("wa.me/919845011111");
   });
 
-  it("offers no link it cannot honour, and says there is nobody to send to", () => {
+  it("still offers both when there are no contact details, asking in the app instead", () => {
     const anonymous = quote({ kind: "invoice", buyer: { name: "A customer", region: "KA" }, terms: "" });
     const links = sendLinks(anonymous, calculate(anonymous));
-    expect(links.mail).toBeUndefined();
-    expect(links.whatsapp).toBeUndefined();
+    // WhatsApp opens on the contact list; the email opens with the To line empty.
+    expect(links.whatsapp.startsWith("https://wa.me/?text=")).toBe(true);
+    expect(links.mail.startsWith("mailto:?subject=")).toBe(true);
+    expect(links.hasPhone).toBe(false);
+    expect(links.hasEmail).toBe(false);
     expect(links.noContact).toBe(true);
-    // the words are still there to copy
-    expect(links.text.body).toContain("Hello A,");
+  });
+
+  it("puts a link in both messages instead of promising an attachment", () => {
+    const doc = quote({ kind: "invoice", terms: "" });
+    const url = "https://nxone.io/view/abc123/";
+    const links = sendLinks(doc, calculate(doc), "en-IN", url);
+    expect(links.text.short).toContain(url);
+    expect(links.text.short).not.toContain("Sending the PDF");
+    expect(links.text.body).toContain("You can view and download it here:");
+    expect(links.text.body).toContain(url);
+    expect(decodeURIComponent(links.whatsapp)).toContain(url);
+  });
+
+  it("promises the PDF when there is no link, so the sender knows to attach it", () => {
+    const doc = quote({ kind: "invoice", terms: "" });
+    const links = sendLinks(doc, calculate(doc));
+    expect(links.text.short).toContain("Sending the PDF now");
+    expect(links.text.body).not.toContain("view and download");
   });
 
   it("names the file so an inbox full of them stays readable", () => {

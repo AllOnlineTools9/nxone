@@ -42,7 +42,7 @@ function payBy(doc: DocumentData): string[] {
   return ways;
 }
 
-export function sendMessage(doc: DocumentData, totals: DocumentTotals, locale = "en-IN"): SendMessage {
+export function sendMessage(doc: DocumentData, totals: DocumentTotals, locale = "en-IN", viewUrl?: string): SendMessage {
   const cfg = kindConfig(doc.kind);
   const business = doc.seller.name || "us";
   const who = firstName(doc.buyer.name);
@@ -78,6 +78,9 @@ export function sendMessage(doc: DocumentData, totals: DocumentTotals, locale = 
     `Hello ${who},`,
     "",
     opening[doc.kind] ?? `Here is ${title} ${doc.number} for ${amount}.`,
+    // A link they can open on a phone, instead of an attachment neither WhatsApp nor an email
+    // draft can carry. Without one, the PDF goes as an attachment the sender adds.
+    ...(viewUrl ? ["", "You can view and download it here:", viewUrl] : []),
     ...(what ? [`It is for ${what}.`] : []),
     ...(ways.length ? ["", "You can pay by:", ...ways.map((w) => `  ${w}`)] : []),
     ...(closing[doc.kind] ? ["", closing[doc.kind]] : []),
@@ -87,34 +90,42 @@ export function sendMessage(doc: DocumentData, totals: DocumentTotals, locale = 
   ];
 
   const shortWays = doc.payment?.upiId ? ` Pay by UPI to ${doc.payment.upiId}.` : "";
+  const tail = viewUrl ? ` View or download it here: ${viewUrl}` : " Sending the PDF now.";
   const short = doc.kind === "invoice"
-    ? `${cfg.title} ${doc.number} for ${amount}${when ? `, due ${when}` : ""}.${shortWays} Sending the PDF now.`
-    : `${cfg.title} ${doc.number} for ${amount}. Sending the PDF now.`;
+    ? `${cfg.title} ${doc.number} for ${amount}${when ? `, due ${when}` : ""}.${shortWays}${tail}`
+    : `${cfg.title} ${doc.number} for ${amount}.${tail}`;
 
   return { subject, body: paragraphs.join("\n"), short };
 }
 
 export interface SendLinks {
-  /** Opens their email client with the message written. Empty when no address is on the document. */
-  mail?: string;
-  /** Opens WhatsApp with the short version. Empty when no number is on the document. */
-  whatsapp?: string;
+  /** Opens their email client with the message written, addressed when the document has an email. */
+  mail: string;
+  /** Opens WhatsApp with the short version, to the customer's number when the document has one. */
+  whatsapp: string;
   /** Always available, for anything else. */
   text: SendMessage;
   /** True when there is nobody to send to, so a screen can ask for an address instead. */
   noContact: boolean;
+  hasEmail: boolean;
+  hasPhone: boolean;
 }
 
-export function sendLinks(doc: DocumentData, totals: DocumentTotals, locale = "en-IN"): SendLinks {
-  const text = sendMessage(doc, totals, locale);
-  const email = doc.buyer.email?.trim();
-  const phone = doc.buyer.phone?.trim();
+export function sendLinks(doc: DocumentData, totals: DocumentTotals, locale = "en-IN", viewUrl?: string): SendLinks {
+  const text = sendMessage(doc, totals, locale, viewUrl);
+  const email = doc.buyer.email?.trim() ?? "";
+  const phone = doc.buyer.phone?.trim() ?? "";
 
+  // Both always work. With no number, WhatsApp opens on the contact list to choose from; with no
+  // address, the email opens with the To line empty. A button that vanishes because one detail
+  // is missing is a worse answer than one that asks for it in the app you already use.
   return {
-    mail: email ? mailtoLink(email, text.subject, text.body) : undefined,
-    whatsapp: phone ? whatsappLink(phone, text.short) : undefined,
+    mail: mailtoLink(email, text.subject, text.body),
+    whatsapp: whatsappLink(phone, text.short),
     text,
-    noContact: !email && !phone
+    noContact: !email && !phone,
+    hasEmail: Boolean(email),
+    hasPhone: Boolean(phone)
   };
 }
 

@@ -97,7 +97,7 @@ export default function Builder({ kind }: { kind: DocumentKind }) {
           </p>
 
           <div className="mt-6">
-            <SendBox doc={s.doc} totals={s.totals} downloaded={downloaded} onDownload={download} documentId={s.savedId} />
+            <SendBox doc={s.doc} totals={s.totals} downloaded={downloaded} onDownload={download} documentId={s.savedId} ensureSaved={() => s.save("sent")?.id} />
           </div>
 
           {s.savedId && conversionsFor(s.doc.kind).length ? (

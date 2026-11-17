@@ -1,0 +1,2 @@
+# Every shared document link is served by one page, which reads its token from the address.
+/view/* /view-document/ 200

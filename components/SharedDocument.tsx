@@ -33,8 +33,10 @@ export default function SharedDocument() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = window.location.pathname.split("/").filter(Boolean).pop() ?? "";
-    if (!token || token === "shared") { setError("There is nothing at this link."); setLoading(false); return; }
+    // The address is /view/<token>/, served by the one shared page; anything else has no token.
+    const parts = window.location.pathname.split("/").filter(Boolean);
+    const token = parts[0] === "view" ? parts[1] ?? "" : "";
+    if (!token) { setError("There is nothing at this link."); setLoading(false); return; }
     if (!syncAvailable()) { setError("Shared links are not switched on yet."); setLoading(false); return; }
 
     (async () => {
