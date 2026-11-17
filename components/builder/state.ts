@@ -9,6 +9,8 @@ import { store } from "@/lib/store/db";
 import type { DocumentStatus } from "@/lib/store/types";
 import { nextNumber } from "@/lib/format";
 import { canConvert, convertTo } from "@/lib/documents/convert";
+import { dueDateFor, takesPaymentTerms } from "@/lib/customers/customers";
+import type { Client } from "@/lib/store/types";
 
 const KEY = "nxone.document.v1";
 /** Which saved document the current draft belongs to, so a refresh still updates rather than duplicates. */
@@ -97,6 +99,21 @@ export function useDocument(kind: DocumentKind) {
       setSavedId(undefined);
       setLoaded(true);
       return;
+    }
+
+    // ?customer=cl_123 starts a fresh document already addressed to that customer, which is
+    // what "New invoice for them" on the Customers page opens
+    const customerId = params.get("customer");
+    if (customerId) {
+      const client = store.clients().find((c) => c.id === customerId);
+      if (client) {
+        try { localStorage.removeItem(`${KEY}.${kind}`); localStorage.removeItem(`${LINK}.${kind}`); } catch { /* ignore */ }
+        const fresh = blankDocument(kind, guessCountry());
+        setDoc(withCustomer(fresh, client));
+        setSavedId(undefined);
+        setLoaded(true);
+        return;
+      }
     }
 
     // /invoice-generator?doc=dc_123 reopens a document you saved earlier
@@ -247,4 +264,25 @@ export function useDocument(kind: DocumentKind) {
   }, [doc, kind, savedId, source]);
 
   return { doc, setDoc, update, updateItem, addItem, removeItem, moveItem, setCountry, reset, totals, loaded, save, savedId, source };
+}
+
+
+/**
+ * Address a document to a saved customer: their details, their state as the place of supply,
+ * and their payment terms as the due date. Terms only apply where the second date is when
+ * payment is due; on a quotation it is how long the price stands, which is a different promise.
+ */
+export function withCustomer(doc: DocumentData, client: Client): DocumentData {
+  return {
+    ...doc,
+    buyer: {
+      ...doc.buyer,
+      name: client.name, address: client.address, email: client.email,
+      phone: client.phone, taxId: client.taxId, region: client.region
+    },
+    ...(client.region ? { placeOfSupply: client.region } : {}),
+    ...(client.termsDays !== undefined && takesPaymentTerms(doc.kind)
+      ? { dueDate: dueDateFor(doc.issueDate, client.termsDays) }
+      : {})
+  };
 }

@@ -24,7 +24,7 @@ export default function Tds() {
   const payments = useMemo(() => db.expenses().map((e) => ({
     id: e.id, date: e.date, supplier: e.supplier, supplierPan: e.supplierPan,
     supplierType: e.supplierType, netMinor: e.netMinor, tdsMinor: e.tdsMinor, tdsSection: e.tdsSection
-  })), [db]);
+  })), [ws]);
 
   const review = useMemo(() => reviewYear(payments, todayIso()), [payments]);
 

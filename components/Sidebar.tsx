@@ -1,5 +1,5 @@
 "use client";
-import { BookOpen, Building2, CalendarClock, CalendarSync, Calculator, ChartColumn, FileSpreadsheet, FileText, FlaskConical, FolderOpen, HandCoins, Landmark, LayoutDashboard, MessageCircleQuestion, Quote, Package, Receipt, Search, ShoppingCart, Stamp, Sun, UsersRound, TrendingDown, Users, Wallet, X, ShieldCheck, Scissors, CalendarCheck, ClipboardList, Scale, Target, Hammer, History } from "lucide-react";
+import { BookOpen, Building2, CalendarClock, CalendarSync, Calculator, ChartColumn, FileSpreadsheet, FileText, FlaskConical, FolderOpen, HandCoins, Landmark, LayoutDashboard, MessageCircleQuestion, Quote, Package, Receipt, Search, ShoppingCart, Stamp, Sun, UsersRound, TrendingDown, Users, Wallet, X, ShieldCheck, Scissors, CalendarCheck, ClipboardList, Scale, Target, Hammer, History, Contact } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
@@ -15,6 +15,7 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string;
       { href: "/ask", label: "Ask", icon: MessageCircleQuestion },
       { href: "/dashboard", label: "Your money", icon: LayoutDashboard },
       { href: "/documents", label: "Documents", icon: FolderOpen },
+      { href: "/customers", label: "Customers", icon: Contact },
       { href: "/receivables", label: "Owed to you", icon: HandCoins },
       { href: "/cash-flow", label: "Cash", icon: Wallet },
       { href: "/scenarios", label: "What if", icon: FlaskConical },

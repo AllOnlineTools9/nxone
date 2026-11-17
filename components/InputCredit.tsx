@@ -39,7 +39,7 @@ export default function InputCredit() {
   const purchases = useMemo(() => db.expenses().map((e) => ({
     id: e.id, date: e.date, supplier: e.supplier, supplierGstin: e.supplierGstin,
     reference: e.reference, netMinor: e.netMinor, taxMinor: e.taxMinor
-  })), [db]);
+  })), [ws]);
 
   const result: Reconciliation | undefined = useMemo(
     () => (file ? reconcile(file.invoices, purchases) : undefined),

@@ -42,7 +42,7 @@ export default function Returns() {
       findings: checksFor({ documents, expenses, profile: ws.profile, period, return: one, currency })
     };
     // the workspace changes whenever anything is saved, which is exactly when this should rerun
-  }, [ws, db, period, currency]);
+  }, [ws, period, currency]);
 
   if (!ready) return <div className="h-72 animate-pulse rounded-xl border border-line bg-white/60" aria-hidden="true" />;
 

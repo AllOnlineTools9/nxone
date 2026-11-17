@@ -25,7 +25,7 @@ export default function Composition() {
   const ready = useHydrated();
   const [quarterAt, setQuarterAt] = useState(() => todayIso().slice(0, 7));
 
-  const documents = useMemo(() => db.documents(), [db]);
+  const documents = useMemo(() => db.documents(), [ws]);
 
   if (!ready || !ws.profile) return null;
 

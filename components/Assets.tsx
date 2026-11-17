@@ -32,7 +32,7 @@ export default function Assets() {
   const [selling, setSelling] = useState<string | null>(null);
   const [sale, setSale] = useState({ on: todayIso(), amount: 0 });
 
-  const assets = useMemo(() => db.assets(), [db]);
+  const assets = useMemo(() => db.assets(), [ws]);
 
   if (!ready) return <div className="h-64 animate-pulse rounded-xl border border-line bg-white/60" aria-hidden="true" />;
 

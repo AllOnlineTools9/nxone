@@ -31,8 +31,8 @@ export default function Purchasing() {
   const country = ws.profile?.country ?? "IN";
   const money = useMemo(() => (minor: number) => formatMoney(fromMinor(minor, currency)), [currency]);
 
-  const matches = useMemo(() => matchOrders(db.documents(), db.expenses(), money), [db, money]);
-  const duplicates = useMemo(() => possibleDuplicates(db.expenses(), money), [db, money]);
+  const matches = useMemo(() => matchOrders(db.documents(), db.expenses(), money), [ws, money]);
+  const duplicates = useMemo(() => possibleDuplicates(db.expenses(), money), [ws, money]);
 
   if (!ready) return <div className="h-64 animate-pulse rounded-xl border border-line bg-white/60" aria-hidden="true" />;
 

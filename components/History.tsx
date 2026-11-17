@@ -22,7 +22,7 @@ export default function History({ recordId, limit }: { recordId?: string; limit?
     const forRecord = recordId ? all.filter((e) => e.recordId === recordId) : all;
     const filtered = onlyMaterial ? forRecord.filter((e) => materialChange(e.changes ?? [])) : forRecord;
     return limit ? filtered.slice(0, limit) : filtered;
-  }, [db, recordId, onlyMaterial, limit]);
+  }, [ws, recordId, onlyMaterial, limit]);
 
   if (!ready) return null;
 

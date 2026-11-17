@@ -26,13 +26,13 @@ export default function YearEnd() {
   const [chosen, setChosen] = useState<string | undefined>();
   const [closed, setClosed] = useState(false);
 
-  const years = useMemo(() => yearsWithActivity(db.documents(), db.expenses()), [db]);
+  const years = useMemo(() => yearsWithActivity(db.documents(), db.expenses()), [ws]);
 
   const entries = useMemo(() => ledgerFor(
     db.documents(), db.expenses(), ws.profile?.currency ?? "INR",
     openingOf(ws.profile), { items: db.items() as StockItem[] },
     { list: db.assets().map(toAssetForBooks) }
-  ), [db, ws.profile]);
+  ), [ws]);
 
   if (!ready || !ws.profile) return null;
 

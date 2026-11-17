@@ -31,7 +31,7 @@ export default function Budget() {
     db.documents(), db.expenses(), ws.profile?.currency ?? "INR",
     openingOf(ws.profile), { items: db.items() as StockItem[] },
     { list: db.assets().map(toAssetForBooks) }
-  ), [db, ws.profile]);
+  ), [ws]);
 
   if (!ready) return null;
 

@@ -24,7 +24,7 @@ export default function Claims() {
     employeeId: "", spentOn: todayIso(), description: "", category: "6030", amount: 0
   });
 
-  const employees = useMemo(() => db.employees(), [db]);
+  const employees = useMemo(() => db.employees(), [ws]);
   const claims = useMemo(() => ws.profile?.claims ?? [], [ws.profile]);
 
   if (!ready || !ws.profile) return null;

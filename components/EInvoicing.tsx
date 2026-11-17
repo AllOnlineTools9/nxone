@@ -46,14 +46,14 @@ export default function EInvoicing() {
         }];
         return { document: d, payload, problems, verdict: verdictOf(problems) };
       });
-  }, [ws, db, ready]);
+  }, [ws, ready]);
 
   const turnover = useMemo(() => {
     if (!ready) return 0;
     const ledger = ledgerFor(db.documents(), db.expenses(), currency, openingOf(ws.profile));
     const year = Number(today.slice(0, 4)) - (Number(today.slice(5, 7)) >= 4 ? 0 : 1);
     return profitAndLoss(ledger, currency, `${year}-04-01`, `${year + 1}-03-31`).totalIncome.minor;
-  }, [ws, db, currency, today, ready]);
+  }, [ws, currency, today, ready]);
 
   if (!ready) return <div className="h-72 animate-pulse rounded-xl border border-line bg-white/60" aria-hidden="true" />;
 

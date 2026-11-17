@@ -1,9 +1,11 @@
 "use client";
-import { Check, Search, UserPlus } from "lucide-react";
+import { Check, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { store } from "@/lib/store/db";
 import type { Client } from "@/lib/store/types";
 import type { DocumentData } from "@/lib/documents/types";
+import { describeTerms, takesPaymentTerms } from "@/lib/customers/customers";
+import { withCustomer } from "./state";
 
 /**
  * Start typing a customer you have billed before and the rest of their details arrive with them.
@@ -12,7 +14,8 @@ import type { DocumentData } from "@/lib/documents/types";
 export default function ClientPicker({ doc, update }: { doc: DocumentData; update: (patch: Partial<DocumentData>) => void }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const [saved, setSaved] = useState(false);
+  /** The customer just chosen, when choosing them set the due date, so that can be said. */
+  const [picked, setPicked] = useState<Client | undefined>();
   const box = useRef<HTMLDivElement>(null);
   const results = store.findClients(query || doc.buyer.name, 6);
   const known = store.clients().some((c) => c.name.trim().toLowerCase() === doc.buyer.name.trim().toLowerCase());
@@ -24,20 +27,10 @@ export default function ClientPicker({ doc, update }: { doc: DocumentData; updat
   }, []);
 
   const choose = (c: Client) => {
-    update({
-      buyer: { name: c.name, address: c.address, email: c.email, phone: c.phone, taxId: c.taxId, region: c.region },
-      ...(c.region ? { placeOfSupply: c.region } : {})
-    });
-    setQuery(""); setOpen(false); setSaved(false);
-  };
-
-  const save = () => {
-    if (!doc.buyer.name.trim()) return;
-    store.saveClient({
-      name: doc.buyer.name, address: doc.buyer.address, email: doc.buyer.email,
-      phone: doc.buyer.phone, taxId: doc.buyer.taxId, region: doc.placeOfSupply || doc.buyer.region
-    });
-    setSaved(true);
+    const next = withCustomer(doc, c);
+    update({ buyer: next.buyer, placeOfSupply: next.placeOfSupply, dueDate: next.dueDate });
+    setQuery(""); setOpen(false);
+    setPicked(c.termsDays !== undefined && takesPaymentTerms(doc.kind) ? c : undefined);
   };
 
   return (
@@ -69,15 +62,14 @@ export default function ClientPicker({ doc, update }: { doc: DocumentData; updat
       ) : null}
 
       {doc.buyer.name.trim() ? (
-        known ? (
-          <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-ink-faint">
-            <Check size={15} className="text-ok" aria-hidden="true" />{saved ? "Saved to your customers" : "One of your saved customers"}
-          </p>
-        ) : (
-          <button type="button" onClick={save} className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-forest hover:underline">
-            <UserPlus size={15} />Save {doc.buyer.name} for next time
-          </button>
-        )
+        <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-ink-faint">
+          <Check size={15} className="text-ok" aria-hidden="true" />
+          {known
+            ? picked
+              ? `One of your customers. Due date set from their terms: ${describeTerms(picked.termsDays).toLowerCase()}.`
+              : "One of your customers. Any details you change here are kept for next time."
+            : "Saved to your customers when you save or download this."}
+        </p>
       ) : null}
     </div>
   );

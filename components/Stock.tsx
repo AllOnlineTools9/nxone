@@ -29,7 +29,7 @@ export default function Stock() {
 
   const position = useMemo(
     () => stockFrom({ items, documents: ready ? db.documents() : [], expenses: ready ? db.expenses() : [], from: todayIso().slice(0, 8) + "01" }),
-    [ws, db, items, ready]
+    [ws, items, ready]
   );
 
   if (!ready) return <div className="h-72 animate-pulse rounded-xl border border-line bg-white/60" aria-hidden="true" />;

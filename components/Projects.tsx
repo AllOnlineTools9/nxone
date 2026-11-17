@@ -21,7 +21,7 @@ export default function Projects() {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: "", client: "", quoted: 0 });
 
-  const projects = useMemo(() => db.projects(), [db]);
+  const projects = useMemo(() => db.projects(), [ws]);
 
   if (!ready) return <div className="h-64 animate-pulse rounded-xl border border-line bg-white/60" aria-hidden="true" />;
 

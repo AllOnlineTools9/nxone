@@ -1,4 +1,5 @@
-import type { DocumentKind } from "../documents/types";
+import type { DocumentData, DocumentKind } from "../documents/types";
+import { rememberFrom } from "../customers/customers";
 import { formatDate, todayIso } from "../format";
 import { PeriodClosed, isLocked, refusal } from "../books/lock";
 import { changesBetween, trim, type AuditAction, type AuditEntry } from "./audit";
@@ -121,6 +122,31 @@ export class Store {
 
   deleteClient(id: string) { this.tombstone("clients", id); }
 
+  /**
+   * Create or freshen the customer a document is for, and return their id. Never blanks a saved
+   * detail, and never touches payment terms or notes, which are set on the customer directly.
+   */
+  private rememberCustomer(doc: DocumentData): string | undefined {
+    const ws = this.read();
+    const plan = rememberFrom(ws.clients ?? [], doc);
+    if (plan.action === "none") return plan.id;
+
+    const now = new Date().toISOString();
+    if (plan.action === "create") {
+      const client: Client = { ...plan.fields, id: newId("cl"), createdAt: now, updatedAt: now, version: 1 } as Client;
+      this.write({ ...ws, clients: [...ws.clients, client] });
+      return client.id;
+    }
+
+    this.write({
+      ...ws,
+      clients: ws.clients.map((c) => c.id === plan.id
+        ? { ...c, ...plan.fields, updatedAt: now, version: (c.version ?? 1) + 1 }
+        : c)
+    });
+    return plan.id;
+  }
+
   /* ---- catalogue ---- */
 
   items(): CatalogueItem[] { return this.read().items.filter(alive).sort((a, b) => a.description.localeCompare(b.description)); }
@@ -213,11 +239,16 @@ export class Store {
 
     this.guardLock("document", input.issueDate, existing?.issueDate);
 
-    const saved: SavedDocument = existing
-      ? { ...existing, ...input, id: existing.id, createdAt: existing.createdAt, updatedAt: now, version: (existing.version ?? 1) + 1, deletedAt: undefined }
-      : { ...input, id: newId("dc"), createdAt: now, updatedAt: now, version: 1 };
+    // Remember the customer as a side effect of saving, here rather than in the builder, so a
+    // document saved by any route (converted, recurring, duplicated) is covered the same way.
+    const clientId = input.doc ? this.rememberCustomer(input.doc) : input.clientId;
 
-    this.write({ ...ws, documents: existing ? ws.documents.map((d) => (d.id === saved.id ? saved : d)) : [...ws.documents, saved] });
+    const saved: SavedDocument = existing
+      ? { ...existing, ...input, clientId: clientId ?? existing.clientId, id: existing.id, createdAt: existing.createdAt, updatedAt: now, version: (existing.version ?? 1) + 1, deletedAt: undefined }
+      : { ...input, clientId, id: newId("dc"), createdAt: now, updatedAt: now, version: 1 };
+
+    const latest = this.read();
+    this.write({ ...latest, documents: existing ? latest.documents.map((d) => (d.id === saved.id ? saved : d)) : [...latest.documents, saved] });
     this.record("documents", saved.id, saved.number, existing ? "changed" : "created",
       existing as unknown as Record<string, unknown>, saved as unknown as Record<string, unknown>);
     return saved;

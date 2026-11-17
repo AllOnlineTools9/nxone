@@ -1,44 +1,44 @@
-NXONE - CONTRACTS, BUDGET FIX, NO GST, SIGN IN, DASHES
-=====================================================
+NXONE - CUSTOMERS, AND EVERYTHING FROM THE LAST ROUND
+====================================================
 
-78 files. 932 app tests, 104 server tests, build clean, every change checked
-in a browser.
+This replaces nxone-fixes.zip: it holds both rounds, so apply this one whether
+or not you applied that. 957 tests, build clean, every change driven through
+the screens in a browser. Site only; the API does not need redeploying.
 
   cd /workspaces/nxone
-  unzip -q nxone-fixes.zip
-  cp -r nxone-fixes/. .
-  rm -rf nxone-fixes nxone-fixes.zip
+  unzip -q nxone-customers.zip
+  cp -r nxone-customers/. .
+  rm -rf nxone-customers nxone-customers.zip
   npm test && npm run build
-  git add -A && git commit -m "Contracts, budget fix, No GST, sign in, hyphens" && git push
+  git add -A && git commit -m "Customers, payment terms, contracts, No GST, sign in, fixes" && git push
   npx wrangler deploy
 
-Site only. The API does not need redeploying.
+CUSTOMERS ARE REMEMBERED ON THEIR OWN
+  Saving or downloading any document saves its customer - no link to click.
+  Matched by GSTIN first, then name, so billing them again never makes a twin.
+  A detail changed on a later invoice is kept; one left empty is not treated as
+  a request to forget it. Purchase orders are skipped: that is a supplier.
+  Each document is now linked to its customer, so renaming a customer keeps
+  their history together.
 
-JOBS ARE NOW CONTRACTS
-  Every label a person sees. The page is /contracts; /jobs forwards there so
-  an old bookmark still lands. Stored data keeps its field names, so nothing
-  already tagged is lost.
+THE CUSTOMERS PAGE
+  /customers, in the sidebar under Documents. Everyone you bill, who owes the
+  most first, with what they owe, how much is overdue, and their past
+  documents. Edit or remove any of them - removing a customer leaves their
+  documents exactly as issued. "New invoice" opens one already addressed to
+  them. People billed before this existed can be added in one click.
 
-THE EMPTY BUDGET PAGE
-  "Start from what you spent last year" did nothing for a business with no
-  last year - every new one. It now uses last year if there is one, otherwise
-  this year's spending scaled to a full year, otherwise a blank budget, and
-  says which. With no business set up, the page says so instead of going blank.
+PAYMENT TERMS
+  Set per customer: due on receipt, 7, 15, 30, 45, 60 or 90 days. Picking them
+  on an invoice or proforma sets the due date. Not applied to quotations,
+  whose second date is how long the price stands.
 
-NO GST
-  A "Charge GST on this ..." switch on every document. Off: no GST on any line,
-  and an invoice is titled Invoice rather than Tax Invoice. Switched off in one
-  place, the totals, so no line can carry GST onto a no-GST document; ticking
-  it again restores each line's rate. New documents start from your scheme:
-  set "Not registered for GST" on the GST scheme screen and they begin with GST
-  off. That option previously did nothing. The GST return and input credit
-  screens now tell an unregistered business they don't apply.
+A BUG FOUND WHILE TESTING
+  On several screens, something you added did not appear until the page was
+  reloaded - a new contract, a new asset, an imported customer. Lists were
+  cached against the store, which never changes identity, instead of against
+  the workspace, which is replaced on every save. Fixed in 15 screens.
 
-SIGN IN
-  Beside "Create an invoice" in the header, on every public page including
-  the home page.
-
-DASHES
-  Every em dash on the site is now a hyphen: 190 across 67 files. One remains
-  inside the PDF library's character table, which maps glyphs for printing and
-  is never shown.
+ALSO IN HERE (FROM THE LAST ROUND)
+  Jobs renamed Contracts, the empty budget page, No GST, Sign in in the
+  header, and em dashes replaced with hyphens site-wide.
