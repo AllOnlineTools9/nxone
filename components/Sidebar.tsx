@@ -2,7 +2,7 @@
 import { BookOpen, Building2, CalendarClock, CalendarSync, Calculator, ChartColumn, FileSpreadsheet, FileText, FlaskConical, FolderOpen, HandCoins, Landmark, LayoutDashboard, MessageCircleQuestion, Quote, Package, Receipt, Search, ShoppingCart, Stamp, Sun, UsersRound, TrendingDown, Users, Wallet, X, ShieldCheck, Scissors, CalendarCheck, ClipboardList, Scale, Target, Hammer, History, Contact } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Logo from "./Logo";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
 import EntitySwitcher from "./EntitySwitcher";
@@ -80,7 +80,11 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
   // before deciding, or the markup will not match and React will complain
   const hydrated = useHydrated();
   const setUp = !hydrated || Boolean(ws.profile?.name);
-  useEffect(() => { onClose(); }, [path, onClose]);
+  // Close the drawer after moving to another page. Only the path is watched: the layout passes a
+  // new onClose on every render, and watching it closed the menu the moment it opened on phones.
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => { close.current(); }, [path]);
 
   return (
     <>

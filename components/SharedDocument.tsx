@@ -90,7 +90,7 @@ export default function SharedDocument() {
             {doc.seller.address ? <p className="mt-1 whitespace-pre-line text-sm text-ink-soft">{doc.seller.address}</p> : null}
             {doc.seller.taxId ? <p className="mt-1 text-xs text-ink-faint">{doc.seller.taxId}</p> : null}
           </div>
-          <div className="text-right">
+          <div className="sm:text-right">
             <p className="font-display text-2xl">{doc.kind}</p>
             <p className="mt-1 text-sm">{doc.number}</p>
             <p className="text-xs text-ink-faint">{doc.issueDate}{doc.dueDate ? ` · due ${doc.dueDate}` : ""}</p>
@@ -103,15 +103,19 @@ export default function SharedDocument() {
 
         <table className="mt-8 w-full text-sm">
           <thead className="text-left text-xs uppercase tracking-wider text-ink-faint">
-            <tr><th className="py-2">Description</th><th className="py-2 text-right">Qty</th><th className="py-2 text-right">Rate</th><th className="py-2 text-right">Amount</th></tr>
+            <tr><th className="py-2">Description</th><th className="hidden py-2 text-right sm:table-cell">Qty</th><th className="hidden py-2 text-right sm:table-cell">Rate</th><th className="py-2 text-right">Amount</th></tr>
           </thead>
           <tbody>
             {doc.lines.map((line, i) => (
               <tr key={i} className="border-t border-line">
-                <td className="py-2">{line.description}</td>
-                <td className="py-2 text-right tabular">{line.quantity}</td>
-                <td className="py-2 text-right tabular">{line.rate}</td>
-                <td className="py-2 text-right tabular">{money(line.amountMinor)}</td>
+                <td className="py-2 pr-4">
+                  {line.description}
+                  {/* On a phone the quantity and rate sit under the description, not in columns. */}
+                  <span className="block text-xs text-ink-faint tabular sm:hidden">{line.quantity} × {money(Math.round(line.rate * 100))}</span>
+                </td>
+                <td className="hidden py-2 text-right tabular sm:table-cell">{line.quantity}</td>
+                <td className="hidden py-2 text-right tabular sm:table-cell">{money(Math.round(line.rate * 100))}</td>
+                <td className="py-2 text-right tabular align-top">{money(line.amountMinor)}</td>
               </tr>
             ))}
           </tbody>

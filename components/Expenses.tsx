@@ -314,7 +314,7 @@ export default function Expenses() {
           </dl>
 
           <section className="card overflow-hidden">
-            <table className="w-full border-collapse text-sm">
+            <table className="table-cards w-full border-collapse text-sm">
               <thead className="bg-canvas text-left">
                 <tr><th className="px-4 py-2.5 font-semibold">Date</th><th className="px-4 py-2.5 font-semibold">Paid to</th><th className="px-4 py-2.5 font-semibold">What for</th><th className="px-4 py-2.5 text-right font-semibold">Amount</th><th className="px-4 py-2.5 font-semibold">Paid from</th><th className="px-4 py-2.5"><span className="sr-only">Actions</span></th></tr>
               </thead>
@@ -322,7 +322,7 @@ export default function Expenses() {
                 {rows.map((e) => (
                   <tr key={e.id} className="border-t border-line">
                     <td className="px-4 py-2.5 tabular text-ink-soft">{formatDate(e.date, ws.profile?.country ?? "IN")}</td>
-                    <td className="px-4 py-2.5">
+                    <td className="cell-full cell-first px-4 py-2.5">
                       <span className="flex items-center gap-1.5">
                         {e.supplier}
                         {e.receiptDataUrl ? (
@@ -331,11 +331,11 @@ export default function Expenses() {
                       </span>
                       {e.description ? <span className="block text-xs text-ink-faint">{e.description}</span> : null}
                     </td>
-                    <td className="px-4 py-2.5 text-ink-soft">{EXPENSE_CATEGORIES.find((c) => c.code === e.category)?.name}</td>
-                    <td className="px-4 py-2.5 text-right tabular">{m(e.netMinor + e.taxMinor)}{e.taxMinor ? <span className="block text-xs text-ink-faint">{m(e.taxMinor)} tax</span> : null}</td>
-                    <td className="px-4 py-2.5 text-ink-soft">{e.paidFrom ? cashAccounts().find((a) => a.code === e.paidFrom)?.plain : <span className="text-warn">Still owed</span>}</td>
-                    <td className="px-4 py-2.5 text-right">
-                      <button type="button" onClick={() => { if (confirm(`Delete the ${e.supplier} expense?`)) db.deleteExpense(e.id); }} className="rounded p-1.5 text-ink-faint hover:bg-canvas hover:text-bad" aria-label={`Delete ${e.supplier}`}><Trash2 size={15} /></button>
+                    <td className="cell-grow px-4 py-2.5 text-ink-soft">{EXPENSE_CATEGORIES.find((c) => c.code === e.category)?.name}</td>
+                    <td className="cell-strong px-4 py-2.5 text-right tabular">{m(e.netMinor + e.taxMinor)}{e.taxMinor ? <span className="block text-xs text-ink-faint">{m(e.taxMinor)} tax</span> : null}</td>
+                    <td className="cell-grow px-4 py-2.5 text-ink-soft">{e.paidFrom ? cashAccounts().find((a) => a.code === e.paidFrom)?.plain : <span className="text-warn">Still owed</span>}</td>
+                    <td className="cell-end px-4 py-2.5 text-right">
+                      <button type="button" onClick={() => { if (confirm(`Delete the ${e.supplier} expense?`)) db.deleteExpense(e.id); }} className="rounded p-2.5 text-ink-faint hover:bg-canvas hover:text-bad sm:p-1.5" aria-label={`Delete ${e.supplier}`}><Trash2 size={15} /></button>
                     </td>
                   </tr>
                 ))}

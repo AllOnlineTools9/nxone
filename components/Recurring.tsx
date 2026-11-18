@@ -118,7 +118,7 @@ export default function Recurring() {
             {waiting.map((t) => (
               <li key={t.id} className="card flex flex-wrap items-center gap-4 p-4">
                 <CalendarSync size={18} className="shrink-0 text-forest" aria-hidden="true" />
-                <span className="min-w-0 flex-1">
+                <span className="min-w-[12rem] flex-1">
                   <span className="block font-medium">{t.name}</span>
                   <span className="block text-sm text-ink-soft">Due {formatDate(t.nextDate, country)}, for {t.document.buyer.name || "no customer"}</span>
                 </span>
@@ -138,7 +138,7 @@ export default function Recurring() {
       ) : (
         <section className="card overflow-hidden">
           <h2 className="px-5 pt-5 font-display text-lg">All of them</h2>
-          <table className="mt-3 w-full border-collapse text-sm">
+          <table className="table-cards mt-3 w-full border-collapse text-sm">
             <thead className="bg-canvas text-left">
               <tr>
                 <th className="px-5 py-2.5 font-semibold">What</th>
@@ -151,7 +151,7 @@ export default function Recurring() {
             <tbody>
               {templates.map((t) => (
                 <tr key={t.id} className="border-t border-line">
-                  <td className="px-5 py-2.5">
+                  <td className="cell-full px-5 py-2.5">
                     <input
                       className="w-full bg-transparent font-medium outline-none focus:underline"
                       value={t.name}
@@ -160,7 +160,7 @@ export default function Recurring() {
                     />
                     <span className="block text-xs text-ink-faint">{t.document.buyer.name || "no customer"}{t.occurrences > 0 ? `, ${t.occurrences} made so far` : ""}</span>
                   </td>
-                  <td className="px-5 py-2.5">
+                  <td className="cell-full px-5 py-2.5">
                     <select
                       className="rounded border border-line bg-white px-2 py-1 text-sm"
                       value={t.frequency}
@@ -171,18 +171,18 @@ export default function Recurring() {
                     </select>
                     <span className="block text-xs text-ink-faint">{describeTemplate(t)}</span>
                   </td>
-                  <td className="px-5 py-2.5 tabular">
+                  <td className="cell-grow px-5 py-2.5 tabular" data-label="Next">
                     {isFinished(t) ? <span className="text-ink-faint">finished</span> : formatDate(t.nextDate, country)}
                   </td>
-                  <td className="px-5 py-2.5 text-right tabular">{m(amountOf(t))}</td>
-                  <td className="px-5 py-2.5">
+                  <td className="cell-strong px-5 py-2.5 text-right tabular">{m(amountOf(t))}</td>
+                  <td className="cell-end px-5 py-2.5">
                     <div className="flex items-center justify-end gap-1">
                       <button type="button" onClick={() => store.saveRecurring({ ...t, paused: !t.paused })}
-                        className="rounded p-1.5 text-ink-faint hover:bg-canvas hover:text-ink" aria-label={t.paused ? `Resume ${t.name}` : `Pause ${t.name}`}>
+                        className="rounded p-2.5 text-ink-faint hover:bg-canvas sm:p-1.5 hover:text-ink" aria-label={t.paused ? `Resume ${t.name}` : `Pause ${t.name}`}>
                         {t.paused ? <Play size={15} /> : <Pause size={15} />}
                       </button>
                       <button type="button" onClick={() => { if (confirm(`Stop repeating ${t.name}? Invoices already made are not affected.`)) store.deleteRecurring(t.id); }}
-                        className="rounded p-1.5 text-ink-faint hover:bg-canvas hover:text-bad" aria-label={`Delete ${t.name}`}><Trash2 size={15} /></button>
+                        className="rounded p-2.5 text-ink-faint hover:bg-canvas sm:p-1.5 hover:text-bad" aria-label={`Delete ${t.name}`}><Trash2 size={15} /></button>
                     </div>
                   </td>
                 </tr>

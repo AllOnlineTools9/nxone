@@ -10,7 +10,9 @@ import StylePicker from "./StylePicker";
 import TotalsBar from "./TotalsBar";
 import { useDocument } from "./state";
 import SendBox from "./SendBox";
+import FitWidth from "./FitWidth";
 import { conversionsFor } from "@/lib/documents/convert";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 
 /** Which builder page each kind opens in. Credit notes share the invoice builder. */
 const ROUTE_FOR: Record<string, string> = {
@@ -26,6 +28,7 @@ export default function Builder({ kind }: { kind: DocumentKind }) {
   const [error, setError] = useState("");
   const [justSaved, setJustSaved] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
+  const wide = useMediaQuery("(min-width: 1024px)");
 
   /**
    * Downloading is the moment a document stops being a draft, so it saves itself and is marked
@@ -48,33 +51,47 @@ export default function Builder({ kind }: { kind: DocumentKind }) {
     } finally { setBusy(false); }
   };
 
+  /** Save, print, the documents list, a new one and the style: pinned on wider screens only. */
+  const secondary = (where: "bar" | "below") => (
+    <>
+      <button type="button" className="btn-ghost" onClick={() => {
+        try { setError(""); s.save(); setJustSaved(true); setTimeout(() => setJustSaved(false), 2500); }
+        catch (e) { setError(e instanceof Error ? e.message : "That could not be saved."); }
+      }}>
+        {justSaved ? <><Check size={16} className="text-ok" />Saved</> : <><Save size={16} />{s.savedId ? "Update saved copy" : "Save"}</>}
+      </button>
+      <button type="button" className="btn-ghost" onClick={() => window.print()}><Printer size={16} />Print</button>
+      <Link href="/documents" className="btn-quiet"><FolderOpen size={15} />Your documents</Link>
+      <div className={where === "bar" ? "order-last w-full lg:order-none lg:ml-4 lg:w-auto" : "order-last w-full"}><StylePicker doc={s.doc} update={s.update} /></div>
+      <button type="button" className="btn-quiet ml-auto" onClick={() => {
+        if (s.savedId || confirm("Start a new one? Anything unsaved here will be cleared.")) s.reset();
+      }}><FilePlus2 size={15} />New</button>
+    </>
+  );
+
+  const sendBox = (
+    <SendBox doc={s.doc} totals={s.totals} downloaded={downloaded} onDownload={download} documentId={s.savedId} ensureSaved={() => s.save("sent")?.id} />
+  );
+
   if (!s.loaded) return <div className="h-96 animate-pulse rounded-xl border border-line bg-white/60" aria-hidden="true" />;
 
   return (
     <div>
-      <div className="no-print sticky top-0 z-20 -mx-4 mb-4 space-y-3 border-b border-line bg-canvas/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex rounded-lg border border-line bg-white p-0.5 lg:hidden" role="tablist" aria-label="Edit or preview">
-          {(["edit", "preview"] as const).map((t) => (
-            <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`rounded-md px-3 py-1.5 text-sm font-medium capitalize ${tab === t ? "bg-forest text-white" : "text-ink-soft"}`}>{t}</button>
-          ))}
+      {/* On a phone only the essentials stay pinned while you scroll the form: switching between
+          the form and the preview, the download, and the total. Everything else sits below it. */}
+      <div className="no-print sticky top-12 z-10 -mx-4 mb-4 space-y-2 border-b border-line bg-canvas/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:space-y-3 sm:px-6 sm:py-3 lg:top-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-lg border border-line bg-white p-0.5 lg:hidden" role="tablist" aria-label="Edit or preview">
+            {(["edit", "preview"] as const).map((t) => (
+              <button key={t} role="tab" aria-selected={tab === t} onClick={() => { setTab(t); window.scrollTo({ top: 0 }); }} className={`rounded-md px-3 py-1.5 text-sm font-medium capitalize ${tab === t ? "bg-forest text-white" : "text-ink-soft"}`}>{t}</button>
+            ))}
+          </div>
+          <button type="button" className="btn-primary ml-auto sm:ml-0" onClick={download} disabled={busy}><Download size={16} />{busy ? "Making your PDF" : "Download PDF"}</button>
+          <div className="hidden sm:contents">{secondary("bar")}</div>
         </div>
-        <button type="button" className="btn-primary" onClick={download} disabled={busy}><Download size={16} />{busy ? "Making your PDF" : "Download PDF"}</button>
-        <button type="button" className="btn-ghost" onClick={() => {
-          try { setError(""); s.save(); setJustSaved(true); setTimeout(() => setJustSaved(false), 2500); }
-          catch (e) { setError(e instanceof Error ? e.message : "That could not be saved."); }
-        }}>
-          {justSaved ? <><Check size={16} className="text-ok" />Saved</> : <><Save size={16} />{s.savedId ? "Update saved copy" : "Save"}</>}
-        </button>
-        <button type="button" className="btn-ghost" onClick={() => window.print()}><Printer size={16} />Print</button>
-        <Link href="/documents" className="btn-quiet"><FolderOpen size={15} />Your documents</Link>
-        <div className="order-last w-full lg:order-none lg:ml-4 lg:w-auto"><StylePicker doc={s.doc} update={s.update} /></div>
-        <button type="button" className="btn-quiet ml-auto" onClick={() => {
-          if (s.savedId || confirm("Start a new one? Anything unsaved here will be cleared.")) s.reset();
-        }}><FilePlus2 size={15} />New</button>
+        <TotalsBar doc={s.doc} totals={s.totals} />
       </div>
-      <TotalsBar doc={s.doc} totals={s.totals} />
-      </div>
+      <div className="no-print mb-4 flex flex-wrap items-center gap-2 sm:hidden">{secondary("below")}</div>
 
       {error ? <p role="alert" className="mb-4 rounded-lg border border-bad/30 bg-bad/5 p-3 text-sm text-bad">{error}</p> : null}
 
@@ -85,20 +102,20 @@ export default function Builder({ kind }: { kind: DocumentKind }) {
       ) : null}
 
       <div className="grid gap-8 lg:grid-cols-2">
-        <div className={tab === "edit" ? "" : "hidden lg:block"}>
+        <div className={`min-w-0 ${tab === "edit" ? "" : "hidden lg:block"}`}>
           <Editor doc={s.doc} totals={s.totals} update={s.update} updateItem={s.updateItem} addItem={s.addItem} removeItem={s.removeItem} moveItem={s.moveItem} setCountry={s.setCountry} documentId={s.savedId} />
         </div>
-        <div className={`lg:sticky lg:top-24 lg:self-start ${tab === "preview" ? "" : "hidden lg:block"}`}>
+        <div className={`min-w-0 lg:sticky lg:top-24 lg:self-start ${tab === "preview" ? "" : "hidden lg:block"}`}>
           <div className="overflow-auto rounded-xl bg-line/40 p-2 sm:p-4">
-            <Preview doc={s.doc} totals={s.totals} />
+            <FitWidth width={640}><Preview doc={s.doc} totals={s.totals} /></FitWidth>
           </div>
           <p className="no-print mt-3 text-center text-xs text-ink-faint">
             Downloading also saves this to <Link href="/documents" className="underline">your documents</Link>, so you can mark it paid later.
           </p>
 
-          <div className="mt-6">
-            <SendBox doc={s.doc} totals={s.totals} downloaded={downloaded} onDownload={download} documentId={s.savedId} ensureSaved={() => s.save("sent")?.id} />
-          </div>
+          {/* On wide screens Send sits under the preview; on phones and tablets it is below
+              whichever of the form or preview is showing, so it is never a tab away. */}
+          {wide ? <div className="mt-6">{sendBox}</div> : null}
 
           {s.savedId && conversionsFor(s.doc.kind).length ? (
             <section className="no-print card mt-6 p-5">
@@ -117,6 +134,7 @@ export default function Builder({ kind }: { kind: DocumentKind }) {
           ) : null}
         </div>
       </div>
+      {!wide ? <div id="send" className="mt-6 scroll-mt-40">{sendBox}</div> : null}
     </div>
   );
 }

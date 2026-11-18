@@ -38,12 +38,12 @@ export default function StylePicker({ doc, update }: { doc: DocumentData; update
         {PALETTES.map((p) => (
           <button key={p.id} type="button" onClick={() => update({ accentColor: p.accent })} title={p.name}
             aria-label={`${p.name} colour`} aria-pressed={accent.toLowerCase() === p.accent.toLowerCase()}
-            className={`h-6 w-6 rounded-full border-2 ${accent.toLowerCase() === p.accent.toLowerCase() ? "border-ink" : "border-white"}`}
+            className={`h-8 w-8 rounded-full sm:h-6 sm:w-6 border-2 ${accent.toLowerCase() === p.accent.toLowerCase() ? "border-ink" : "border-white"}`}
             style={{ background: p.accent }} />
         ))}
         <label className="ml-1 flex items-center gap-1 text-xs text-ink-faint">
           <span className="sr-only">Custom colour</span>
-          <input type="color" value={accent} onChange={(e) => update({ accentColor: e.target.value })} className="h-6 w-8 cursor-pointer rounded border border-line bg-white" aria-label="Custom colour" />
+          <input type="color" value={accent} onChange={(e) => update({ accentColor: e.target.value })} className="h-8 w-10 cursor-pointer rounded border border-line bg-white sm:h-6 sm:w-8" aria-label="Custom colour" />
         </label>
         {!current.useAccent ? <span className="text-xs text-ink-faint">This layout prints without colour</span> : null}
       </div>

@@ -156,13 +156,13 @@ export default function Customers() {
                         </span>
                       </span>
                     </button>
-                    <span className="flex shrink-0 items-center gap-3">
+                    <span className="flex w-full items-center justify-between gap-3 sm:w-auto sm:shrink-0 sm:justify-start">
                       {s.owedMinor > 0 ? (
                         <span className={`text-sm tabular ${s.overdue > 0 ? "font-semibold text-bad" : ""}`}>
                           {money(s.owedMinor)} owed{s.overdue > 0 ? `, ${s.overdue} overdue` : ""}
                         </span>
                       ) : null}
-                      <Link href={`/invoice-generator/?customer=${c.id}`} className="btn-ghost text-sm">
+                      <Link href={`/invoice-generator/?customer=${c.id}`} className="btn-ghost shrink-0 whitespace-nowrap text-sm">
                         <FilePlus2 size={15} /> New invoice
                       </Link>
                     </span>

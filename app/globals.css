@@ -48,3 +48,42 @@ h1, h2, h3 { @apply font-display text-ink; font-variation-settings: "SOFT" 0, "W
   body { background: #fff; }
   .no-print { display: none !important; }
 }
+
+/* ---------------- phones ---------------- */
+@media (max-width: 639px) {
+  /* iPhones zoom the whole page into any field set smaller than 16px, and do not zoom back out. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea { font-size: 16px !important; }
+
+  /* A table wider than the screen scrolls sideways inside its card rather than being cut off. */
+  :where(div, section, article):has(> table) {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  /*
+   * Lists that are read more than analysed become cards on a phone: no header row, the first
+   * cell across the top, the rest flowing underneath, and anything marked .cell-end pushed right.
+   */
+  .table-cards thead { display: none; }
+  .table-cards, .table-cards tbody { display: block; width: 100%; }
+  .table-cards tr {
+    display: flex; flex-wrap: wrap; align-items: center;
+    column-gap: 0.75rem; row-gap: 0.25rem; padding: 0.75rem 1rem;
+  }
+  .table-cards td { display: block; padding: 0 !important; text-align: left !important; border: 0 !important; }
+  .table-cards td.cell-full { flex-basis: 100%; }
+  .table-cards td.cell-first { order: -1; }
+  .table-cards td.cell-grow { flex: 1 1 auto; }
+  .table-cards td.cell-end { margin-left: auto; }
+  .table-cards td.cell-strong { font-weight: 600; }
+  .table-cards td[data-label]::before {
+    content: attr(data-label) " ";
+    color: #7C877B;
+    font-size: 0.75rem;
+  }
+  .table-cards tfoot { display: block; }
+  .table-cards tfoot tr { font-weight: 600; }
+}

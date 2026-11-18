@@ -1,7 +1,7 @@
 "use client";
 import { ArrowRight, Check, Mail, Shield, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PACKS, packFor } from "@/lib/countries/packs";
 import { DEMO_OPENING_MINOR, buildDemo } from "@/lib/setup/demo";
 import { buildProfile, registrationChoices, type Answers } from "@/lib/setup/onboarding";
@@ -19,11 +19,14 @@ export default function Onboarding() {
   const [accountEmail, setAccountEmail] = useState("");
   const [accountState, setAccountState] = useState<"idle" | "sent" | "skipped" | "error">("idle");
   const [accountMessage, setAccountMessage] = useState("");
-  const [answers, setAnswers] = useState<Answers>(() => ({
-    country: typeof window === "undefined" ? "IN" : guessCountry(),
-    businessName: "",
-    registrations: []
-  }));
+  // The page is built ahead of time without a browser, so it starts on India everywhere and the
+  // guess from the browser is applied after it loads. Guessing during the first render made the
+  // page disagree with its own pre-built HTML for anyone outside India.
+  const [answers, setAnswers] = useState<Answers>({ country: "IN", businessName: "", registrations: [] });
+  useEffect(() => {
+    const guessed = guessCountry();
+    setAnswers((a) => (a.country === "IN" && guessed !== "IN" ? { ...a, country: guessed } : a));
+  }, []);
   const [summary, setSummary] = useState<ReturnType<typeof buildProfile> | null>(null);
 
   const pack = packFor(answers.country);

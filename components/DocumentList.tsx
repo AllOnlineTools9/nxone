@@ -80,7 +80,7 @@ export default function DocumentList({ limit, title }: { limit?: number; title?:
           </p>
         ) : null}
 
-        <table className="w-full border-collapse text-sm">
+        <table className="table-cards w-full border-collapse text-sm">
           <thead className="bg-canvas text-left">
             <tr>
               <th className="px-4 py-2.5 font-semibold">Document</th>
@@ -97,7 +97,7 @@ export default function DocumentList({ limit, title }: { limit?: number; title?:
               const owed = d.totalMinor - d.paidMinor;
               return (
                 <tr key={d.id} className="border-t border-line align-middle">
-                  <td className="px-4 py-2.5">
+                  <td className="cell-full px-4 py-2.5">
                     <Link href={`${ROUTES[d.kind]}?doc=${d.id}`} className="flex items-center gap-2 font-medium hover:underline">
                       <Icon size={15} className="shrink-0 text-ink-faint" aria-hidden="true" />{d.number}
                     </Link>
@@ -107,12 +107,12 @@ export default function DocumentList({ limit, title }: { limit?: number; title?:
                       <span className="mt-0.5 block text-xs text-ink-faint">from {d.madeFrom.number}</span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-2.5">{d.clientName}</td>
-                  <td className="px-4 py-2.5 tabular text-ink-soft">
+                  <td className="cell-full px-4 py-2.5">{d.clientName}</td>
+                  <td className="cell-grow px-4 py-2.5 tabular text-ink-soft">
                     {formatDate(d.issueDate, d.doc.country)}
                     {d.dueDate && d.status !== "paid" ? <span className="block text-xs text-ink-faint">due {formatDate(d.dueDate, d.doc.country)}</span> : null}
                   </td>
-                  <td className="px-4 py-2.5 text-right tabular">
+                  <td className="cell-strong px-4 py-2.5 text-right tabular">
                     {money(d, d.totalMinor)}
                     {owed > 0 && d.paidMinor > 0 ? <span className="block text-xs text-ink-faint">{money(d, owed)} left</span> : null}
                   </td>
@@ -126,20 +126,20 @@ export default function DocumentList({ limit, title }: { limit?: number; title?:
                       {(Object.keys(STATUS) as DocumentStatus[]).map((k) => <option key={k} value={k}>{STATUS[k].label}</option>)}
                     </select>
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="cell-end px-4 py-2.5">
                     <div className="flex items-center justify-end gap-1">
-                      <Link href={`${ROUTES[d.kind]}?doc=${d.id}`} className="rounded p-1.5 text-ink-faint hover:bg-canvas hover:text-ink" aria-label={`Open ${d.number}`}><Pencil size={15} /></Link>
-                      <Link href={`${ROUTES[d.kind]}?copy=${d.id}`} className="rounded p-1.5 text-ink-faint hover:bg-canvas hover:text-ink" aria-label={`Duplicate ${d.number}`}><Copy size={15} /></Link>
+                      <Link href={`${ROUTES[d.kind]}?doc=${d.id}`} className="rounded p-2.5 text-ink-faint hover:bg-canvas sm:p-1.5 hover:text-ink" aria-label={`Open ${d.number}`}><Pencil size={15} /></Link>
+                      <Link href={`${ROUTES[d.kind]}?copy=${d.id}`} className="rounded p-2.5 text-ink-faint hover:bg-canvas sm:p-1.5 hover:text-ink" aria-label={`Duplicate ${d.number}`}><Copy size={15} /></Link>
                       {conversionsFor(d.kind).length && !d.madeInto ? (
                         <Link
                           href={`${ROUTES[conversionsFor(d.kind)[0].to]}?from=${d.id}&as=${conversionsFor(d.kind)[0].to}`}
-                          className="rounded p-1.5 text-ink-faint hover:bg-canvas hover:text-ink"
+                          className="rounded p-2.5 text-ink-faint hover:bg-canvas sm:p-1.5 hover:text-ink"
                           title={conversionsFor(d.kind)[0].describes}
                           aria-label={`${conversionsFor(d.kind)[0].label} from ${d.number}`}
                         ><ArrowRight size={15} /></Link>
                       ) : null}
                       <button type="button" onClick={() => { if (confirm(`Delete ${d.number}? This cannot be undone.`)) { try { store.deleteDocument(d.id); } catch (err) { setRefused(err instanceof Error ? err.message : "That could not be deleted."); } } }}
-                        className="rounded p-1.5 text-ink-faint hover:bg-canvas hover:text-bad" aria-label={`Delete ${d.number}`}><Trash2 size={15} /></button>
+                        className="rounded p-2.5 text-ink-faint hover:bg-canvas sm:p-1.5 hover:text-bad" aria-label={`Delete ${d.number}`}><Trash2 size={15} /></button>
                     </div>
                   </td>
                 </tr>

@@ -9,11 +9,12 @@ export function LogoMark({ size = 28 }: { size?: number }) {
   );
 }
 
-export default function Logo() {
+/** `compact` drops the wordmark on the narrowest phones, where the header needs the room. */
+export default function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <span className="flex items-center gap-2">
       <LogoMark />
-      <span className="font-display text-xl font-semibold tracking-tight text-ink">{BRAND.wordmark}</span>
+      <span className={`font-display text-xl font-semibold tracking-tight text-ink ${compact ? "hidden min-[380px]:inline" : ""}`}>{BRAND.wordmark}</span>
     </span>
   );
 }

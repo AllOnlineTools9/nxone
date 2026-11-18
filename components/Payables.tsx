@@ -72,7 +72,7 @@ export default function Payables() {
         </div>
       ) : (
         <section className="card overflow-hidden">
-          <table className="w-full border-collapse text-sm">
+          <table className="table-cards w-full border-collapse text-sm">
             <thead className="bg-canvas text-left">
               <tr>
                 <th className="px-5 py-2.5 font-semibold">Supplier</th>
@@ -87,17 +87,17 @@ export default function Payables() {
                 const beyond = index >= view.affordable.length;
                 return (
                   <tr key={item.expense.id} className={`border-t border-line ${beyond ? "bg-canvas/60" : ""}`}>
-                    <td className="px-5 py-2.5">
+                    <td className="cell-full font-medium sm:font-normal px-5 py-2.5">
                       {item.expense.supplier}
                       {item.expense.reference ? <span className="block text-xs text-ink-faint">{item.expense.reference}</span> : null}
                     </td>
-                    <td className="px-5 py-2.5 text-ink-soft">
+                    <td className="cell-full px-5 py-2.5 text-ink-soft">
                       {EXPENSE_CATEGORIES.find((c) => c.code === item.expense.category)?.name}
                       <span className="block text-xs text-ink-faint">{formatDate(item.expense.date, country)}</span>
                     </td>
-                    <td className={`px-5 py-2.5 ${item.ageDays > 45 ? "text-warn" : "text-ink-soft"}`}>{item.reason}</td>
-                    <td className="px-5 py-2.5 text-right tabular">{m(item.owed)}</td>
-                    <td className="px-5 py-2.5 text-right">
+                    <td className={`cell-grow px-5 py-2.5 ${item.ageDays > 45 ? "text-warn" : "text-ink-soft"}`}>{item.reason}</td>
+                    <td className="cell-strong px-5 py-2.5 text-right tabular">{m(item.owed)}</td>
+                    <td className="cell-full px-5 py-2.5 text-right">
                       <select
                         className="rounded border border-line bg-white px-2 py-1 text-sm"
                         value=""

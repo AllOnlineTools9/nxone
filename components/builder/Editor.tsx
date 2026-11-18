@@ -70,6 +70,14 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
 
   return (
     <div className="space-y-6">
+      {/* On a phone the form is long and your own details rarely change, so these jump straight to
+          the parts filled in every time. */}
+      <nav aria-label="Jump to" className="no-print -mb-2 flex gap-2 overflow-x-auto lg:hidden">
+        {[["#ed-customer", doc.kind === "purchase-order" ? "Supplier" : "Customer"], ["#ed-items", "Items"], ["#ed-more", "Notes and payment"], ["#send", "Send"]].map(([href, label]) => (
+          <a key={href} href={href} className="chip shrink-0 px-3 py-1.5 text-sm">{label}</a>
+        ))}
+      </nav>
+
       <section className="card p-5">
         <h2 className="font-display text-lg">Where you trade</h2>
         <p className="mt-1 text-sm text-ink-soft">Pick your country and we set the currency, the tax and the document layout to match.</p>
@@ -192,7 +200,7 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
         </div>
       </section>
 
-      <section className="card p-5">
+      <section id="ed-customer" className="card scroll-mt-40 p-5">
         <h2 className="font-display text-lg">{doc.kind === "purchase-order" ? "Supplier" : "Customer"}</h2>
         <div className="mt-3"><ClientPicker doc={doc} update={update} /></div>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -215,7 +223,7 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
         </div>
       </section>
 
-      <section className="card p-5">
+      <section id="ed-items" className="card scroll-mt-40 p-5">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg">Items</h2>
           <label className="flex items-center gap-2 text-sm text-ink-soft">
@@ -229,9 +237,9 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
             const line = totals.lines.find((l) => l.id === item.id);
             return (
               <li key={item.id} className="rounded-lg border border-line p-4">
-                <div className="grid gap-3 sm:grid-cols-12">
-                  <div className="sm:col-span-12"><ItemPicker item={item} onPick={(patch) => updateItem(item.id, { ...patch, ...autoTax(patch.code ?? item.code, patch.rate ?? item.rate) })} /></div>
-                  <div className="sm:col-span-12">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-12">
+                  <div className="col-span-2 sm:col-span-12"><ItemPicker item={item} onPick={(patch) => updateItem(item.id, { ...patch, ...autoTax(patch.code ?? item.code, patch.rate ?? item.rate) })} /></div>
+                  <div className="col-span-2 sm:col-span-12">
                     <label className="label" htmlFor={`d-${item.id}`}>Description</label>
                     <input id={`d-${item.id}`} className="field" value={item.description} onChange={(e) => updateItem(item.id, { description: e.target.value })} placeholder="What are you charging for?" />
                   </div>
@@ -247,15 +255,15 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
                       ))}
                     </select>
                   </div>
-                  <div className="sm:col-span-2 flex items-end justify-between gap-2">
+                  <div className="col-span-2 flex items-end justify-between gap-2 sm:col-span-2">
                     <span className="pb-2 text-sm tabular text-ink-soft">{line ? formatMoney(line.total, pack.locale) : ""}</span>
                   </div>
                   {item.taxRuleId && (rules.find((r) => r.id === item.taxRuleId)?.status === "draft") ? (
                     <Num className="sm:col-span-3" label="Tax rate %" value={item.taxRateOverride ?? 0} onChange={(v) => updateItem(item.id, { taxRateOverride: v })} />
                   ) : null}
-                  {rateNote(item.code, item.rate) ? <p className="sm:col-span-12 text-xs text-ink-soft">{rateNote(item.code, item.rate)}</p> : null}
+                  {rateNote(item.code, item.rate) ? <p className="col-span-2 text-xs text-ink-soft sm:col-span-12">{rateNote(item.code, item.rate)}</p> : null}
                   {pack.code === "IN" ? (
-                    <div className="sm:col-span-6">
+                    <div className="col-span-2 sm:col-span-6">
                       <HsnPicker
                         value={item.code}
                         description={item.description}
@@ -265,9 +273,9 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
                   ) : null}
                 </div>
                 <div className="mt-2 flex items-center gap-1">
-                  <button type="button" className="btn-quiet px-2 py-1" onClick={() => moveItem(item.id, -1)} disabled={i === 0} aria-label="Move item up"><ArrowUp size={15} /></button>
-                  <button type="button" className="btn-quiet px-2 py-1" onClick={() => moveItem(item.id, 1)} disabled={i === doc.items.length - 1} aria-label="Move item down"><ArrowDown size={15} /></button>
-                  <button type="button" className="btn-quiet ml-auto px-2 py-1 hover:text-bad" onClick={() => removeItem(item.id)} disabled={doc.items.length === 1} aria-label="Remove item"><Trash2 size={15} /></button>
+                  <button type="button" className="btn-quiet px-3 py-2.5 sm:px-2 sm:py-1" onClick={() => moveItem(item.id, -1)} disabled={i === 0} aria-label="Move item up"><ArrowUp size={15} /></button>
+                  <button type="button" className="btn-quiet px-3 py-2.5 sm:px-2 sm:py-1" onClick={() => moveItem(item.id, 1)} disabled={i === doc.items.length - 1} aria-label="Move item down"><ArrowDown size={15} /></button>
+                  <button type="button" className="btn-quiet ml-auto px-3 py-2.5 sm:px-2 sm:py-1 hover:text-bad" onClick={() => removeItem(item.id)} disabled={doc.items.length === 1} aria-label="Remove item"><Trash2 size={15} /></button>
                 </div>
               </li>
             );
@@ -293,7 +301,7 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
 
       <SignatureBox doc={doc} update={update} />
 
-      <section className="card p-5">
+      <section id="ed-more" className="card scroll-mt-40 p-5">
         <h2 className="font-display text-lg">Anything else</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <Num label="Discount on total %" value={doc.discountPct ?? 0} onChange={(v) => update({ discountPct: v || undefined })} />
