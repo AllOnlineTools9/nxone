@@ -7,7 +7,12 @@ import { absoluteUrl } from "@/lib/config";
 
 export const dynamic = "force-static";
 
-const TOOLS = ["/pricing", "/welcome", "/today", "/ask", "/dashboard", "/documents", "/compliance", "/receivables", "/cash-flow", "/scenarios", "/reports", "/gst-returns", "/e-invoicing", "/payroll", "/stock", "/expenses", "/payables", "/bank-import", "/books", "/settings", "/sign-in", "/invoice-generator", "/quotation-generator", "/purchase-order-generator", "/receipt-generator", "/recurring", "/hsn-code-finder", "/calculators"];
+/**
+ * Only pages that are useful to someone arriving from a search. The app's own screens (books,
+ * reports, settings and the rest) show the visitor's own data, which a crawler does not have, so
+ * they are empty to it, marked noindex, and left out here.
+ */
+const TOOLS = ["/pricing", "/invoice-generator", "/quotation-generator", "/purchase-order-generator", "/receipt-generator", "/hsn-code-finder", "/calculators"];
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();

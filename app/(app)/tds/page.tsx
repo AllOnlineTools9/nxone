@@ -1,6 +1,6 @@
 import Tds from "@/components/Tds";
 
-export const metadata = { title: "TDS" };
+export const metadata = { title: "TDS", robots: { index: false, follow: true } };
 
 export default function Page() {
   return (

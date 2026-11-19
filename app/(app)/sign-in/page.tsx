@@ -1,6 +1,6 @@
 import SignIn from "@/components/SignIn";
 
-export const metadata = { title: "Sign in" };
+export const metadata = { title: "Sign in", robots: { index: false, follow: true } };
 
 export default function Page() {
   return (

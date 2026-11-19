@@ -1,6 +1,6 @@
 import YearEnd from "@/components/YearEnd";
 
-export const metadata = { title: "Year end" };
+export const metadata = { title: "Year end", robots: { index: false, follow: true } };
 
 export default function Page() {
   return (

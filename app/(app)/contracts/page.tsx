@@ -1,6 +1,6 @@
 import Projects from "@/components/Projects";
 
-export const metadata = { title: "Contracts" };
+export const metadata = { title: "Contracts", robots: { index: false, follow: true } };
 
 export default function Page() {
   return (

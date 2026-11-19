@@ -1,3 +1,4 @@
+import { AppSchema } from "@/components/StructuredData";
 import Builder from "@/components/builder/Builder";
 
 export const metadata = {
@@ -8,6 +9,7 @@ export const metadata = {
 export default function Page() {
   return (
     <div className="mx-auto w-full max-w-[100rem] px-4 py-6 sm:px-6">
+      <AppSchema name="NXOne Receipt generator" path="/receipt-generator/" description={metadata.description} />
       <header className="max-w-3xl">
         <h1 className="text-2xl font-semibold sm:text-3xl">Receipt generator</h1>
         <p className="mt-2 max-w-2xl text-ink-soft">Confirm money you have already been paid. Your customer needs it for their books, and you look organised, which never hurts.</p>

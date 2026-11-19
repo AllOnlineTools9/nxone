@@ -1,3 +1,4 @@
+import { AppSchema } from "@/components/StructuredData";
 import Builder from "@/components/builder/Builder";
 
 export const metadata = {
@@ -8,6 +9,7 @@ export const metadata = {
 export default function Page() {
   return (
     <div className="mx-auto w-full max-w-[100rem] px-4 py-6 sm:px-6">
+      <AppSchema name="NXOne Purchase order generator" path="/purchase-order-generator/" description={metadata.description} />
       <header className="max-w-3xl">
         <h1 className="text-2xl font-semibold sm:text-3xl">Purchase order generator</h1>
         <p className="mt-2 max-w-2xl text-ink-soft">Put the order in writing before the goods turn up. It is much easier to argue about a price now than when the invoice arrives.</p>

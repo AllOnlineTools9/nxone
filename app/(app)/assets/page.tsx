@@ -1,6 +1,6 @@
 import Assets from "@/components/Assets";
 
-export const metadata = { title: "What you own" };
+export const metadata = { title: "What you own", robots: { index: false, follow: true } };
 
 export default function Page() {
   return (

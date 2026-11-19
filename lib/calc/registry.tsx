@@ -18,7 +18,7 @@ export const CALCULATORS: CalcDef[] = [
   {
     slug: "profit-margin",
     name: "Profit margin",
-    title: "Profit Margin Calculator - Margin and Markup from Price and Cost",
+    title: "Profit Margin Calculator - Margin and Markup from Cost",
     description: "Work out profit, margin and markup from a selling price and a cost. Free and instant, worked out in your browser as you type.",
     blurb: "Profit, margin and markup from a price and a cost.",
     Component: ProfitMargin,
@@ -54,7 +54,7 @@ export const CALCULATORS: CalcDef[] = [
   {
     slug: "break-even",
     name: "Break even",
-    title: "Break Even Calculator - Units and Revenue to Cover Your Costs",
+    title: "Break Even Calculator - Units and Sales to Cover Costs",
     description: "Find how many units you must sell to cover fixed costs, and how far sales can fall before you lose money. Free and private.",
     blurb: "How much you must sell before you stop losing money.",
     Component: BreakEven,

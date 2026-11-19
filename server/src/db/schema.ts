@@ -212,3 +212,21 @@ export const sharedDocuments = sqliteTable("shared_documents", {
   byOrg: index("shared_documents_org_idx").on(t.orgId),
   byDocument: index("shared_documents_document_idx").on(t.documentId)
 }));
+
+/**
+ * Errors from the site and the API, one row per cause. Holds no customer data: reports are
+ * scrubbed before they get here (see telemetry/errors.ts).
+ */
+export const errorReports = sqliteTable("error_reports", {
+  fingerprint: text("fingerprint").primaryKey(),
+  source: text("source").notNull(),
+  message: text("message").notNull(),
+  stack: text("stack"),
+  path: text("path"),
+  userAgent: text("user_agent"),
+  count: integer("count").notNull().default(1),
+  firstSeen: integer("first_seen", { mode: "timestamp_ms" }).notNull(),
+  lastSeen: integer("last_seen", { mode: "timestamp_ms" }).notNull()
+}, (t) => ({
+  byLastSeen: index("error_reports_last_seen_idx").on(t.lastSeen)
+}));

@@ -1,6 +1,6 @@
 import Composition from "@/components/Composition";
 
-export const metadata = { title: "Composition scheme" };
+export const metadata = { title: "Composition scheme", robots: { index: false, follow: true } };
 
 export default function Page() {
   return (

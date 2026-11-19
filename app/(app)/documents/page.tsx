@@ -1,6 +1,6 @@
 import DocumentList from "@/components/DocumentList";
 
-export const metadata = { title: "Your documents" };
+export const metadata = { title: "Your documents", robots: { index: false, follow: true } };
 
 export default function Page() {
   return (

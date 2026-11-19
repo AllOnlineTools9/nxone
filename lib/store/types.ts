@@ -137,6 +137,8 @@ export interface SavedDocument extends Syncable {
    * that has one must not be registered twice.
    */
   einvoice?: { irn: string; ackNumber?: string; ackDate?: string; signedQr?: string; registeredAt: string };
+  /** How the goods travel, and the e-way bill number once the portal has given one. */
+  ewaybill?: import("../ewaybill/ewaybill").EwayRecord;
   /**
     * The document this one was made from, and the one made from it: a quotation and the invoice
     * it became. Named for documents rather than currencies, which convert too.

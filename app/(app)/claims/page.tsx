@@ -1,6 +1,6 @@
 import Claims from "@/components/Claims";
 
-export const metadata = { title: "Claims" };
+export const metadata = { title: "Claims", robots: { index: false, follow: true } };
 
 export default function Page() {
   return (

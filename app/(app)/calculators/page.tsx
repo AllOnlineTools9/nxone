@@ -2,8 +2,8 @@ import Link from "next/link";
 import { CALCULATORS } from "@/lib/calc/registry";
 
 export const metadata = {
-  title: "Business Calculators - Margin, Break Even, Late Payment Interest",
-  description: "Free calculators for pricing and cash: profit margin, markup, break even, discounts, late payment interest and a freelance hourly rate. They work out as you type, in your browser."
+  title: "Business Calculators - Margin, Markup, Break Even",
+  description: "Free calculators for profit margin, markup, break even, discounts, late payment interest and your hourly rate. Answers appear as you type."
 };
 
 export default function Page() {

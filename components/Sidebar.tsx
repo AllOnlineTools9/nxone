@@ -1,5 +1,5 @@
 "use client";
-import { BookOpen, Building2, CalendarClock, CalendarSync, Calculator, ChartColumn, FileSpreadsheet, FileText, FlaskConical, FolderOpen, HandCoins, Landmark, LayoutDashboard, MessageCircleQuestion, Quote, Package, Receipt, Search, ShoppingCart, Stamp, Sun, UsersRound, TrendingDown, Users, Wallet, X, ShieldCheck, Scissors, CalendarCheck, ClipboardList, Scale, Target, Hammer, History, Contact } from "lucide-react";
+import { BookOpen, Building2, CalendarClock, CalendarSync, Calculator, ChartColumn, FileSpreadsheet, FileText, FlaskConical, FolderOpen, HandCoins, Landmark, LayoutDashboard, MessageCircleQuestion, Quote, Package, Receipt, Search, ShoppingCart, Stamp, Sun, UsersRound, TrendingDown, Users, Wallet, X, ShieldCheck, Scissors, CalendarCheck, ClipboardList, Scale, Target, Hammer, History, Contact, Truck } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
@@ -28,7 +28,8 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string;
       { href: "/input-credit", label: "Input credit", icon: ShieldCheck },
       { href: "/tds", label: "TDS", icon: Scissors },
       { href: "/advance-tax", label: "Advance tax", icon: CalendarClock },
-      { href: "/e-invoicing", label: "E-invoicing", icon: Stamp }
+      { href: "/e-invoicing", label: "E-invoicing", icon: Stamp },
+      { href: "/e-way-bills", label: "E-way bills", icon: Truck }
     ]
   },
   {

@@ -1,6 +1,6 @@
 import Purchasing from "@/components/Purchasing";
 
-export const metadata = { title: "Orders and bills" };
+export const metadata = { title: "Orders and bills", robots: { index: false, follow: true } };
 
 export default function Page() {
   return (

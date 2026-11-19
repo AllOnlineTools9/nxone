@@ -6,7 +6,7 @@ import SyncPanel from "@/components/SyncPanel";
 import DemoControls from "@/components/DemoControls";
 import Notifications from "@/components/Notifications";
 
-export const metadata = { title: "Your business details" };
+export const metadata = { title: "Your business details", robots: { index: false, follow: true } };
 
 export default function Page() {
   return (

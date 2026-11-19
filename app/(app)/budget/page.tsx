@@ -1,6 +1,6 @@
 import Budget from "@/components/Budget";
 
-export const metadata = { title: "Budget" };
+export const metadata = { title: "Budget", robots: { index: false, follow: true } };
 
 export default function Page() {
   return (

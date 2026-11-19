@@ -1,6 +1,6 @@
 import AdvanceTax from "@/components/AdvanceTax";
 
-export const metadata = { title: "Advance tax" };
+export const metadata = { title: "Advance tax", robots: { index: false, follow: true } };
 
 export default function Page() {
   return (

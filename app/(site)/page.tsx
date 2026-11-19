@@ -1,3 +1,4 @@
+import { SiteSchema } from "@/components/StructuredData";
 import Link from "next/link";
 import { GUIDES } from "@/content/guides";
 import { Calculator, FileText, Quote, Receipt, Search, ShoppingCart } from "lucide-react";
@@ -12,6 +13,7 @@ const DOCS = [
 export default function Home() {
   return (
     <>
+      <SiteSchema />
       <section className="wrap py-14 sm:py-20">
         <p className="chip">Free, and your work is kept safe</p>
         <h1 className="mt-5 max-w-3xl text-4xl font-semibold leading-[1.05] sm:text-6xl">Send an invoice your accountant will not send back.</h1>

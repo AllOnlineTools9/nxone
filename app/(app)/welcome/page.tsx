@@ -1,6 +1,6 @@
 import Onboarding from "@/components/Onboarding";
 
-export const metadata = { title: "Set up your business" };
+export const metadata = { title: "Set up your business", robots: { index: false, follow: true } };
 
 export default function Page() {
   return (

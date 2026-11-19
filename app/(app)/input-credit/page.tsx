@@ -1,6 +1,6 @@
 import InputCredit from "@/components/InputCredit";
 
-export const metadata = { title: "Input credit" };
+export const metadata = { title: "Input credit", robots: { index: false, follow: true } };
 
 export default function Page() {
   return (

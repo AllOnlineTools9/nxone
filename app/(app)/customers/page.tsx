@@ -1,6 +1,6 @@
 import Customers from "@/components/Customers";
 
-export const metadata = { title: "Customers" };
+export const metadata = { title: "Customers", robots: { index: false, follow: true } };
 
 export default function Page() {
   return (

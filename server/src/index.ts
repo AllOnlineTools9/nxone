@@ -9,6 +9,7 @@ import { paymentProvider } from "./billing/provider";
 import { linkProvider, type PaymentNotice } from "./payments/links";
 import { leaks, newToken, refusalFor, stateOf } from "./portal/share";
 import { checkPdf, safeFileName } from "./portal/outgoing";
+import { alertText, fingerprint, fromBrowser, fromServer, type ErrorReport } from "./telemetry/errors";
 import * as schema from "./db/schema";
 import { emailSender, inviteEmail, loginEmail } from "./http/email";
 import { corsHeaders, json, problem, rateLimit } from "./http/respond";
@@ -37,6 +38,34 @@ export interface Env {
   RAZORPAY_PLANS?: string;
   /** Razorpay signs webhooks with its own secret, separate from the API key. */
   RAZORPAY_WEBHOOK_SECRET?: string;
+  /** Where a new error is emailed. Without it errors are still kept, just not emailed. */
+  ALERT_EMAIL?: string;
+}
+
+/**
+ * Keeps an error, counting repeats of the same cause, and emails the first sighting of each one.
+ * Never throws: failing to record an error must not become a second error.
+ */
+async function recordError(env: Env, report: ErrorReport): Promise<void> {
+  try {
+    const print = await fingerprint(report);
+    const now = Date.now();
+    const row = await env.DB.prepare(
+      `INSERT INTO error_reports (fingerprint, source, message, stack, path, user_agent, count, first_seen, last_seen)
+       VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+       ON CONFLICT(fingerprint) DO UPDATE SET count = count + 1, last_seen = excluded.last_seen
+       RETURNING count`
+    ).bind(print, report.source, report.message, report.stack ?? null, report.path ?? null, report.userAgent ?? null, now, now)
+      .first<{ count: number }>();
+
+    // Only a cause never seen before is worth an email, and never more than ten an hour.
+    if (row?.count !== 1 || !env.ALERT_EMAIL) return;
+    if (!(await rateLimit(env.SESSIONS, "error-alerts", 10, 60 * 60 * 1000))) return;
+    const mail = alertText(report, print);
+    await emailSender(env).send({ to: env.ALERT_EMAIL, subject: mail.subject, text: mail.text });
+  } catch (e) {
+    console.error("Could not record an error:", e);
+  }
 }
 
 const uid = (prefix: string) => `${prefix}_${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;
@@ -198,7 +227,7 @@ export default {
     }
   },
 
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
     /**
      * The app is allowed, and any local port while the API itself is running locally, so that
@@ -222,6 +251,19 @@ export default {
     try {
       /* ---------- health ---------- */
       if (url.pathname === "/health") return reply(json({ ok: true, time: new Date().toISOString() }));
+
+      /* ---------- an error from the site, reported by the browser ---------- */
+      if (url.pathname === "/telemetry/error" && req.method === "POST") {
+        // Only our own pages report, a report is small, and one address cannot flood the table.
+        if (!origin || !allowed.includes(origin)) return reply(new Response(null, { status: 204 }));
+        if (Number(req.headers.get("Content-Length") ?? 0) > 16_384) return reply(problem(413, "Too large."));
+        const ip = req.headers.get("CF-Connecting-IP") ?? "unknown";
+        if (!(await rateLimit(env.SESSIONS, `errors:${ip}`, 20, 60 * 60 * 1000))) return reply(new Response(null, { status: 204 }));
+
+        const report = fromBrowser(await req.json().catch(() => null), req.headers.get("User-Agent"));
+        if (report) ctx.waitUntil(recordError(env, report));
+        return reply(new Response(null, { status: 204 }));
+      }
 
       /* ---------- ask for a login link ---------- */
       if (url.pathname === "/auth/request" && req.method === "POST") {
@@ -1000,6 +1042,7 @@ export default {
       return reply(problem(404, "No such endpoint."));
     } catch (error) {
       console.error("Request failed:", error);
+      ctx.waitUntil(recordError(env, fromServer(error, req)));
       return reply(problem(500, "Something went wrong here. Nothing was changed."));
     }
   }

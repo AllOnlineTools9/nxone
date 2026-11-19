@@ -1,6 +1,6 @@
 import Dashboard from "@/components/Dashboard";
 
-export const metadata = { title: "Your money" };
+export const metadata = { title: "Your money", robots: { index: false, follow: true } };
 
 export default function Page() {
   return (

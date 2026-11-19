@@ -1,6 +1,6 @@
 import History from "@/components/History";
 
-export const metadata = { title: "History" };
+export const metadata = { title: "History", robots: { index: false, follow: true } };
 
 export default function Page() {
   return (
