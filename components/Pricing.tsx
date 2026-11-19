@@ -120,6 +120,9 @@ export default function Pricing() {
       <p className="mt-6 max-w-2xl text-sm text-ink-soft">
         The trial needs no card. When it ends your work stays exactly where it is, in the copy we hold and on your devices: only the reminders and the bill reading stop. Prices shown for {data.country === "IN" ? "India" : "outside India"}.
       </p>
+      <p className="mt-2 max-w-2xl text-sm text-ink-soft">
+        Plans renew until you cancel, and you can cancel at any time: the plan runs to the end of what you paid for. Payments are not refunded except for charges made in error. See <Link href="/cancellation-and-refunds" className="underline">cancellation and refunds</Link>.
+      </p>
     </div>
   );
 }

@@ -30,7 +30,7 @@
     "APP_ORIGIN": "https://nxone.io",
     "EMAIL_PROVIDER": "resend",
     "EMAIL_FROM": "NXOne <hello@nxone.io>",
-    "RECEIPT_PROVIDER": "google-vision"
+    "RECEIPT_PROVIDER": "google-vision",
     "ALERT_EMAIL": "nxone.io@protonmail.com"
   }
 }
