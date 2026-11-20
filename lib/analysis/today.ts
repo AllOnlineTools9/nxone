@@ -1,3 +1,4 @@
+import { owedOn } from "../documents/owed";
 import { booksView } from "../fx";
 import { forecast } from "./cashflow";
 import { chaseList } from "./receivables";
@@ -58,7 +59,7 @@ export function todayView(opts: {
 
   const owed = documents
     .filter((d) => (d.kind === "invoice" || d.kind === "proforma") && d.currency === currency && d.status !== "draft" && d.status !== "cancelled" && d.status !== "paid")
-    .reduce((a, d) => a + Math.max(0, d.totalMinor - d.paidMinor), 0);
+    .reduce((a, d) => a + owedOn(d), 0);
   const overdue = chaseList(documents, today, currency, 500).filter((c) => c.daysLate > 0).reduce((a, c) => a + c.owed.minor, 0);
   const youOwe = unpaidBills.reduce((a, e) => a + e.netMinor + e.taxMinor, 0);
 

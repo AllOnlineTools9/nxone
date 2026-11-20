@@ -31,7 +31,13 @@ export const CHART: Account[] = [
   asset("1010", "Cash in hand", { isCash: true, plain: "Cash" }),
   asset("1020", "Bank account", { isCash: true, plain: "Bank" }),
   asset("1030", "Payment gateway balance", { isCash: true, plain: "Money in transit" }),
+  asset("1040", "Fixed deposits", { plain: "Money in fixed deposits" }),
+  asset("1050", "Security deposits", { plain: "Deposits paid, such as rent deposits" }),
+  asset("1100", "Investments", { plain: "Investments" }),
   asset("1200", "Accounts receivable", { plain: "Owed to you" }),
+  asset("1210", "Accrued income", { plain: "Earned but not yet received" }),
+  asset("1410", "Tax deducted by customers", { plain: "Tax customers held back, to claim" }),
+  asset("1600", "Advance tax paid", { plain: "Income tax paid in advance" }),
   asset("1300", "Stock", { plain: "Goods on the shelf" }),
   asset("1400", "Input tax credit", { taxRole: "input", plain: "Tax you can reclaim" }),
   asset("1500", "Prepayments", { plain: "Paid in advance" }),
@@ -44,6 +50,8 @@ export const CHART: Account[] = [
   liability("2010", "Accounts payable", { plain: "You owe suppliers" }),
   liability("2100", "Tax collected on sales", { taxRole: "output", plain: "Tax you owe the government" }),
   liability("2200", "Customer advances", { plain: "Paid to you in advance" }),
+  liability("2050", "Outstanding expenses", { plain: "Costs owed but not yet paid" }),
+  liability("2210", "Income received in advance", { plain: "Received for work not yet done" }),
   liability("2300", "Loans", { plain: "Borrowings" }),
   liability("2400", "Salaries payable", { plain: "Pay owed to staff" }),
   liability("2410", "Provident fund payable", { plain: "Provident fund owed" }),
@@ -52,11 +60,17 @@ export const CHART: Account[] = [
   liability("2440", "Professional tax payable", { plain: "Professional tax owed" }),
 
   { code: "3000", name: "Owner's capital", type: "equity", normal: "credit", plain: "What the owner put in" },
+  // Money the owners take out for themselves. It reduces what they have in the business, so it sits
+  // with capital, as a debit, and never as a cost: drawings are not an expense of the business.
+  { code: "3100", name: "Drawings", type: "equity", normal: "debit", plain: "Taken out by the owners" },
+  { code: "3010", name: "Share capital", type: "equity", normal: "credit", plain: "Shares issued" },
   { code: "3900", name: "Retained earnings", type: "equity", normal: "credit", plain: "Profit kept in the business" },
 
   income("4000", "Sales", { plain: "What you earned" }),
   income("4100", "Other income", { plain: "Other income" }),
+  income("4200", "Interest received", { plain: "Interest earned" }),
   income("4300", "Exchange gain", { plain: "Gained on exchange rates" }),
+  income("4910", "Discounts received", { plain: "Discounts suppliers gave you" }),
   income("4900", "Discounts given", { normal: "debit", plain: "Discounts you gave" }),
   income("4800", "Gain on sale of equipment", { plain: "Sold for more than it was worth" }),
 
@@ -72,6 +86,10 @@ export const CHART: Account[] = [
   expense("6080", "Repairs and maintenance"),
   expense("6090", "Bank and payment charges"),
   expense("6100", "Office supplies"),
+  expense("6110", "Interest paid", { plain: "Interest on loans" }),
+  expense("6120", "Bad debts", { plain: "Money customers will not pay" }),
+  expense("6130", "Insurance"),
+  expense("6960", "Income tax", { plain: "Tax on the business's profit" }),
   expense("6500", "Depreciation", { plain: "Wear on what you own" }),
   expense("6510", "Loss on sale of equipment", { plain: "Sold for less than it was worth" }),
   expense("6950", "Exchange loss", { plain: "Lost on exchange rates" }),
@@ -83,4 +101,4 @@ export const accountsOfType = (type: AccountType) => CHART.filter((a) => a.type 
 export const cashAccounts = () => CHART.filter((a) => a.isCash);
 
 /** The expense accounts a user picks from, in the order they are likely to need them. */
-export const EXPENSE_CATEGORIES = CHART.filter((a) => a.type === "expense").map((a) => ({ code: a.code, name: a.name }));
+export const EXPENSE_CATEGORIES = CHART.filter((a) => a.type === "expense" && !["6120", "6960"].includes(a.code)).map((a) => ({ code: a.code, name: a.name }));

@@ -32,9 +32,9 @@ export class PeriodClosed extends Error {
  * "locked" leaves somebody stuck; the way out of a closed period is a document in an open one,
  * which is also the correct accounting answer.
  */
-export function refusal(what: "document" | "expense", date: string, lockedUpTo: string, formatted?: (iso: string) => string): string {
+export function refusal(what: "document" | "expense" | "entry", date: string, lockedUpTo: string, formatted?: (iso: string) => string): string {
   const show = formatted ?? ((iso: string) => iso);
-  const thing = what === "document" ? "This document" : "This expense";
+  const thing = what === "document" ? "This document" : what === "entry" ? "This entry" : "This expense";
   const fix = what === "document"
     ? "To correct it, raise a credit note dated today and a fresh invoice."
     : "To correct it, record the adjustment with today's date instead.";

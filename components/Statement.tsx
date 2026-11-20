@@ -1,4 +1,5 @@
 "use client";
+import { owedOn } from "@/lib/documents/owed";
 import { Check, Copy, Download, Mail, MessageCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { statementCsv, statementFor, statementLinks } from "@/lib/analysis/statement";
@@ -24,7 +25,7 @@ export default function Statement() {
     const names = new Map<string, number>();
     for (const d of ws.documents ?? []) {
       if (d.kind !== "invoice" || d.status === "cancelled") continue;
-      names.set(d.clientName, (names.get(d.clientName) ?? 0) + (d.totalMinor - d.paidMinor));
+      names.set(d.clientName, (names.get(d.clientName) ?? 0) + owedOn(d));
     }
     return [...names.entries()].sort((a, b) => b[1] - a[1]);
   }, [ws.documents]);

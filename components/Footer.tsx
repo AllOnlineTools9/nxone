@@ -6,7 +6,7 @@ const GROUPS: Array<[string, Array<[string, string]>]> = [
   ["Documents", [["/invoice-generator", "Invoice generator"], ["/quotation-generator", "Quotation generator"], ["/purchase-order-generator", "Purchase order"], ["/receipt-generator", "Receipt generator"]]],
   ["Work out", [["/calculators/profit-margin", "Profit margin"], ["/calculators/break-even", "Break even"], ["/calculators/late-payment-interest", "Late payment interest"], ["/hsn-code-finder", "HSN and SAC codes"]]],
   ["Learn", [["/guides/invoice-format-for-gst", "GST invoice format"], ["/guides/quotation-format", "Quotation format"], ["/guides", "All guides"], ["/hsn-code-finder", "HSN and SAC codes"]]],
-  ["Company", [["/pricing", "Pricing"], ["/about", "About"], ["/contact", "Contact"], ["/privacy-policy", "Privacy"], ["/terms", "Terms"], ["/cancellation-and-refunds", "Refunds"], ["/shipping-and-delivery", "Delivery"], ["/disclaimer", "Disclaimer"]]]
+  ["Company", [["/pricing", "Pricing"], ["/for-accountants", "For accountants"], ["/developers", "Developers"], ["/about", "About"], ["/contact", "Contact"], ["/privacy-policy", "Privacy"], ["/terms", "Terms"], ["/cancellation-and-refunds", "Refunds"], ["/shipping-and-delivery", "Delivery"], ["/disclaimer", "Disclaimer"]]]
 ];
 
 export default function Footer() {

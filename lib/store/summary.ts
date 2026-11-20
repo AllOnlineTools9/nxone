@@ -1,3 +1,4 @@
+import { owedOn } from "../documents/owed";
 import { fromMinor, type Money } from "../money";
 import type { SavedDocument } from "./types";
 
@@ -28,7 +29,7 @@ export function summarise(documents: SavedDocument[], todayIso: string, currency
   const clients = new Map<string, { outstandingMinor: number; count: number }>();
 
   for (const d of unpaid) {
-    const owed = Math.max(0, d.totalMinor - d.paidMinor);
+    const owed = owedOn(d);
     outstanding += owed;
     const entry = clients.get(d.clientName) ?? { outstandingMinor: 0, count: 0 };
     clients.set(d.clientName, { outstandingMinor: entry.outstandingMinor + owed, count: entry.count + 1 });

@@ -1,4 +1,5 @@
 "use client";
+import { owedOn } from "@/lib/documents/owed";
 import { ChevronDown, ChevronRight, FilePlus2, Pencil, Search, Trash2, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -242,7 +243,7 @@ export default function Customers() {
                                 </Link>
                                 <span className="tabular text-ink-soft">
                                   {money(d.totalMinor)}
-                                  {d.kind === "invoice" && d.paidMinor < d.totalMinor && d.status !== "cancelled" ? ` · ${money(d.totalMinor - d.paidMinor)} owed` : ` · ${d.status}`}
+                                  {d.kind === "invoice" && owedOn(d) > 0 && d.status !== "cancelled" ? ` · ${money(owedOn(d))} owed` : ` · ${d.status}`}
                                 </span>
                               </li>
                             ))}

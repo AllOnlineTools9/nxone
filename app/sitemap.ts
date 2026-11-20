@@ -12,7 +12,7 @@ export const dynamic = "force-static";
  * reports, settings and the rest) show the visitor's own data, which a crawler does not have, so
  * they are empty to it, marked noindex, and left out here.
  */
-const TOOLS = ["/pricing", "/invoice-generator", "/quotation-generator", "/purchase-order-generator", "/receipt-generator", "/hsn-code-finder", "/calculators"];
+const TOOLS = ["/pricing", "/invoice-generator", "/quotation-generator", "/purchase-order-generator", "/receipt-generator", "/hsn-code-finder", "/calculators", "/for-accountants", "/developers"];
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();

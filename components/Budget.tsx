@@ -30,7 +30,7 @@ export default function Budget() {
   const entries = useMemo(() => ledgerFor(
     db.documents(), db.expenses(), ws.profile?.currency ?? "INR",
     openingOf(ws.profile), { items: db.items() as StockItem[] },
-    { list: db.assets().map(toAssetForBooks) }
+    { list: db.assets().map(toAssetForBooks) }, db.entries()
   ), [ws]);
 
   if (!ready) return null;

@@ -1,3 +1,4 @@
+import { owedOn } from "../documents/owed";
 import { fromMinor, type Money } from "../money";
 import { booksView } from "../fx";
 import type { SavedDocument } from "../store/types";
@@ -45,7 +46,7 @@ const daysBetween = (from: string, to: string) =>
   Math.floor((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 
 const isBill = (d: SavedDocument) => d.kind === "invoice" || d.kind === "proforma";
-const owedOn = (d: SavedDocument) => Math.max(0, d.totalMinor - d.paidMinor);
+
 
 export function unpaidBills(allDocuments: SavedDocument[], currency: string): SavedDocument[] {
   // Foreign-currency records are converted at their own rate first, so nothing is left out.

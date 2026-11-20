@@ -41,6 +41,8 @@ export interface AskContext {
   profile?: Profile;
   today: string;
   currency: string;
+  /** Entries recorded directly, so capital, loans and tax paid count in the answers. */
+  entries?: import("../entries/types").ManualEntry[];
 }
 
 const money = (v: Money) => formatMoney(v, "en-IN");
@@ -75,10 +77,10 @@ function rangeFor(period: Period, today: string): ReportPeriod {
 
 export function ask(question: string, context: AskContext): Answer {
   const intent = parseQuestion(question);
-  const { documents, expenses, today, currency, profile } = context;
+  const { documents, expenses, today, currency, profile, entries } = context;
   const range = rangeFor(intent.period, today);
   const opening = openingOf(profile);
-  const ledger = ledgerFor(documents, expenses.filter((e) => !e.deletedAt).map(toExpenseInput), currency, opening);
+  const ledger = ledgerFor(documents, expenses.filter((e) => !e.deletedAt).map(toExpenseInput), currency, opening, undefined, undefined, entries);
 
   const understood = `${intent.name.replace(/-/g, " ")}, ${range.label}`;
   const pl = () => profitAndLoss(ledger, currency, range.from, range.to);

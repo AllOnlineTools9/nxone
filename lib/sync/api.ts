@@ -183,3 +183,57 @@ export interface SharedSummary {
 
 /** Which documents are shared, and whether the customer has looked. */
 export const sharedDocuments = () => call<{ shared: SharedSummary[] }>("/portal/shared");
+
+/* ---------------------------------------------------------------- practice */
+
+export interface PracticeClient {
+  orgId: string;
+  role: string;
+  current: boolean;
+  name: string;
+  plan: string;
+  profile: {
+    name?: string; taxId?: string; country?: string; region?: string; gstScheme?: string;
+    quarterlyGst?: boolean; registrations?: string[]; lockedUpTo?: string;
+  };
+  counts: Record<string, number>;
+  lastActivity: number | null;
+}
+
+export interface PracticeRequest {
+  id: string; email: string; businessName: string | null;
+  state: "pending" | "accepted" | "declined" | "expired"; sentAt: number; expiresAt: number;
+}
+
+export const practiceClients = () => call<{ clients: PracticeClient[] }>("/practice/clients");
+export const practiceRecords = (org: string, offset = 0) =>
+  call<{ records: Array<{ kind: string; localId: string; body: unknown }>; more: boolean; next: number }>(`/practice/records?org=${encodeURIComponent(org)}&offset=${offset}`);
+export const askForAccess = (input: { email: string; businessName?: string; note?: string }) =>
+  call<{ ok: boolean; sent: boolean; resent: boolean }>("/practice/request", { method: "POST", body: JSON.stringify(input) });
+export const practiceRequests = () => call<{ requests: PracticeRequest[] }>("/practice/requests");
+export const cancelAccessRequest = (id: string) => call<{ ok: boolean }>("/practice/request/cancel", { method: "POST", body: JSON.stringify({ id }) });
+export const accessRequestInfo = (token: string) =>
+  call<{ from: string; businessName: string | null; note: string | null; state: PracticeRequest["state"] }>(`/practice/request-info?token=${encodeURIComponent(token)}`);
+export const grantAccess = (token: string) => call<{ ok: boolean; business: string; accountant?: string }>("/practice/grant", { method: "POST", body: JSON.stringify({ token }) });
+export const declineAccess = (token: string) => call<{ ok: boolean }>("/practice/decline", { method: "POST", body: JSON.stringify({ token }) });
+export const leaveClient = (org: string) => call<{ ok: boolean }>("/practice/leave", { method: "POST", body: JSON.stringify({ org }) });
+
+/* ------------------------------------------------------- API and webhooks */
+
+export interface IntegrationsView {
+  allowed: boolean;
+  plan: string;
+  events: string[];
+  keys: Array<{ id: string; name: string; prefix: string; createdAt: number; lastUsedAt: number | null }>;
+  webhooks: Array<{ id: string; url: string; events: string[]; secretEnd: string; createdAt: number }>;
+}
+export interface Delivery { id: string; event: string; ok: boolean; status: number | null; attempts: number; error: string | null; createdAt: number }
+
+export const integrations = () => call<IntegrationsView>("/integrations");
+export const createApiKey = (name: string) => call<IntegrationsView & { key: string }>("/integrations/keys", { method: "POST", body: JSON.stringify({ name }) });
+export const revokeApiKey = (id: string) => call<IntegrationsView>("/integrations/keys/revoke", { method: "POST", body: JSON.stringify({ id }) });
+export const addWebhook = (url: string, events: string[]) => call<IntegrationsView & { secret: string }>("/integrations/webhooks", { method: "POST", body: JSON.stringify({ url, events }) });
+export const removeWebhook = (id: string) => call<IntegrationsView>("/integrations/webhooks/remove", { method: "POST", body: JSON.stringify({ id }) });
+export const testWebhook = (id: string) => call<{ ok: boolean; status: number | null; error: string | null }>("/integrations/webhooks/test", { method: "POST", body: JSON.stringify({ id }) });
+export const webhookDeliveries = (id: string) => call<{ deliveries: Delivery[] }>(`/integrations/webhooks/deliveries?id=${encodeURIComponent(id)}`);
+export const redeliver = (id: string) => call<{ ok: boolean }>("/integrations/webhooks/redeliver", { method: "POST", body: JSON.stringify({ id }) });

@@ -7,11 +7,26 @@ import { sync } from "@/lib/sync/engine";
 
 type Stage = "ask" | "sent" | "checking" | "done" | "error";
 
+/** Where to go once signed in, set by a page that sent someone here, such as an access request. */
+const RETURN_KEY = "nxone.returnTo";
+export function returnHereAfterSignIn(path: string) {
+  try { localStorage.setItem(RETURN_KEY, path); } catch { /* private mode: they will find their way back */ }
+}
+function takeReturnPath(): string | null {
+  try {
+    const p = localStorage.getItem(RETURN_KEY);
+    localStorage.removeItem(RETURN_KEY);
+    // Only paths on this site, never another address.
+    return p && p.startsWith("/") && !p.startsWith("//") ? p : null;
+  } catch { return null; }
+}
+
 /** Signing in is a link in an email. No password to choose, forget or leak. */
 export default function SignIn() {
   const [stage, setStage] = useState<Stage>("ask");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
+  const [next, setNext] = useState<string | null>(null);
 
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("token");
@@ -22,6 +37,8 @@ export default function SignIn() {
         setStage("done");
         setEmail(result.data.user.email);
         window.history.replaceState({}, "", window.location.pathname);
+        const back = takeReturnPath();
+        if (back) { setNext(back); setTimeout(() => { window.location.href = back; }, 1200); }
       } else {
         setStage("error");
         setMessage(result.error);
@@ -55,7 +72,9 @@ export default function SignIn() {
         <>
           <h2 className="flex items-center gap-2 font-display text-lg"><Check size={18} className="text-ok" />Signed in as {email}</h2>
           <p className="mt-2 text-ink-soft">Your documents, customers and expenses on this device are being copied to your account, and anything from your other devices is on its way here.</p>
-          <Link href="/dashboard/" className="btn-primary mt-4">Go to your money</Link>
+          {next
+            ? <Link href={next} className="btn-primary mt-4">Continue where you were</Link>
+            : <Link href="/dashboard/" className="btn-primary mt-4">Go to your money</Link>}
         </>
       ) : null}
 

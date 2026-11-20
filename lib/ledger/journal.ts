@@ -86,8 +86,8 @@ export function reversalOf(original: JournalEntry, date: string, reason: string)
 export interface AccountBalance { code: string; name: string; type: AccountType; debit: Money; credit: Money; balance: Money }
 
 /**
- * Balances per account for a period. Balance is signed the way the account normally sits, so an
- * asset with more debits is positive and so is income with more credits.
+ * Balances per account for a period. Balance is signed the way the account's type normally sits,
+ * so an asset with more debits is positive and so is income with more credits.
  */
 export function balances(entries: JournalEntry[], currency: string, from?: string, to?: string): AccountBalance[] {
   const live = entries.filter((e) => e.currency === currency && (!from || e.date >= from) && (!to || e.date <= to));
@@ -103,7 +103,11 @@ export function balances(entries: JournalEntry[], currency: string, from?: strin
   return [...map.entries()]
     .map(([code, v]) => {
       const acct = accountByCode(code)!;
-      const signed = acct.normal === "debit" ? v.debit - v.credit : v.credit - v.debit;
+      // Signed the way the account's TYPE sits, not the account itself, so a contra account
+      // (drawings within equity, discounts given within income) comes out negative and every
+      // total that adds up a type takes it off rather than adding it on.
+      const typeNormal = acct.type === "asset" || acct.type === "expense" ? "debit" : "credit";
+      const signed = typeNormal === "debit" ? v.debit - v.credit : v.credit - v.debit;
       return { code, name: acct.name, type: acct.type, debit: fromMinor(v.debit, currency), credit: fromMinor(v.credit, currency), balance: fromMinor(signed, currency) };
     })
     .sort((a, b) => a.code.localeCompare(b.code));

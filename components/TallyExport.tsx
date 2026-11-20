@@ -22,14 +22,14 @@ export default function TallyExport() {
     if (!ready || !ws.profile) return undefined;
     const anchor = `${when}-15`;
     const period = span === "month" ? monthPeriod(anchor) : span === "quarter" ? quarterPeriod(anchor) : financialYear(anchor);
-    const input: TallyInput = { profile: ws.profile, documents: db.documents(), expenses: db.expenses(), period };
+    const input: TallyInput = { profile: ws.profile, documents: db.documents(), expenses: db.expenses(), entries: db.entries(), period };
     return { input, result: tallyExport(input) };
   }, [ready, ws, when, span]);
 
   if (!ready || !built) return null;
   const { input, result } = built;
   const c = result.counts;
-  const total = c.sales + c.creditNotes + c.receipts + c.purchases + c.payments;
+  const total = c.sales + c.creditNotes + c.receipts + c.purchases + c.payments + c.journals + c.contras;
 
   const download = () => {
     const bytes = makeZip(tallyFiles(result, input));
@@ -69,7 +69,7 @@ export default function TallyExport() {
 
       <p className="mt-4 text-sm">
         {total
-          ? `${c.sales} sales, ${c.creditNotes} credit notes, ${c.receipts} receipts, ${c.purchases} purchases and ${c.payments} payments, using ${c.ledgers} ledgers.`
+          ? `${c.sales} sales, ${c.creditNotes} credit notes, ${c.receipts} receipts, ${c.purchases} purchases, ${c.payments} payments and ${c.journals + c.contras} other entries, using ${c.ledgers} ledgers.`
           : "Nothing in this period yet."}
       </p>
 

@@ -31,7 +31,7 @@ export default function YearEnd() {
   const entries = useMemo(() => ledgerFor(
     db.documents(), db.expenses(), ws.profile?.currency ?? "INR",
     openingOf(ws.profile), { items: db.items() as StockItem[] },
-    { list: db.assets().map(toAssetForBooks) }
+    { list: db.assets().map(toAssetForBooks) }, db.entries()
   ), [ws]);
 
   if (!ready || !ws.profile) return null;
@@ -141,6 +141,28 @@ export default function YearEnd() {
       </section>
 
       <section className="card p-5">
+        <h2 className="font-display text-lg">Adjustments before you close</h2>
+        <p className="mt-1 max-w-3xl text-sm text-ink-soft">
+          Things that belong to {label} but have no invoice or bill behind them. Open one, put in the
+          amount, and it goes into the books dated {date(closing.to)}.
+        </p>
+        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+          {adjustments(date(closing.to)).map((a) => (
+            <li key={a.title}>
+              <Link href={a.href} className="block rounded-lg border border-line p-3 hover:border-ink-faint">
+                <span className="block text-sm font-medium">{a.title}</span>
+                <span className="mt-0.5 block text-xs text-ink-soft">{a.hint}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        {ws.profile.structure === "partnership" ? (
+          <p className="mt-3 text-xs text-ink-faint">
+            Each partner&apos;s capital, drawings and the year&apos;s profit are on the <Link className="underline" href="/books/">Books</Link>, under Partners.
+          </p>
+        ) : null}
+      </section>
+      <section className="card p-5">
         <h2 className="flex items-center gap-2 font-display text-lg">
           <Lock size={17} className="text-ink-faint" aria-hidden="true" />Close it
         </h2>
@@ -169,6 +191,19 @@ export default function YearEnd() {
       </section>
     </div>
   );
+}
+
+/** Year-end adjustments, each opening Other money with a sentence to finish. */
+function adjustments(onDate: string): Array<{ title: string; hint: string; href: string }> {
+  const to = (text: string) => `/entries/?text=${encodeURIComponent(text)}`;
+  return [
+    { title: "Expenses owed but not paid", hint: "Rent, salary or electricity for the last month, paid after the year ends.", href: to(`Rent of ___ for March is outstanding on ${onDate}`) },
+    { title: "Expenses paid in advance", hint: "Insurance or a subscription that covers part of next year.", href: to(`Insurance ___ is prepaid for next year on ${onDate}`) },
+    { title: "Income earned, not yet received", hint: "Interest or a fee you have earned but not been paid.", href: to(`Interest of ___ earned but not yet received on ${onDate}`) },
+    { title: "Income received in advance", hint: "Money taken this year for work you will do next year.", href: to(`Received ___ in advance for next year's work on ${onDate}`) },
+    { title: "Depreciation", hint: "Worked out for each asset on the Assets page.", href: "/assets/" },
+    { title: "Money nobody will pay", hint: "Write it off from Owed to you, against the invoice.", href: "/receivables/" }
+  ];
 }
 
 function Figure({ label, value }: { label: string; value: string }) {

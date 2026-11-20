@@ -18,7 +18,7 @@ export default function CashFlow() {
 
   const currency = ws.profile?.currency ?? "INR";
   const today = todayIso();
-  const f = forecast(db.documents(), db.expenses(), today, currency, 90, minimum * 100, openingOf(ws.profile));
+  const f = forecast(db.documents(), db.expenses(), today, currency, 90, minimum * 100, openingOf(ws.profile), { entries: db.entries() });
   const view = windowOf(f, days);
   const m = (v: { minor: number; currency: string }) => formatMoney(v, "en-IN");
 

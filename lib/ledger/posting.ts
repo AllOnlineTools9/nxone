@@ -6,6 +6,7 @@ import type { DocumentData } from "../documents/types";
 import { convertMinor, rateFor, usableRate } from "../fx";
 import { keepingStock, stockFrom, type StockItem, type StockMove } from "../stock/ledger";
 import type { Expense, SavedDocument } from "../store/types";
+import type { ManualEntry } from "../entries/types";
 import { entry, totalCredits, totalDebits, type JournalEntry, type JournalLine } from "./journal";
 
 /**
@@ -310,7 +311,9 @@ export function ledgerFor(
    * What the business owns. Left out, the accounts behave exactly as they did before assets
    * existed, so adding this cannot change anybody's books until they record one.
    */
-  assets?: { list: AssetForBooks[]; today?: string }
+  assets?: { list: AssetForBooks[]; today?: string },
+  /** Entries recorded directly: capital, drawings, loans, tax paid, adjustments. */
+  manual?: ManualEntry[]
 ): JournalEntry[] {
   const out: JournalEntry[] = [];
   const saved = documents;
@@ -328,19 +331,67 @@ export function ledgerFor(
     const fx: Fx | undefined = rate.source === "same" ? undefined : { base: currency, rate: rate.rate };
 
     out.push(postInvoice(d.doc, d.id, fx));
-    if (d.paidMinor > 0) {
+    // A payment that bounced was still received first: it is posted as received, and the bounce
+    // takes it back on the day it came back.
+    const bounced = (d.bounces ?? []).reduce((sum, b) => sum + b.amountMinor, 0);
+    const received = d.paidMinor + bounced;
+    if (received > 0) {
       out.push(postPayment({
         id: `${d.id}-paid`,
         // The recorded day the money arrived. Records made before that was kept fall back to
         // the old guess, which is wrong in the same way it always was but no more so.
         date: d.paidOn ?? (d.status === "paid" ? d.updatedAt.slice(0, 10) : d.issueDate),
-        amountMinor: Math.min(d.paidMinor, d.totalMinor),
+        amountMinor: Math.min(received, d.totalMinor),
         currency: d.currency,
         account: "1020",
         documentNumber: d.number,
         ...(fx ? { fx: { base: currency, rate: usableRate(d.paymentFxRate) ? d.paymentFxRate : rate.rate, invoiceRate: rate.rate } } : {})
       }));
     }
+  }
+
+  // What closed invoices other than money, and payments that came back.
+  for (const d of documents) {
+    if (d.status === "draft" || d.status === "cancelled" || d.kind !== "invoice") continue;
+    const rate = rateFor(d.currency, currency, saved, d.doc.fxRate);
+    if (!rate) continue;
+    const inBooks = (minor: number) => (rate.source === "same" ? minor : convertMinor(minor, d.currency, currency, rate.rate));
+    const who = d.clientName;
+    if (d.settlement?.discountMinor) {
+      out.push(entry({
+        date: d.settlement.on, narration: `Discount allowed to ${who} on ${d.number}`, currency,
+        lines: [{ account: "4900", debit: inBooks(d.settlement.discountMinor), memo: who }, { account: "1200", credit: inBooks(d.settlement.discountMinor), memo: d.number }],
+        source: { kind: "payment", id: `${d.id}-discount`, number: d.number }
+      }));
+    }
+    if (d.settlement?.writtenOffMinor) {
+      out.push(entry({
+        date: d.settlement.on, narration: `${d.number} from ${who} written off as a bad debt`, currency,
+        lines: [{ account: "6120", debit: inBooks(d.settlement.writtenOffMinor), memo: who }, { account: "1200", credit: inBooks(d.settlement.writtenOffMinor), memo: d.number }],
+        source: { kind: "payment", id: `${d.id}-writeoff`, number: d.number }
+      }));
+    }
+    (d.bounces ?? []).forEach((b, i) => {
+      out.push(entry({
+        date: b.on, narration: `Payment from ${who} for ${d.number} came back unpaid`, currency,
+        lines: [{ account: "1200", debit: inBooks(b.amountMinor), memo: d.number }, { account: "1020", credit: inBooks(b.amountMinor), memo: who }],
+        source: { kind: "payment", id: `${d.id}-bounce-${i}`, number: d.number }
+      }));
+      if (b.chargesMinor) {
+        out.push(entry({
+          date: b.on, narration: `Bank charges for the payment that came back on ${d.number}`, currency,
+          lines: [{ account: "6090", debit: b.chargesMinor }, { account: "1020", credit: b.chargesMinor }],
+          source: { kind: "payment", id: `${d.id}-bounce-charges-${i}`, number: d.number }
+        }));
+      }
+    });
+  }
+
+  for (const m of manual ?? []) {
+    if (m.deletedAt) continue;
+    try {
+      out.push(entry({ id: m.id, date: m.date, narration: m.narration, currency, lines: m.lines, source: { kind: "manual", id: m.id } }));
+    } catch { /* an entry that no longer balances is shown on the entries screen, not posted */ }
   }
 
   for (const e of expenses) {

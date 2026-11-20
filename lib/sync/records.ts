@@ -1,4 +1,5 @@
-import type { CatalogueItem, Client, Expense, Profile, RecurringTemplate, SavedDocument, SavedEmployee, SavedPayRun, SavedScenario, Workspace } from "../store/types";
+import type { CatalogueItem, Client, Expense, Profile, RecurringTemplate, SavedAsset, SavedDocument, SavedEmployee, SavedPayRun, SavedProject, SavedScenario, Workspace } from "../store/types";
+import type { ManualEntry } from "../entries/types";
 
 /**
  * Translating between the workspace on this device and the records the server stores. The server
@@ -6,7 +7,7 @@ import type { CatalogueItem, Client, Expense, Profile, RecurringTemplate, SavedD
  * what an invoice is.
  */
 
-export type RecordKind = "profile" | "client" | "item" | "document" | "expense" | "recurring" | "scenario" | "employee" | "payrun";
+export type RecordKind = "profile" | "client" | "item" | "document" | "expense" | "recurring" | "scenario" | "employee" | "payrun" | "asset" | "project" | "entry";
 
 export interface WireRecord {
   kind: RecordKind;
@@ -26,7 +27,7 @@ export function toWire(ws: Workspace): WireRecord[] {
   if (ws.profile) {
     out.push({ kind: "profile", localId: "profile", body: ws.profile, version: ws.profile.version ?? 1, updatedAt: ms(ws.profile.updatedAt) || Date.now() });
   }
-  const add = (kind: RecordKind, rows: Array<Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun>) => {
+  const add = (kind: RecordKind, rows: Array<Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun | SavedAsset | SavedProject | ManualEntry>) => {
     for (const row of rows) {
       out.push({ kind, localId: row.id, body: row, version: row.version ?? 1, updatedAt: ms(row.updatedAt), deletedAt: row.deletedAt ? ms(row.deletedAt) : null });
     }
@@ -39,6 +40,11 @@ export function toWire(ws: Workspace): WireRecord[] {
   add("scenario", ws.scenarios ?? []);
   add("employee", ws.employees ?? []);
   add("payrun", ws.payruns ?? []);
+  // What the business owns, its contracts, and entries recorded directly: all part of the books,
+  // so they travel with everything else.
+  add("asset", ws.assets ?? []);
+  add("project", ws.projects ?? []);
+  add("entry", ws.entries ?? []);
   return out;
 }
 
@@ -52,7 +58,7 @@ export function pendingRecords(ws: Workspace): WireRecord[] {
   });
 }
 
-export function collectionFor(ws: Workspace, kind: RecordKind): Array<Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun> {
+export function collectionFor(ws: Workspace, kind: RecordKind): Array<Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun | SavedAsset | SavedProject | ManualEntry> {
   if (kind === "client") return ws.clients ?? [];
   if (kind === "item") return ws.items ?? [];
   if (kind === "document") return ws.documents ?? [];
@@ -61,6 +67,9 @@ export function collectionFor(ws: Workspace, kind: RecordKind): Array<Client | C
   if (kind === "scenario") return ws.scenarios ?? [];
   if (kind === "employee") return ws.employees ?? [];
   if (kind === "payrun") return ws.payruns ?? [];
+  if (kind === "asset") return ws.assets ?? [];
+  if (kind === "project") return ws.projects ?? [];
+  if (kind === "entry") return ws.entries ?? [];
   return [];
 }
 
@@ -92,7 +101,7 @@ export function applyIncoming(ws: Workspace, incoming: WireRecord[]): Workspace 
       version: rec.version,
       syncedAt: new Date().toISOString(),
       deletedAt: rec.deletedAt ? new Date(rec.deletedAt).toISOString() : undefined
-    } as Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun;
+    } as Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun | SavedAsset | SavedProject | ManualEntry;
 
     const updated = mine ? list.map((row) => (row.id === rec.localId ? incomingRow : row)) : [...list, incomingRow];
     next = withCollection(next, rec.kind, updated);
@@ -109,7 +118,7 @@ function serverWins(incoming: WireRecord, mine: { version: number; updatedAt: nu
   return incoming.updatedAt > mine.updatedAt;
 }
 
-function withCollection(ws: Workspace, kind: RecordKind, rows: Array<Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun>): Workspace {
+function withCollection(ws: Workspace, kind: RecordKind, rows: Array<Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun | SavedAsset | SavedProject | ManualEntry>): Workspace {
   if (kind === "client") return { ...ws, clients: rows as Client[] };
   if (kind === "item") return { ...ws, items: rows as CatalogueItem[] };
   if (kind === "document") return { ...ws, documents: rows as SavedDocument[] };
@@ -118,6 +127,9 @@ function withCollection(ws: Workspace, kind: RecordKind, rows: Array<Client | Ca
   if (kind === "scenario") return { ...ws, scenarios: rows as SavedScenario[] };
   if (kind === "employee") return { ...ws, employees: rows as SavedEmployee[] };
   if (kind === "payrun") return { ...ws, payruns: rows as SavedPayRun[] };
+  if (kind === "asset") return { ...ws, assets: rows as SavedAsset[] };
+  if (kind === "project") return { ...ws, projects: rows as SavedProject[] };
+  if (kind === "entry") return { ...ws, entries: rows as ManualEntry[] };
   return ws;
 }
 

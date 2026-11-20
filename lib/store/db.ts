@@ -1,3 +1,4 @@
+import type { ManualEntry } from "../entries/types";
 import type { DocumentData, DocumentKind } from "../documents/types";
 import { rememberFrom } from "../customers/customers";
 import { formatDate, todayIso } from "../format";
@@ -218,7 +219,7 @@ export class Store {
     return [...(this.read().audit ?? [])].reverse().sort((a, b) => b.at.localeCompare(a.at));
   }
 
-  private guardLock(what: "document" | "expense", ...dates: Array<string | undefined>) {
+  private guardLock(what: "document" | "expense" | "entry", ...dates: Array<string | undefined>) {
     const profile = this.read().profile;
     const lockedUpTo = profile?.lockedUpTo;
     if (!lockedUpTo) return;
@@ -323,10 +324,10 @@ export class Store {
    * Deleting marks the row instead of removing it, so your other devices learn about it. A row the
    * server has never seen is dropped outright, since there is nobody to tell.
    */
-  private tombstone(collection: "clients" | "items" | "documents" | "expenses" | "recurring" | "scenarios" | "employees" | "payruns" | "assets" | "projects", id: string) {
+  private tombstone(collection: "clients" | "items" | "documents" | "expenses" | "recurring" | "scenarios" | "employees" | "payruns" | "assets" | "projects" | "entries", id: string) {
     const ws = this.read();
     const now = new Date().toISOString();
-    const list = (ws[collection] ?? []) as Array<Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun | SavedAsset | SavedProject>;
+    const list = (ws[collection] ?? []) as Array<Client | CatalogueItem | SavedDocument | Expense | RecurringTemplate | SavedScenario | SavedEmployee | SavedPayRun | SavedAsset | SavedProject | ManualEntry>;
     const next = list
       .filter((row) => !(row.id === id && !row.syncedAt))
       .map((row) => (row.id === id ? { ...row, deletedAt: now, updatedAt: now, version: (row.version ?? 1) + 1 } : row));
@@ -428,6 +429,37 @@ export class Store {
   }
 
   deleteProject(id: string) { this.tombstone("projects", id); }
+
+  /* ---- entries recorded directly ---- */
+
+  entries(): ManualEntry[] { return (this.read().entries ?? []).filter((e) => !e.deletedAt).sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt)); }
+
+  /** Saves an entry, refusing one dated inside a closed period or one that does not balance. */
+  saveEntry(input: Omit<ManualEntry, "id" | "createdAt" | "updatedAt"> & { id?: string }): ManualEntry {
+    const debits = input.lines.reduce((a, l) => a + (l.debit ?? 0), 0);
+    const credits = input.lines.reduce((a, l) => a + (l.credit ?? 0), 0);
+    if (!debits || debits !== credits) throw new Error("The entry does not balance: what goes in must equal what comes out.");
+    const ws = this.read();
+    const list = ws.entries ?? [];
+    const existing = input.id ? list.find((e) => e.id === input.id) : undefined;
+    this.guardLock("entry", input.date, existing?.date);
+
+    const now = new Date().toISOString();
+    const saved: ManualEntry = existing
+      ? { ...existing, ...input, id: existing.id, createdAt: existing.createdAt, updatedAt: now, version: (existing.version ?? 1) + 1, deletedAt: undefined }
+      : { ...input, id: newId("je"), createdAt: now, updatedAt: now, version: 1 };
+    this.write({ ...ws, entries: existing ? list.map((e) => (e.id === saved.id ? saved : e)) : [...list, saved] });
+    this.record("entries", saved.id, saved.narration.slice(0, 60), existing ? "changed" : "created",
+      existing as unknown as Record<string, unknown>, saved as unknown as Record<string, unknown>);
+    return saved;
+  }
+
+  deleteEntry(id: string) {
+    const found = (this.read().entries ?? []).find((e) => e.id === id);
+    if (found) this.guardLock("entry", found.date);
+    this.tombstone("entries", id);
+    if (found) this.record("entries", id, found.narration.slice(0, 60), "deleted");
+  }
 
   /**
    * Tie a document to the one it was made from - a quotation to the invoice it became. Both ends

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { formatDate, todayIso } from "@/lib/format";
 import { formatMoney, fromMinor } from "@/lib/money";
 import { trialBalance } from "@/lib/ledger/journal";
+import { accountByCode } from "@/lib/ledger/accounts";
 import { ledgerFor, toAssetForBooks } from "@/lib/ledger/posting";
 import { balanceSheet, cashFlow, profitAndLoss } from "@/lib/ledger/statements";
 import { financialYear, monthPeriod, quarterPeriod, type Period } from "@/lib/store/reports";
@@ -10,9 +11,13 @@ import { openingOf } from "@/lib/ledger/opening";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
 import RateNeeded from "./RateNeeded";
 import type { StockItem } from "@/lib/stock/ledger";
+import { Download } from "lucide-react";
+import { makeXlsx } from "@/lib/files/xlsx";
+import { booksWorkbook } from "@/lib/reports/workbook";
+import { DayBookView, LedgerView, PartnersView, ReceiptsPaymentsView, TraditionalView } from "./BooksViews";
 
 type Choice = "month" | "quarter" | "year";
-type View = "profit" | "position" | "cash" | "journals";
+type View = "profit" | "position" | "cash" | "ledger" | "daybook" | "rp" | "traditional" | "partners" | "journals";
 
 /**
  * The accounts, kept in plain language, with the journal view for anyone who wants it.
@@ -29,7 +34,7 @@ export default function Books() {
 
   const currency = ws.profile?.currency ?? "INR";
   const period: Period = choice === "month" ? monthPeriod(anchor) : choice === "quarter" ? quarterPeriod(anchor) : financialYear(anchor);
-  const ledger = ledgerFor(db.documents(), db.expenses(), currency, openingOf(ws.profile), { items: db.items() as StockItem[] }, { list: db.assets().map(toAssetForBooks) });
+  const ledger = ledgerFor(db.documents(), db.expenses(), currency, openingOf(ws.profile), { items: db.items() as StockItem[] }, { list: db.assets().map(toAssetForBooks) }, db.entries());
   const pl = profitAndLoss(ledger, currency, period.from, period.to);
   const bs = balanceSheet(ledger, currency, period.to);
   const cf = cashFlow(ledger, currency, period.from, period.to);
@@ -37,6 +42,16 @@ export default function Books() {
   const m = (v: { minor: number; currency: string }) => formatMoney(v, "en-IN");
 
   const entriesInPeriod = ledger.filter((e) => e.date >= period.from && e.date <= period.to);
+  const country = ws.profile?.country ?? "IN";
+  const partners = ws.profile?.structure === "partnership" ? ws.profile.partners ?? [] : [];
+
+  const downloadExcel = () => {
+    const bytes = makeXlsx(booksWorkbook(ledger, currency, period, ws.profile?.name || "Books"));
+    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = `books-${period.from}-to-${period.to}.xlsx`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  };
 
   return (
     <div className="space-y-6">
@@ -44,7 +59,7 @@ export default function Books() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold sm:text-3xl">Accounts</h1>
-          <p className="mt-1 text-ink-soft">{period.label}. Built from your invoices and expenses, nothing typed twice.</p>
+          <p className="mt-1 text-ink-soft">{period.label}. Built from your invoices, expenses and other money, nothing typed twice.</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <div className="flex gap-1.5">
@@ -54,11 +69,16 @@ export default function Books() {
             ))}
           </div>
           <input type="date" className="field w-auto" value={anchor} onChange={(e) => setAnchor(e.target.value)} aria-label="Any date in the period" />
+          <button type="button" className="btn-ghost" onClick={downloadExcel}><Download size={15} />Excel</button>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-1.5 border-b border-line pb-3" role="tablist" aria-label="Which statement">
-        {([["profit", "Did we make money"], ["position", "What we own and owe"], ["cash", "Where the cash went"], ["journals", "Accountant mode"]] as Array<[View, string]>).map(([v, l]) => (
+        {([
+          ["profit", "Did we make money"], ["position", "What we own and owe"], ["cash", "Where the cash went"],
+          ["ledger", "One account"], ["daybook", "Day book"], ["rp", "Receipts and payments"], ["traditional", "Trading and P&L"],
+          ...(partners.length ? [["partners", "Partners"]] : []), ["journals", "Journal"]
+        ] as Array<[View, string]>).map(([v, l]) => (
           <button key={v} role="tab" aria-selected={view === v} type="button" onClick={() => setView(v)}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium ${view === v ? "bg-forest text-white" : "text-ink-soft hover:bg-white"}`}>{l}</button>
         ))}
@@ -109,6 +129,7 @@ export default function Books() {
               <tbody>
                 {bs.liabilities.map((r) => <tr key={r.code} className="border-t border-line"><td className="px-5 py-2">{r.name}</td><td className="px-5 py-2 text-right tabular">{m(r.balance)}</td></tr>)}
                 <tr className="border-t border-line font-semibold"><td className="px-5 py-2">Total owed</td><td className="px-5 py-2 text-right tabular">{m(bs.totalLiabilities)}</td></tr>
+                {bs.equity.map((r) => <tr key={r.code} className="border-t border-line"><td className="px-5 py-2">{r.name}</td><td className="px-5 py-2 text-right tabular">{m(r.balance)}</td></tr>)}
                 <tr className="border-t border-line"><td className="px-5 py-2">Profit kept in the business</td><td className="px-5 py-2 text-right tabular">{m(bs.retained)}</td></tr>
                 <tr className="border-t border-line font-semibold"><td className="px-5 py-2">Yours</td><td className="px-5 py-2 text-right tabular">{m(bs.totalEquity)}</td></tr>
               </tbody>
@@ -145,6 +166,12 @@ export default function Books() {
         </div>
       ) : null}
 
+      {view === "ledger" ? <LedgerView entries={ledger} currency={currency} period={period} country={country} /> : null}
+      {view === "daybook" ? <DayBookView entries={ledger} currency={currency} period={period} country={country} /> : null}
+      {view === "rp" ? <ReceiptsPaymentsView entries={ledger} currency={currency} period={period} country={country} /> : null}
+      {view === "traditional" ? <TraditionalView entries={ledger} currency={currency} period={period} country={country} /> : null}
+      {view === "partners" ? <PartnersView entries={ledger} currency={currency} period={period} country={country} partners={partners} /> : null}
+
       {view === "journals" ? (
         <div className="space-y-4">
           <div className={`rounded-xl border p-4 text-sm ${tb.balanced ? "border-line bg-white text-ink-soft" : "border-bad bg-bad/5 text-bad"}`}>
@@ -167,7 +194,7 @@ export default function Books() {
                         </span>
                       ) : null}
                     </td>
-                    <td className="px-4 py-1.5 tabular text-ink-soft">{l.account}</td>
+                    <td className="px-4 py-1.5 text-ink-soft">{accountByCode(l.account)?.name ?? l.account}{l.memo ? <span className="text-ink-faint"> · {l.memo}</span> : null}</td>
                     <td className="px-4 py-1.5 text-right tabular">{l.debit ? m({ minor: l.debit, currency }) : ""}</td>
                     <td className="px-4 py-1.5 text-right tabular">{l.credit ? m({ minor: l.credit, currency }) : ""}</td>
                   </tr>
@@ -175,7 +202,7 @@ export default function Books() {
               </tbody>
             </table>
           </section>
-          <p className="text-sm text-ink-faint">Entries are derived from your documents and expenses. Nothing here is edited in place: a correction posts a reversal, so the history survives.</p>
+          <p className="text-sm text-ink-faint">Entries come from your documents and expenses, and from what you record under Other money. To change one recorded there, edit it there.</p>
         </div>
       ) : null}
     </div>

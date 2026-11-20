@@ -55,7 +55,7 @@ export const memberships = sqliteTable("memberships", {
 export const records = sqliteTable("records", {
   id: id(),
   orgId: text("org_id").notNull().references(() => organisations.id),
-  kind: text("kind", { enum: ["profile", "client", "item", "document", "expense", "recurring", "scenario", "employee", "payrun"] }).notNull(),
+  kind: text("kind", { enum: ["profile", "client", "item", "document", "expense", "recurring", "scenario", "employee", "payrun", "asset", "project", "entry"] }).notNull(),
   /** The client's own id, which is what sync matches on. */
   localId: text("local_id").notNull(),
   body: text("body").notNull(),
@@ -230,3 +230,67 @@ export const errorReports = sqliteTable("error_reports", {
 }, (t) => ({
   byLastSeen: index("error_reports_last_seen_idx").on(t.lastSeen)
 }));
+
+/**
+ * An accountant asking a business for access to its books. The business owner opens the link,
+ * signs in, and says yes or no: access is only ever given by the business, never taken.
+ */
+export const accessRequests = sqliteTable("access_requests", {
+  id: id(),
+  requesterId: text("requester_id").notNull().references(() => users.id),
+  email: text("email").notNull(),
+  businessName: text("business_name"),
+  note: text("note"),
+  tokenHash: text("token_hash").notNull(),
+  createdAt: created(),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  acceptedAt: integer("accepted_at", { mode: "timestamp_ms" }),
+  acceptedOrgId: text("accepted_org_id"),
+  declinedAt: integer("declined_at", { mode: "timestamp_ms" })
+}, (t) => ({
+  byToken: uniqueIndex("access_requests_token_idx").on(t.tokenHash),
+  byRequester: index("access_requests_requester_idx").on(t.requesterId)
+}));
+
+/** Keys for the public API. Only a hash is kept: the key itself is shown once, when it is made. */
+export const apiKeys = sqliteTable("api_keys", {
+  id: id(),
+  orgId: text("org_id").notNull().references(() => organisations.id),
+  name: text("name").notNull(),
+  /** The first characters, so a key can be recognised in the list without being usable. */
+  prefix: text("prefix").notNull(),
+  keyHash: text("key_hash").notNull(),
+  createdBy: text("created_by").references(() => users.id),
+  createdAt: created(),
+  lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }),
+  revokedAt: integer("revoked_at", { mode: "timestamp_ms" })
+}, (t) => ({
+  byHash: uniqueIndex("api_keys_hash_idx").on(t.keyHash),
+  byOrg: index("api_keys_org_idx").on(t.orgId)
+}));
+
+/** Addresses told when something happens in a business, signed so they can tell it was us. */
+export const webhooks = sqliteTable("webhooks", {
+  id: id(),
+  orgId: text("org_id").notNull().references(() => organisations.id),
+  url: text("url").notNull(),
+  secret: text("secret").notNull(),
+  /** JSON array of event names. */
+  events: text("events").notNull(),
+  createdBy: text("created_by").references(() => users.id),
+  createdAt: created(),
+  revokedAt: integer("revoked_at", { mode: "timestamp_ms" })
+}, (t) => ({ byOrg: index("webhooks_org_idx").on(t.orgId) }));
+
+export const webhookDeliveries = sqliteTable("webhook_deliveries", {
+  id: id(),
+  webhookId: text("webhook_id").notNull().references(() => webhooks.id),
+  event: text("event").notNull(),
+  payload: text("payload").notNull(),
+  status: integer("status"),
+  ok: integer("ok", { mode: "boolean" }).notNull().default(false),
+  attempts: integer("attempts").notNull().default(0),
+  error: text("error"),
+  createdAt: created(),
+  deliveredAt: integer("delivered_at", { mode: "timestamp_ms" })
+}, (t) => ({ byHook: index("webhook_deliveries_hook_idx").on(t.webhookId, t.createdAt) }));

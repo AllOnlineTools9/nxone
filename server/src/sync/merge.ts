@@ -15,7 +15,7 @@
  */
 
 export interface SyncRecord {
-  kind: "profile" | "client" | "item" | "document" | "expense" | "recurring" | "scenario" | "employee" | "payrun";
+  kind: "profile" | "client" | "item" | "document" | "expense" | "recurring" | "scenario" | "employee" | "payrun" | "asset" | "project" | "entry";
   localId: string;
   body: unknown;
   version: number;

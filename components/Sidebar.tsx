@@ -1,5 +1,5 @@
 "use client";
-import { BookOpen, Building2, CalendarClock, CalendarSync, Calculator, ChartColumn, FileSpreadsheet, FileText, FlaskConical, FolderOpen, HandCoins, Landmark, LayoutDashboard, MessageCircleQuestion, Quote, Package, Receipt, Search, ShoppingCart, Stamp, Sun, UsersRound, TrendingDown, Users, Wallet, X, ShieldCheck, Scissors, CalendarCheck, ClipboardList, Scale, Target, Hammer, History, Contact, Truck } from "lucide-react";
+import { BookOpen, Building2, CalendarClock, CalendarSync, Calculator, ChartColumn, FileSpreadsheet, FileText, FlaskConical, FolderOpen, HandCoins, Landmark, LayoutDashboard, MessageCircleQuestion, Quote, Package, Receipt, Search, ShoppingCart, Stamp, Sun, UsersRound, TrendingDown, Users, Wallet, X, ShieldCheck, Scissors, CalendarCheck, ClipboardList, Scale, Target, Hammer, History, Contact, Truck, ScanLine, Briefcase, Webhook, PenLine } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
@@ -44,6 +44,7 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string;
       { href: "/claims", label: "Claims", icon: Wallet },
       { href: "/bank-import", label: "Bank statement", icon: Landmark },
       { href: "/books", label: "Accounts", icon: BookOpen },
+      { href: "/entries", label: "Other money", icon: PenLine },
       { href: "/year-end", label: "Year end", icon: CalendarCheck },
       { href: "/history", label: "History", icon: History }
     ]
@@ -51,6 +52,7 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string;
   {
     title: "Create",
     items: [
+      { href: "/shop", label: "Shop billing", icon: ScanLine },
       { href: "/invoice-generator", label: "Invoice", icon: FileText },
       { href: "/quotation-generator", label: "Quotation", icon: Quote },
       { href: "/purchase-order-generator", label: "Purchase order", icon: ShoppingCart },
@@ -62,7 +64,9 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string;
     title: "Your business",
     items: [
       { href: "/settings", label: "Business details", icon: Building2 },
-      { href: "/team", label: "People", icon: Users }
+      { href: "/team", label: "People", icon: Users },
+      { href: "/practice", label: "Your clients", icon: Briefcase },
+      { href: "/integrations", label: "API and webhooks", icon: Webhook }
     ]
   },
   {

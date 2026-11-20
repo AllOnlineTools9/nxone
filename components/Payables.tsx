@@ -21,7 +21,7 @@ export default function Payables() {
   const currency = ws.profile?.currency ?? "INR";
   const country = ws.profile?.country ?? "IN";
   const today = todayIso();
-  const cash = forecast(db.documents(), db.expenses(), today, currency, 1, 0, openingOf(ws.profile)).openingCash;
+  const cash = forecast(db.documents(), db.expenses(), today, currency, 1, 0, openingOf(ws.profile), { entries: db.entries() }).openingCash;
   const view = payables(db.expenses(), today, currency, cash.minor);
   const m = (v: { minor: number; currency: string }) => formatMoney(v, "en-IN");
 

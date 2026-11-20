@@ -28,6 +28,10 @@ export interface Profile extends Syncable {
    * Set when a return is filed, so what was filed and what the books say cannot drift apart.
    */
   lockedUpTo?: string;
+  /** How the business is owned, which decides how capital and the owners' tax are recorded. */
+  structure?: "proprietorship" | "partnership" | "company";
+  /** Partners or directors, so each has their own capital and drawings in the books. */
+  partners?: string[];
   /** Advance tax instalments already paid, so the year's dates can be checked against them. */
   advanceTaxPaid?: Array<{ date: string; amountMinor: number }>;
   /**
@@ -93,6 +97,8 @@ export interface CatalogueItem extends Syncable {
   /** HSN or SAC code, so the tax rate follows automatically. */
   code?: string;
   taxRuleId?: string;
+  /** The code printed under the bars on the pack, so a scanner at the counter finds it. */
+  barcode?: string;
   /** Kept on the shelf and counted: see lib/stock. Services are never tracked. */
   tracked?: boolean;
   openingQty?: number;
@@ -137,6 +143,15 @@ export interface SavedDocument extends Syncable {
    * that has one must not be registered twice.
    */
   einvoice?: { irn: string; ackNumber?: string; ackDate?: string; signedQr?: string; registeredAt: string };
+  /**
+   * What closed an invoice other than money: a discount allowed for settling early or short, and
+   * an amount written off as a bad debt. What is owed is the total less what was paid and these.
+   */
+  settlement?: { discountMinor?: number; writtenOffMinor?: number; on: string; note?: string };
+  /** Payments that came back unpaid, such as a bounced cheque, with any charges the bank made. */
+  bounces?: Array<{ on: string; amountMinor: number; chargesMinor?: number; note?: string }>;
+  /** Rung up at the counter: how it was paid, and the cash handed over. */
+  sale?: { mode: "cash" | "upi" | "card"; tenderedMinor?: number };
   /** How the goods travel, and the e-way bill number once the portal has given one. */
   ewaybill?: import("../ewaybill/ewaybill").EwayRecord;
   /**
@@ -305,6 +320,8 @@ export interface Workspace {
   /** What changed and when, so a figure queried months later can be traced. */
   audit?: AuditEntry[];
   payruns: SavedPayRun[];
+  /** Entries recorded directly: capital, drawings, loans, tax paid, adjustments. */
+  entries?: import("../entries/types").ManualEntry[];
 }
 
 export const emptyWorkspace = (): Workspace => ({ version: 1, clients: [], items: [], documents: [], expenses: [], recurring: [], scenarios: [], employees: [], payruns: [], assets: [], projects: [] });

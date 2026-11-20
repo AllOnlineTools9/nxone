@@ -1,4 +1,5 @@
 "use client";
+import { owedOn } from "@/lib/documents/owed";
 import Insights from "./Insights";
 import SetupPrompt from "./SetupPrompt";
 import { ArrowRight, FileText, Quote, Receipt, ShoppingCart, TriangleAlert } from "lucide-react";
@@ -71,7 +72,7 @@ export default function Dashboard() {
                   <span className="block text-sm text-warn">{daysLate} days late, due {formatDate(doc.dueDate ?? doc.issueDate, doc.doc.country)}</span>
                 </span>
                 <span className="flex items-center gap-3">
-                  <span className="tabular font-semibold">{m({ minor: doc.totalMinor - doc.paidMinor, currency: doc.currency })}</span>
+                  <span className="tabular font-semibold">{m({ minor: owedOn(doc), currency: doc.currency })}</span>
                   <Link href={`/calculators/late-payment-interest`} className="btn-quiet text-sm">Work out interest<ArrowRight size={14} /></Link>
                 </span>
               </li>

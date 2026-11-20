@@ -1,3 +1,4 @@
+import { owedOn } from "../documents/owed";
 import { calculate } from "../documents/totals";
 import { fromMinor, type Money } from "../money";
 import type { SavedDocument } from "./types";
@@ -116,7 +117,7 @@ export function reportFor(documents: SavedDocument[], period: Period, currency: 
       invoiced: c.invoiced + t.total.minor,
       tax: c.tax + t.taxTotal.minor,
       count: c.count + 1,
-      outstanding: c.outstanding + Math.max(0, d.totalMinor - d.paidMinor)
+      outstanding: c.outstanding + owedOn(d)
     });
   }
 

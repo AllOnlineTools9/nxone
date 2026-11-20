@@ -1,3 +1,4 @@
+import { owedOn } from "../documents/owed";
 import { EXPENSE_CATEGORIES } from "../ledger/accounts";
 import type { Expense, SavedDocument } from "../store/types";
 import type { BankRow } from "./parse";
@@ -27,7 +28,7 @@ export interface Suggestion {
   duplicateOf?: Expense;
 }
 
-const owedOn = (d: SavedDocument) => Math.max(0, d.totalMinor - d.paidMinor);
+
 const daysApart = (a: string, b: string) => Math.abs(Math.round((Date.parse(a) - Date.parse(b)) / 86_400_000));
 
 /** Strips the noise banks add, so "NEFT-GLOBEX PRIVATE LTD-0012" can match "Globex Private Limited". */

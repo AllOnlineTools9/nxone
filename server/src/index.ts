@@ -10,6 +10,11 @@ import { linkProvider, type PaymentNotice } from "./payments/links";
 import { leaks, newToken, refusalFor, stateOf } from "./portal/share";
 import { checkPdf, safeFileName } from "./portal/outgoing";
 import { alertText, fingerprint, fromBrowser, fromServer, type ErrorReport } from "./telemetry/errors";
+import type { RouteContext } from "./http/context";
+import { practiceRoutes } from "./practice/routes";
+import { apiRoutes } from "./api/routes";
+import { dispatch } from "./webhooks/deliver";
+import { eventsForChange, type WebhookEvent } from "./webhooks/sign";
 import * as schema from "./db/schema";
 import { emailSender, inviteEmail, loginEmail } from "./http/email";
 import { corsHeaders, json, problem, rateLimit } from "./http/respond";
@@ -125,14 +130,20 @@ async function seatNumbers(db: DrizzleD1Database<typeof schema>, orgId: string) 
   const members = await db.select().from(schema.memberships).where(eq(schema.memberships.orgId, orgId));
   const invites = await db.select().from(schema.invitations).where(eq(schema.invitations.orgId, orgId));
   const pending = invites.filter((i) => !i.acceptedAt && !i.revokedAt && i.expiresAt.getTime() > Date.now());
-  return { memberRows: members, pendingRows: pending, members: members.length, pending: pending.length };
+  // An accountant seat is free on every plan: a business should never pay to let its CA look.
+  const paid = (role: string) => role !== "accountant";
+  return {
+    memberRows: members, pendingRows: pending,
+    members: members.filter((m) => paid(m.role)).length,
+    pending: pending.filter((i) => paid(i.role)).length
+  };
 }
 
 /** Everything the People screen shows, assembled once so every route answers the same way. */
 async function teamView(db: DrizzleD1Database<typeof schema>, orgId: string, viewerId: string) {
   const allowed = await allowance(db, orgId);
   const org = allowed?.org;
-  const { memberRows, pendingRows } = await seatNumbers(db, orgId);
+  const { memberRows, pendingRows, members: paidMembers, pending: paidPending } = await seatNumbers(db, orgId);
   const people = memberRows.length
     ? await db.select({ id: schema.users.id, email: schema.users.email, name: schema.users.name, lastSeenAt: schema.users.lastSeenAt })
         .from(schema.users).where(inArray(schema.users.id, memberRows.map((m) => m.userId)))
@@ -166,8 +177,9 @@ async function teamView(db: DrizzleD1Database<typeof schema>, orgId: string, vie
     roles: ROLES,
     members,
     pending,
-    counts: seatCount(plan, members.length, pending.length),
-    seats: canAddSeat(plan, country, members.length, pending.length)
+    // Accountant seats are free, so they are listed but not counted.
+    counts: seatCount(plan, paidMembers, paidPending),
+    seats: canAddSeat(plan, country, paidMembers, paidPending)
   };
 }
 
@@ -248,7 +260,24 @@ export default {
       return res;
     };
 
+    const context: RouteContext = {
+      req, url, env: env as unknown as RouteContext["env"], db, reply,
+      waitUntil: (p) => ctx.waitUntil(p.catch((e) => console.error("Background work failed:", e))),
+      session: () => currentSession(req, env),
+      membership: (userId, orgId) => membership(db, userId, orgId),
+      audit: (entry) => audit(db, req, entry),
+      uid,
+      send: (m) => emailSender(env).send(m),
+      planOf: async (orgId) => {
+        const a = await allowance(db, orgId);
+        return a ? { plan: { id: a.plan.id, name: a.plan.name }, trialing: a.trialing } : null;
+      }
+    };
+
     try {
+      const handled = (await practiceRoutes(context)) ?? (await apiRoutes(context));
+      if (handled) return handled;
+
       /* ---------- health ---------- */
       if (url.pathname === "/health") return reply(json({ ok: true, time: new Date().toISOString() }));
 
@@ -383,7 +412,7 @@ export default {
         const view = await teamView(db, orgId, found.session.userId);
         const already = refuseInvite(view.members, view.pending, address);
         if (already) return reply(problem(409, already));
-        if (!view.seats.allowed) return reply(problem(402, view.seats.message, { plan: view.plan.id, seats: view.seats.seats }));
+        if (wanted !== "accountant" && !view.seats.allowed) return reply(problem(402, view.seats.message, { plan: view.plan.id, seats: view.seats.seats }));
 
         const token = randomToken();
         const invite = {
@@ -444,7 +473,7 @@ export default {
         const allowed = await allowance(db, invite.orgId);
         const counts = await seatNumbers(db, invite.orgId);
         // The pending invitation is not counted here: it is the one being taken up.
-        if (allowed && !canAddSeat(allowed.plan, org.country, counts.members, 0).allowed) {
+        if (invite.role !== "accountant" && allowed && !canAddSeat(allowed.plan, org.country, counts.members, 0).allowed) {
           return reply(problem(402, "There is no seat free on this plan any more. Ask whoever invited you to add one."));
         }
 
@@ -596,6 +625,17 @@ export default {
           if (rowId) await db.update(schema.records).set(values).where(eq(schema.records.id, rowId));
           else await db.insert(schema.records).values({ id: uid("re"), ...values });
         }
+
+        // Tell the business's webhooks what changed, after answering, so saving is never slowed.
+        const happenings: Array<{ event: WebhookEvent; kind: string; body: Record<string, unknown> }> = [];
+        for (const rec of result.applied) {
+          if (rec.deletedAt) continue;
+          const before = existing.get(`${rec.kind}:${rec.localId}`)?.body as Record<string, unknown> | undefined;
+          for (const event of eventsForChange(rec.kind, before, rec.body as Record<string, unknown>)) {
+            happenings.push({ event, kind: rec.kind, body: rec.body as Record<string, unknown> });
+          }
+        }
+        if (happenings.length) ctx.waitUntil(dispatch(db, uid, orgId, happenings).catch((e) => console.error("Webhooks failed:", e)));
 
         await audit(db, req, {
           orgId, userId: found.session.userId, action: "sync.push",

@@ -38,7 +38,7 @@ export default function BooksPack() {
       period,
       // The same ledger the Books screen draws, opening balance and stock included. A pack
       // that quietly built its own would disagree with the screen the person checked it against.
-      entries: ledgerFor(db.documents(), db.expenses(), currency, openingOf(ws.profile), { items: db.items() as StockItem[] }, { list: db.assets().map(toAssetForBooks) }),
+      entries: ledgerFor(db.documents(), db.expenses(), currency, openingOf(ws.profile), { items: db.items() as StockItem[] }, { list: db.assets().map(toAssetForBooks) }, db.entries()),
       documents: db.documents(),
       expenses: db.expenses(),
       preparedOn: todayIso()

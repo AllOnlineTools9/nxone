@@ -142,6 +142,13 @@ export default function Stock() {
                   <td className="px-5 py-2.5">
                     {level.description}
                     {level.unit ? <span className="text-ink-faint"> / {level.unit}</span> : null}
+                    {item ? (
+                      <input
+                        className="field mt-1 block w-40 py-1 text-xs" placeholder="Barcode" defaultValue={item.barcode ?? ""}
+                        aria-label={`Barcode for ${level.description}`}
+                        onBlur={(e) => { const v = e.target.value.trim(); if (v !== (item.barcode ?? "")) setField(item, { barcode: v || undefined }); }}
+                      />
+                    ) : null}
                   </td>
                   <td className={`px-5 py-2.5 text-right tabular ${level.quantity < 0 ? "text-bad" : ""}`}>{level.quantity}</td>
                   <td className="px-5 py-2.5 text-right tabular text-ink-soft">{level.averageCostMinor ? m(level.averageCostMinor) : "-"}</td>

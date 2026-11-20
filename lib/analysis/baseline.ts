@@ -1,3 +1,4 @@
+import { owedOn } from "../documents/owed";
 import { calculate } from "../documents/totals";
 import { booksView, convertMinor, rateFor } from "../fx";
 import { openingOf } from "../ledger/opening";
@@ -70,7 +71,7 @@ export function wholeMonthsBefore(today: string, months: number): { from: string
 const forLedger = (expenses: Expense[]) => expenses.filter((e) => !e.deletedAt).map(toExpenseInput);
 
 const isSale = (d: SavedDocument) => d.kind === "invoice" || d.kind === "proforma";
-const owedOn = (d: SavedDocument) => Math.max(0, d.totalMinor - d.paidMinor);
+
 
 export function baselineFrom(opts: {
   documents: SavedDocument[];

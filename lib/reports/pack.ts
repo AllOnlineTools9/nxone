@@ -1,3 +1,4 @@
+import { owedOn } from "../documents/owed";
 import { trialBalance, type JournalEntry } from "../ledger/journal";
 import { balanceSheet, cashFlow, profitAndLoss } from "../ledger/statements";
 import { accountByCode } from "../ledger/accounts";
@@ -111,7 +112,7 @@ export function salesCsv(input: PackInput): string {
     rows.push([
       d.issueDate, d.number, d.kind, d.clientName, d.doc.placeOfSupply ?? "",
       plain(totals.taxableTotal.minor, d.currency), plain(totals.taxTotal.minor, d.currency), plain(d.totalMinor, d.currency),
-      plain(d.paidMinor, d.currency), plain(d.totalMinor - d.paidMinor, d.currency), d.status
+      plain(d.paidMinor, d.currency), plain(owedOn(d), d.currency), d.status
     ]);
   }
   return csv(rows);
@@ -137,7 +138,7 @@ export function coveringNote(input: PackInput): string {
   const money = (minor: number) => formatMoney(fromMinor(minor, input.currency));
   const outstanding = input.documents
     .filter((d) => d.kind === "invoice" && d.status !== "cancelled" && d.issueDate <= input.period.to)
-    .reduce((sum, d) => sum + (d.totalMinor - d.paidMinor), 0);
+    .reduce((sum, d) => sum + owedOn(d), 0);
 
   return [
     `${input.businessName}`,

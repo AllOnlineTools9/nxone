@@ -29,7 +29,7 @@ export default function Ask() {
     if (!asked) return;
     const answer = ask(asked, {
       documents: db.documents(), expenses: db.expenses(), profile: ws.profile,
-      today: todayIso(), currency
+      today: todayIso(), currency, entries: db.entries()
     });
     setHistory((h) => [{ question: asked, answer }, ...h]);
     setQuestion("");

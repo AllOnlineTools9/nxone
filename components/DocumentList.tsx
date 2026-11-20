@@ -1,4 +1,5 @@
 "use client";
+import { owedOn } from "@/lib/documents/owed";
 import { ArrowRight, Copy, FileText, Pencil, Quote, Receipt, ShoppingCart, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -94,7 +95,7 @@ export default function DocumentList({ limit, title }: { limit?: number; title?:
           <tbody>
             {rows.map((d) => {
               const Icon = ICONS[d.kind] ?? FileText;
-              const owed = d.totalMinor - d.paidMinor;
+              const owed = owedOn(d);
               return (
                 <tr key={d.id} className="border-t border-line align-middle">
                   <td className="cell-full px-4 py-2.5">

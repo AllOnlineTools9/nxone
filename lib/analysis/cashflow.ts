@@ -1,3 +1,4 @@
+import { owedOn } from "../documents/owed";
 import { booksView } from "../fx";
 import type { StockItem } from "../stock/ledger";
 import { ledgerFor } from "../ledger/posting";
@@ -42,7 +43,7 @@ export interface Forecast {
   atRisk: Money;
 }
 
-const owedOn = (d: SavedDocument) => Math.max(0, d.totalMinor - d.paidMinor);
+
 const isBill = (d: SavedDocument) => d.kind === "invoice" || d.kind === "proforma";
 
 /**
@@ -68,14 +69,14 @@ export function forecast(
   minimumCashMinor = 0,
   opening?: { amountMinor: number; date: string },
   /** Stock, when the business keeps any, so cost of sales lands in the month it sold. */
-  opts?: { stock?: { items: StockItem[] } }
+  opts?: { stock?: { items: StockItem[] }; entries?: import("../entries/types").ManualEntry[] }
 ): Forecast {
   // The ledger converts for itself; these are the same records converted for the arithmetic below.
   const { documents, expenses } = booksView(allDocuments, allExpenses, currency);
   const ledger = ledgerFor(allDocuments, allExpenses.filter((e) => !e.deletedAt).map((e) => ({
     id: e.id, date: e.date, supplier: e.supplier, description: e.description, category: e.category,
     currency: e.currency, netMinor: e.netMinor, taxMinor: e.taxMinor, paidFrom: e.paidFrom, stockQuantity: e.stockQuantity, fxRate: e.fxRate
-  })), currency, opening, opts?.stock);
+  })), currency, opening, opts?.stock, undefined, opts?.entries);
 
   const cash = cashFlow(ledger, currency, "1900-01-01", today);
   const openingMinor = cash.closing.minor;

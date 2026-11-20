@@ -5,6 +5,7 @@ import { stateByCode, stateByRegion } from "../returns/states";
 import type { Period } from "../store/reports";
 import type { Expense, Profile, SavedDocument } from "../store/types";
 import type { ZipEntry } from "../files/zip";
+import type { ManualEntry } from "../entries/types";
 
 /**
  * The books for a period as files Tally imports, so an accountant on Tally loads them rather
@@ -34,19 +35,22 @@ export interface TallyInput {
   documents: SavedDocument[];
   expenses: Expense[];
   period: Period;
+  /** Entries recorded directly: capital, drawings, loans, tax paid, adjustments. */
+  entries?: ManualEntry[];
 }
 
 export interface TallyResult {
   masters: string;
   vouchers: string;
-  counts: { sales: number; creditNotes: number; receipts: number; purchases: number; payments: number; ledgers: number };
+  counts: { sales: number; creditNotes: number; receipts: number; purchases: number; payments: number; journals: number; contras: number; ledgers: number };
   /** Anything left out or approximated, in words, for the accountant. */
   notes: string[];
 }
 
 type Group =
   | "Sundry Debtors" | "Sundry Creditors" | "Sales Accounts" | "Purchase Accounts" | "Duties & Taxes"
-  | "Indirect Expenses" | "Indirect Incomes" | "Bank Accounts" | "Cash-in-Hand" | "Current Assets" | "Fixed Assets";
+  | "Indirect Expenses" | "Indirect Incomes" | "Bank Accounts" | "Cash-in-Hand" | "Current Assets" | "Fixed Assets"
+  | "Deposits (Asset)" | "Investments" | "Loans (Liability)" | "Capital Account" | "Current Liabilities" | "Stock-in-Hand";
 
 interface Ledger {
   name: string;
@@ -58,7 +62,7 @@ interface Ledger {
 interface Entry { ledger: string; minor: number; debit: boolean; bill?: { name: string; type: "New Ref" | "Agst Ref" } }
 
 interface Voucher {
-  type: "Sales" | "Credit Note" | "Receipt" | "Purchase" | "Payment";
+  type: "Sales" | "Credit Note" | "Receipt" | "Purchase" | "Payment" | "Journal" | "Contra";
   id: string;
   date: string;
   number: string;
@@ -184,9 +188,12 @@ export function tallyExport(input: TallyInput): TallyResult {
 
     // Money received. Only one date is kept for it, so a part payment followed by the rest
     // arrives as one receipt on the later day, which the notes say.
-    const paidOn = d.paidOn ?? (d.paidMinor > 0 ? d.updatedAt.slice(0, 10) : undefined);
-    if (isSale && d.paidMinor > 0 && inPeriod(paidOn)) {
-      const received = convertMinor(d.paidMinor, d.currency, books, d.paymentFxRate ?? rate.rate);
+    // A payment that bounced was still received first, so it is in the receipt, and taken back below.
+    const bouncedMinor = (d.bounces ?? []).reduce((sum, b) => sum + b.amountMinor, 0);
+    const receivedMinor = d.paidMinor + bouncedMinor;
+    const paidOn = d.paidOn ?? (receivedMinor > 0 ? d.updatedAt.slice(0, 10) : undefined);
+    if (isSale && receivedMinor > 0 && inPeriod(paidOn)) {
+      const received = convertMinor(receivedMinor, d.currency, books, d.paymentFxRate ?? rate.rate);
       const bank = cashLedger("1020");
       vouchers.push({
         type: "Receipt", id: `${d.id}-r`, date: paidOn!, number: `R-${d.number}`, party: party(),
@@ -198,7 +205,99 @@ export function tallyExport(input: TallyInput): TallyResult {
       });
       if (!d.paidOn) notes.push(`${d.number}: the day the money arrived was not recorded, so its receipt is dated the day it was marked paid.`);
     }
+
+    // What closed the invoice other than money, and payments that came back.
+    if (isSale) {
+      const conv2 = (minor: number) => convertMinor(minor, d.currency, books, rate.rate);
+      const s = d.settlement;
+      if (s?.discountMinor && inPeriod(s.on)) {
+        vouchers.push({
+          type: "Journal", id: `${d.id}-disc`, date: s.on, number: `D-${d.number}`, party: party(),
+          narration: `Discount allowed on ${d.number}`,
+          entries: [
+            { ledger: add({ name: "Discount Allowed", parent: "Indirect Expenses" }), minor: conv2(s.discountMinor), debit: true },
+            { ledger: party(), minor: conv2(s.discountMinor), debit: false, bill: { name: d.number, type: "Agst Ref" } }
+          ]
+        });
+      }
+      if (s?.writtenOffMinor && inPeriod(s.on)) {
+        vouchers.push({
+          type: "Journal", id: `${d.id}-wo`, date: s.on, number: `W-${d.number}`, party: party(),
+          narration: `${d.number} written off as a bad debt`,
+          entries: [
+            { ledger: add({ name: "Bad Debts", parent: "Indirect Expenses" }), minor: conv2(s.writtenOffMinor), debit: true },
+            { ledger: party(), minor: conv2(s.writtenOffMinor), debit: false, bill: { name: d.number, type: "Agst Ref" } }
+          ]
+        });
+      }
+      (d.bounces ?? []).forEach((b, i) => {
+        if (!inPeriod(b.on)) return;
+        const bank = add(cashLedger("1020"));
+        vouchers.push({
+          type: "Payment", id: `${d.id}-b${i}`, date: b.on, number: `B-${d.number}-${i + 1}`, party: party(),
+          narration: `Payment for ${d.number} came back unpaid`,
+          entries: [
+            { ledger: party(), minor: conv2(b.amountMinor), debit: true, bill: { name: d.number, type: "Agst Ref" } },
+            { ledger: bank, minor: conv2(b.amountMinor), debit: false },
+            ...(b.chargesMinor ? [
+              { ledger: add({ name: "Bank Charges", parent: "Indirect Expenses" as Group }), minor: b.chargesMinor, debit: true },
+              { ledger: bank, minor: b.chargesMinor, debit: false }
+            ] : [])
+          ]
+        });
+      });
+    }
   }
+
+  /* entries recorded directly */
+  const VOUCHER: Record<string, Voucher["type"]> = { journal: "Journal", payment: "Payment", receipt: "Receipt", contra: "Contra" };
+  const manualLedger = (code: string, memo?: string): string => {
+    const named = memo ? cleanName(memo) : undefined;
+    switch (code) {
+      case "1010": case "1020": case "1030": return add(cashLedger(code));
+      case "1040": return add({ name: "Fixed Deposits", parent: "Deposits (Asset)" });
+      case "1050": return add({ name: "Security Deposits", parent: "Deposits (Asset)" });
+      case "1100": return add({ name: "Investments", parent: "Investments" });
+      case "1200": return named ? add({ name: named, parent: "Sundry Debtors" }) : add({ name: "Customers (not named)", parent: "Sundry Debtors" });
+      case "1210": return add({ name: "Accrued Income", parent: "Current Assets" });
+      case "1300": return add({ name: "Stock", parent: "Stock-in-Hand" });
+      case "1400": return add({ name: "Input GST (to split)", parent: "Duties & Taxes" });
+      case "1410": return add({ name: "TDS Receivable", parent: "Current Assets" });
+      case "1500": return add({ name: "Prepaid Expenses", parent: "Current Assets" });
+      case "1600": return add({ name: "Advance Tax", parent: "Current Assets" });
+      case "2010": return named ? add({ name: customers.has(named) ? cleanName(`${named} (supplier)`) : named, parent: "Sundry Creditors" }) : add({ name: "Suppliers (not named)", parent: "Sundry Creditors" });
+      case "2050": return add({ name: "Outstanding Expenses", parent: "Current Liabilities" });
+      case "2100": return add({ name: "GST Payable", parent: "Duties & Taxes" });
+      case "2200": return named ? add({ name: named, parent: "Sundry Debtors" }) : add({ name: "Advances from Customers", parent: "Current Liabilities" });
+      case "2210": return add({ name: "Income Received in Advance", parent: "Current Liabilities" });
+      case "2300": return add({ name: named ? cleanName(`${named} Loan`) : "Loans", parent: "Loans (Liability)" });
+      case "2430": return add({ name: TDS_PAYABLE, parent: "Duties & Taxes" });
+      case "3000": return add({ name: named ? cleanName(`${named} Capital`) : "Capital Account", parent: "Capital Account" });
+      case "3010": return add({ name: "Share Capital", parent: "Capital Account" });
+      case "3100": return add({ name: named ? cleanName(`${named} Drawings`) : "Drawings", parent: "Capital Account" });
+      case "4000": return add({ name: SALES, parent: "Sales Accounts" });
+      case "4900": return add({ name: "Discount Allowed", parent: "Indirect Expenses" });
+      case "5000": return add({ name: PURCHASES, parent: "Purchase Accounts" });
+      default: {
+        const a = accountByCode(code);
+        if (a?.type === "income") return add({ name: cleanName(a.name), parent: "Indirect Incomes" });
+        return add(expenseLedger(code));
+      }
+    }
+  };
+  let gstPaid = false;
+  for (const m of (input.entries ?? []).filter((x) => !x.deletedAt && inPeriod(x.date)).sort((a, b) => a.date.localeCompare(b.date))) {
+    const entries: Entry[] = m.lines.map((l) => ({ ledger: manualLedger(l.account, l.memo), minor: l.debit ?? l.credit ?? 0, debit: Boolean(l.debit) }));
+    if (m.lines.some((l) => l.account === "2100" || l.account === "1400")) gstPaid = true;
+    const partyLine = m.lines.find((l) => ["1200", "2010", "2200", "2300", "3000", "3100"].includes(l.account) && l.memo);
+    vouchers.push({
+      type: VOUCHER[m.voucher] ?? "Journal", id: m.id, date: m.date,
+      number: `J-${tallyDate(m.date)}-${m.id.slice(-4)}`,
+      party: partyLine ? manualLedger(partyLine.account, partyLine.memo) : entries[0]?.ledger ?? "",
+      narration: m.narration, entries
+    });
+  }
+  if (gstPaid) notes.push("GST paid or set off is in one ledger, \"GST Payable\" (or \"Input GST (to split)\"). In Tally, move it into the CGST, SGST and IGST ledgers it was paid against.");
 
   /* bills, and paying them */
   const bills = [...input.expenses].filter((e) => !e.deletedAt && inPeriod(e.date)).sort((a, b) => a.date.localeCompare(b.date));
@@ -266,7 +365,7 @@ export function tallyExport(input: TallyInput): TallyResult {
     vouchers: vouchersXml(balanced),
     counts: {
       sales: count("Sales"), creditNotes: count("Credit Note"), receipts: count("Receipt"),
-      purchases: count("Purchase"), payments: count("Payment"), ledgers: ledgers.size
+      purchases: count("Purchase"), payments: count("Payment"), journals: count("Journal"), contras: count("Contra"), ledgers: ledgers.size
     },
     notes: [...new Set(notes)]
   };
@@ -375,12 +474,22 @@ export function tallyFiles(result: TallyResult, input: TallyInput): ZipEntry[] {
   const readme = [
     `${input.profile.name || "This business"}: books for Tally, ${input.period.label ?? `${input.period.from} to ${input.period.to}`}`,
     "",
-    "Import in this order, into the right company:",
-    "1. Gateway of Tally > Import > Masters > 1-ledgers.xml",
-    "   (choose \"Ignore duplicates\" if some ledgers are already there)",
-    "2. Gateway of Tally > Import > Transactions > 2-vouchers.xml",
+    "Before importing, in TallyPrime:",
+    "- Try it in a copy of the company first, or one made for testing.",
+    "- Press F11 (Features) and turn on bill-wise details, so receipts are matched to invoices.",
+    "- Do not import the same vouchers file twice: each import adds the vouchers again.",
     "",
-    `What is in it: ${c.sales} sales, ${c.creditNotes} credit notes, ${c.receipts} receipts, ${c.purchases} purchases, ${c.payments} payments, using ${c.ledgers} ledgers.`,
+    "Import in this order, into the right company:",
+    "1. Alt+O (Import) > Masters > 1-ledgers.xml",
+    "   (choose \"Ignore duplicates\" if some ledgers are already there)",
+    "2. Alt+O (Import) > Transactions > 2-vouchers.xml",
+    "",
+    "Afterwards, check:",
+    "- The Day Book for the period shows every voucher.",
+    "- The Trial Balance agrees with NXOne's trial balance for the same date.",
+    "- The GST rate details on each sales and tax ledger, which Tally needs for its own returns.",
+    "",
+    `What is in it: ${c.sales} sales, ${c.creditNotes} credit notes, ${c.receipts} receipts, ${c.purchases} purchases, ${c.payments} payments, ${c.journals} journals and ${c.contras} contra entries, using ${c.ledgers} ledgers.`,
     "Vouchers are in accounting view, without stock items. Customers and suppliers are bill-wise, so receipts and payments are matched to their invoices and bills.",
     "",
     ...(result.notes.length ? ["Please check:", ...result.notes.map((n) => `- ${n}`)] : ["Nothing was left out."]),

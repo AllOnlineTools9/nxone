@@ -1,3 +1,4 @@
+import { owedOn } from "../documents/owed";
 import type { Client, SavedDocument } from "../store/types";
 import type { DocumentData, DocumentKind } from "../documents/types";
 
@@ -120,7 +121,7 @@ export function summarise(client: Client, documents: SavedDocument[], today: str
   return {
     client,
     documents: theirs,
-    owedMinor: charges.reduce((sum, d) => sum + (d.totalMinor - d.paidMinor) * sign(d), 0),
+    owedMinor: charges.reduce((sum, d) => sum + owedOn(d) * sign(d), 0),
     billedMinor: charges.reduce((sum, d) => sum + d.totalMinor * sign(d), 0),
     lastOn: theirs[0]?.issueDate,
     overdue: charges.filter((d) => d.kind === "invoice" && d.totalMinor > d.paidMinor && d.dueDate && d.dueDate < today).length

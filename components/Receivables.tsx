@@ -1,4 +1,5 @@
 "use client";
+import { owedOn } from "@/lib/documents/owed";
 import { Copy, Mail, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -8,6 +9,7 @@ import { formatMoney } from "@/lib/money";
 import type { SavedDocument } from "@/lib/store/types";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
 import RateNeeded from "./RateNeeded";
+import SettlePanel from "./SettlePanel";
 
 /** Who owes you, who is late, and a message you can send in one click. */
 export default function Receivables() {
@@ -16,6 +18,9 @@ export default function Receivables() {
   const [open, setOpen] = useState<string | null>(null);
   const [tone, setTone] = useState<ReminderTone>("gentle");
   const [copied, setCopied] = useState(false);
+  const [settling, setSettling] = useState<string | null>(null);
+  const [said, setSaid] = useState("");
+  const [bounceDoc, setBounceDoc] = useState("");
 
   if (!ready) return <div className="h-72 animate-pulse rounded-xl border border-line bg-white/60" aria-hidden="true" />;
 
@@ -36,7 +41,7 @@ export default function Receivables() {
       businessName: ws.profile?.name ?? "us",
       customerName: doc.clientName,
       number: doc.number,
-      amount: m({ minor: doc.totalMinor - doc.paidMinor, currency: doc.currency }),
+      amount: m({ minor: owedOn(doc), currency: doc.currency }),
       dueDate: formatDate(doc.dueDate ?? doc.issueDate, doc.doc.country ?? "IN"),
       daysLate: Math.max(0, daysLate),
       paymentLine: pay
@@ -86,12 +91,18 @@ export default function Receivables() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="tabular font-semibold">{m(owed)}</span>
-                      <button type="button" className="btn-ghost" onClick={() => { setOpen(isOpen ? null : doc.id); setCopied(false); }}>
+                      <button type="button" className="btn-ghost" onClick={() => { setOpen(isOpen ? null : doc.id); setSettling(null); setCopied(false); }}>
                         {isOpen ? "Close" : "Write a reminder"}
+                      </button>
+                      <button type="button" className="btn-quiet" onClick={() => { setSettling(settling === doc.id ? null : doc.id); setOpen(null); }}>
+                        {settling === doc.id ? "Close" : "Settle"}
                       </button>
                     </div>
                   </div>
 
+                  {settling === doc.id ? (
+                    <SettlePanel doc={doc} db={db} modes={doc.paidMinor > 0 ? ["discount", "writeoff", "bounce"] : ["discount", "writeoff"]} onDone={(t) => { setSaid(t); setSettling(null); }} />
+                  ) : null}
                   {isOpen ? (
                     <div className="mt-4 border-t border-line pt-4">
                       <div className="flex flex-wrap items-center gap-2">
@@ -125,6 +136,23 @@ export default function Receivables() {
           </ul>
         </section>
       )}
+
+      {said ? <p role="status" className="rounded-lg border border-ok/30 bg-ok/5 p-3 text-sm">{said}</p> : null}
+
+      <section className="card p-5">
+        <h2 className="font-display text-lg">A payment came back?</h2>
+        <p className="mt-1 text-sm text-ink-soft">For a cheque that bounced or a transfer that was reversed on an invoice already marked paid.</p>
+        <select className="field mt-3 max-w-md" value={bounceDoc} onChange={(e) => setBounceDoc(e.target.value)} aria-label="Which invoice">
+          <option value="">Choose the invoice</option>
+          {docs.filter((d) => d.kind === "invoice" && d.paidMinor > 0).sort((a, b) => (b.paidOn ?? b.issueDate).localeCompare(a.paidOn ?? a.issueDate)).slice(0, 60).map((d) => (
+            <option key={d.id} value={d.id}>{d.number}, {d.clientName}, {m({ minor: d.paidMinor, currency: d.currency })} received</option>
+          ))}
+        </select>
+        {bounceDoc ? (() => {
+          const d = docs.find((x) => x.id === bounceDoc);
+          return d ? <SettlePanel key={d.id} doc={d} db={db} modes={["bounce"]} onDone={(t) => { setSaid(t); setBounceDoc(""); }} /> : null;
+        })() : null}
+      </section>
 
       {standing.length > 0 ? (
         <section className="card overflow-hidden">

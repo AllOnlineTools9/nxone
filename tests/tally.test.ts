@@ -170,7 +170,36 @@ describe("the folder", () => {
     const input = { profile, period, documents: [saved()], expenses: [] };
     const files = tallyFiles(tallyExport(input), input);
     expect(files.map((f) => f.name.split("/")[1])).toEqual(["1-ledgers.xml", "2-vouchers.xml", "read-me.txt"]);
-    expect(files[2].text).toContain("Import > Masters");
+    expect(files[2].text).toContain("(Import) > Masters");
+    expect(files[2].text).toContain("F11");
     expect(files[0].text.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
+  });
+});
+
+describe("everything else in the books", () => {
+  it("carries entries recorded directly, as the right voucher types and ledgers", () => {
+    const out = tallyExport({ profile, period, documents: [], expenses: [], entries: [
+      { id: "m1", date: "2026-05-01", narration: "Loan from HDFC", voucher: "receipt", lines: [{ account: "1020", debit: 500_000_00 }, { account: "2300", credit: 500_000_00, memo: "HDFC" }], createdAt: "", updatedAt: "" },
+      { id: "m2", date: "2026-05-02", narration: "Cash to bank", voucher: "contra", lines: [{ account: "1020", debit: 10_000_00 }, { account: "1010", credit: 10_000_00 }], createdAt: "", updatedAt: "" },
+      { id: "m3", date: "2026-05-03", narration: "Drawings", voucher: "payment", lines: [{ account: "3100", debit: 5_000_00, memo: "Rahul" }, { account: "1010", credit: 5_000_00 }], createdAt: "", updatedAt: "" },
+      { id: "m4", date: "2026-05-04", narration: "GST", voucher: "payment", lines: [{ account: "2100", debit: 1_000_00 }, { account: "1020", credit: 1_000_00 }], createdAt: "", updatedAt: "" }
+    ] });
+    expect(out.counts).toMatchObject({ receipts: 1, contras: 1, payments: 2 });
+    expect(out.masters).toContain('NAME="HDFC Loan"');
+    expect(out.masters).toContain("<PARENT>Loans (Liability)</PARENT>");
+    expect(out.masters).toContain('NAME="Rahul Drawings"');
+    expect(out.notes.join(" ")).toContain("GST Payable");
+    for (const v of vouchersIn(out.vouchers)) expect(Math.round(v.entries.reduce((s, e) => s + e.amount, 0) * 100)).toBe(0);
+  });
+
+  it("carries a discount allowed and a bounced payment against the invoice", () => {
+    const d = saved(doc(), { status: "paid", paidMinor: 100_000_00, paidOn: "2026-10-01", settlement: { discountMinor: 18_000_00, on: "2026-10-01" },
+      bounces: [{ on: "2026-10-05", amountMinor: 10_000_00, chargesMinor: 500_00 }] });
+    const out = tallyExport({ profile, period, documents: [d], expenses: [] });
+    const all = vouchersIn(out.vouchers);
+    expect(all.find((v) => v.type === "Receipt")?.entries[0].amount).toBe(-110000);
+    expect(all.find((v) => v.type === "Journal")?.entries[0]).toEqual({ ledger: "Discount Allowed", debit: true, amount: -18000 });
+    expect(all.filter((v) => v.type === "Payment")).toHaveLength(1);
+    for (const v of all) expect(Math.round(v.entries.reduce((s, e) => s + e.amount, 0) * 100)).toBe(0);
   });
 });
