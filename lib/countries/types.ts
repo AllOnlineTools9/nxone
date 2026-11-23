@@ -74,6 +74,12 @@ export interface CountryPack {
   taxRules: TaxRule[];
   /** Honest statement of how complete this pack is. Shown in the UI. */
   support: SupportLevel;
+  /**
+   * Screens and tools that only make sense in this country, such as GST returns or e-way bills.
+   * Everything else (invoices, expenses, accounts, stock, reports) is shared by every country.
+   * See lib/countries/features.ts.
+   */
+  features?: string[];
   notes?: string;
 }
 

@@ -1,5 +1,6 @@
 "use client";
 import { AlertTriangle, Check, Download, Loader2, Mail, RefreshCw, Search, UserPlus, X } from "lucide-react";
+import { hasFeature } from "@/lib/countries/features";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { makeZip } from "@/lib/files/zip";
@@ -294,9 +295,11 @@ export default function Practice() {
 
                 {books ? (
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <button type="button" className="btn-ghost text-sm" disabled={!books.profile} onClick={() => downloadTally(c, books)}>
-                      <Download size={15} />Tally, {period.label ?? `${period.from} to ${period.to}`}
-                    </button>
+                    {hasFeature(books.profile?.country, "tally") ? (
+                      <button type="button" className="btn-ghost text-sm" disabled={!books.profile} onClick={() => downloadTally(c, books)}>
+                        <Download size={15} />Tally, {period.label ?? `${period.from} to ${period.to}`}
+                      </button>
+                    ) : null}
                     <button type="button" className="btn-quiet text-sm" onClick={() => setOpen(expanded ? null : c.orgId)}>
                       {expanded ? "Hide returns" : "All returns"}
                     </button>

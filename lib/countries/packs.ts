@@ -27,6 +27,7 @@ export const INDIA: CountryPack = {
   taxIdPattern: "^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$",
   invoiceTitle: "Tax Invoice",
   support: "supported",
+  features: ["gst-returns", "gst-scheme", "input-credit", "tds", "advance-tax", "e-invoicing", "e-way-bills", "hsn", "payroll", "tally", "hinglish"],
   notes: "GST splits into CGST and SGST within a state and becomes IGST between states. Since 22 September 2025 the usual rates are 5% and 18%, with 40% on luxury and sin goods. The old 12% and 28% rates stay available for invoices dated before that change.",
   regions: [
     { code: "AN", name: "Andaman and Nicobar Islands", kind: "ut" }, { code: "AP", name: "Andhra Pradesh" }, { code: "AR", name: "Arunachal Pradesh" },

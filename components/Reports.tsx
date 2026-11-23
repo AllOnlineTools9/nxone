@@ -1,5 +1,6 @@
 "use client";
 import { Download } from "lucide-react";
+import { hasFeature } from "@/lib/countries/features";
 import { useMemo, useState } from "react";
 import { formatDate, todayIso } from "@/lib/format";
 import { formatMoney } from "@/lib/money";
@@ -25,6 +26,8 @@ export default function Reports() {
   }, [choice, anchor, custom]);
 
   const currency = ws.profile?.currency ?? db.documents()[0]?.currency ?? "INR";
+  // CGST, SGST and IGST only exist in India; elsewhere the table is just rate, value and tax.
+  const gstSplit = hasFeature(ws.profile?.country, "gst-returns");
   // recalculated on every render on purpose: it must follow any document you edit or mark paid
   const r = reportFor(db.documents(), period, currency);
   const m = (v: { minor: number; currency: string }) => formatMoney(v, "en-IN");
@@ -86,15 +89,15 @@ export default function Reports() {
 
           <section className="card overflow-hidden">
             <h2 className="px-5 pt-5 font-display text-lg">Tax by rate</h2>
-            <p className="px-5 pb-3 text-sm text-ink-soft">The split a return asks for. Supplies inside your state carry CGST and SGST, those outside carry IGST.</p>
+            <p className="px-5 pb-3 text-sm text-ink-soft">{gstSplit ? "The split a return asks for. Supplies inside your state carry CGST and SGST, those outside carry IGST." : "What you charged at each rate, the figures a return asks for."}</p>
             <table className="w-full border-collapse text-sm">
               <thead className="bg-canvas text-left">
                 <tr>
                   <th className="px-5 py-2.5 font-semibold">Rate</th>
                   <th className="px-5 py-2.5 text-right font-semibold">Taxable value</th>
-                  <th className="px-5 py-2.5 text-right font-semibold">CGST</th>
-                  <th className="px-5 py-2.5 text-right font-semibold">SGST</th>
-                  <th className="px-5 py-2.5 text-right font-semibold">IGST</th>
+                  {gstSplit ? <th className="px-5 py-2.5 text-right font-semibold">CGST</th> : null}
+                  {gstSplit ? <th className="px-5 py-2.5 text-right font-semibold">SGST</th> : null}
+                  {gstSplit ? <th className="px-5 py-2.5 text-right font-semibold">IGST</th> : null}
                   <th className="px-5 py-2.5 text-right font-semibold">Total tax</th>
                 </tr>
               </thead>
@@ -103,9 +106,9 @@ export default function Reports() {
                   <tr key={row.rate} className="border-t border-line">
                     <td className="px-5 py-2.5 font-medium">{row.label}</td>
                     <td className="px-5 py-2.5 text-right tabular">{m(row.taxable)}</td>
-                    <td className="px-5 py-2.5 text-right tabular">{m(row.cgst)}</td>
-                    <td className="px-5 py-2.5 text-right tabular">{m(row.sgst)}</td>
-                    <td className="px-5 py-2.5 text-right tabular">{m(row.igst)}</td>
+                    {gstSplit ? <td className="px-5 py-2.5 text-right tabular">{m(row.cgst)}</td> : null}
+                    {gstSplit ? <td className="px-5 py-2.5 text-right tabular">{m(row.sgst)}</td> : null}
+                    {gstSplit ? <td className="px-5 py-2.5 text-right tabular">{m(row.igst)}</td> : null}
                     <td className="px-5 py-2.5 text-right tabular font-semibold">{m(row.tax)}</td>
                   </tr>
                 ))}

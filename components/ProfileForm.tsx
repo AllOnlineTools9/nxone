@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { PACKS, packFor } from "@/lib/countries/packs";
 import { TEMPLATES } from "@/lib/documents/templates";
 import { PALETTES } from "@/lib/documents/palettes";
-import { useProfile } from "@/lib/store/useStore";
+import { useProfile, useWorkspace } from "@/lib/store/useStore";
+import { countryLocked, inSentence } from "@/lib/countries/features";
 import type { Profile } from "@/lib/store/types";
 
 const blank = (): Profile => ({ name: "", country: "IN", currency: "INR", accentColor: "#0B3D2E", template: "classic" });
@@ -12,6 +13,9 @@ const blank = (): Profile => ({ name: "", country: "IN", currency: "INR", accent
 /** Type your business details once. Every new document starts from them. */
 export default function ProfileForm() {
   const { profile, saveProfile } = useProfile();
+  const [, db] = useWorkspace();
+  const documentCount = db.documents().length;
+  const locked = countryLocked(profile, documentCount);
   const [form, setForm] = useState<Profile>(blank);
   const [saved, setSaved] = useState(false);
   const [ready, setReady] = useState(false);
@@ -57,11 +61,11 @@ export default function ProfileForm() {
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <div>
             <label className="label" htmlFor="pcountry">Country</label>
-            <select id="pcountry" className="field" value={form.country} onChange={(e) => set({ country: e.target.value, currency: packFor(e.target.value).currency, region: "" })}>
+            <select id="pcountry" className="field" value={form.country} disabled={locked} aria-describedby={locked ? "pcountry-locked" : undefined} onChange={(e) => set({ country: e.target.value, currency: packFor(e.target.value).currency, region: "" })}>
               {PACKS.map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}
             </select>
           </div>
-          <Field label="Currency" value={form.currency} onChange={(v) => set({ currency: v.toUpperCase().slice(0, 3) })} />
+          <Field label="Currency" value={form.currency} disabled={locked} onChange={(v) => set({ currency: v.toUpperCase().slice(0, 3) })} />
           {pack.regions?.length ? (
             <div>
               <label className="label" htmlFor="pregion">Your state</label>
@@ -72,6 +76,16 @@ export default function ProfileForm() {
             </div>
           ) : null}
         </div>
+        {locked ? (
+          <p id="pcountry-locked" className="mt-3 max-w-3xl text-xs text-ink-faint">
+            The country and currency are fixed now that this business has {documentCount} document{documentCount === 1 ? "" : "s"}, because they
+            were issued under the tax rules for {inSentence(pack.name)}. To work in another country, use &quot;Add another business&quot; at the top of the menu.
+          </p>
+        ) : (
+          <p className="mt-3 max-w-3xl text-xs text-ink-faint">
+            The country decides which tax screens you see, such as GST returns in India. It is fixed once you make your first document.
+          </p>
+        )}
       </section>
 
       <section className="card p-5">
@@ -173,9 +187,9 @@ export default function ProfileForm() {
   );
 }
 
-function Field({ label, value, onChange, placeholder, type = "text" }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
+function Field({ label, value, onChange, placeholder, type = "text", disabled }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; disabled?: boolean }) {
   const id = `p-${label.replace(/\W+/g, "-").toLowerCase()}`;
-  return <div><label className="label" htmlFor={id}>{label}</label><input id={id} type={type} className="field" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} /></div>;
+  return <div><label className="label" htmlFor={id}>{label}</label><input id={id} type={type} className="field" value={value} placeholder={placeholder} disabled={disabled} onChange={(e) => onChange(e.target.value)} /></div>;
 }
 
 function Area({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {

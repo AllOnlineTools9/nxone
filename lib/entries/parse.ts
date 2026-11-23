@@ -329,8 +329,9 @@ export function parseSentence(sentence: string, ctx: ParseContext): Parsed {
       { account: "2100", debit: amount }, { account: "1400", credit: amount }
     ], { notes: [] });
   }
-  if (has(t, /\b(gst|cgst|sgst|igst|utgst)\b/) && has(t, /\b(paid|pay|deposited|challan|bhara|bhari|jama|pmt)\b/)) {
-    return draft("gst-paid", `GST of ${money(amount)} paid to the government`, "payment", [
+  if (has(t, /\b(gst|cgst|sgst|igst|utgst|vat|hst|pst|sales tax)\b/) && has(t, /\b(paid|pay|deposited|challan|bhara|bhari|jama|pmt|remitted|filed)\b/)) {
+    const label = has(t, /\bvat\b/) ? "VAT" : has(t, /\bsales tax\b/) ? "Sales tax" : has(t, /\b(hst|pst)\b/) ? "Sales tax" : "GST";
+    return draft("gst-paid", `${label} of ${money(amount)} paid to the government`, "payment", [
       { account: "2100", debit: amount }, { account: acct.code, credit: amount }
     ]);
   }
@@ -478,6 +479,19 @@ export function parseLines(text: string, ctx: ParseContext): Array<{ sentence: s
 }
 
 /** The kinds of sentences it understands, as examples for the screen. */
+/** Examples for a business outside India: no Hinglish, lakh, GST or TDS. */
+export const EXAMPLES_WORLD = [
+  "Started the business with 50,000 in the bank",
+  "Took 2,500 cash for personal use",
+  "Loan of 100,000 from the bank credited",
+  "Paid loan installment 3,200, interest 950",
+  "Deposited 4,000 cash in bank",
+  "Paid sales tax 4,230 for October",
+  "Bank charges 25",
+  "Rent of 3,000 for March is outstanding",
+  "Insurance 1,200 is prepaid for next year"
+];
+
 export const EXAMPLES = [
   "Started the business with 5 lakh in the bank",
   "Took 25k cash for home",

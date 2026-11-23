@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import Logo from "./Logo";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
 import EntitySwitcher from "./EntitySwitcher";
+import { featureForPath, hasFeature } from "@/lib/countries/features";
 
 const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string; icon: typeof FileText; soon?: boolean }> }> = [
   {
@@ -85,6 +86,14 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
   // before deciding, or the markup will not match and React will complain
   const hydrated = useHydrated();
   const setUp = !hydrated || Boolean(ws.profile?.name);
+  // Country-only screens (GST returns for India, and so on) show only for a business in that
+  // country. Until this browser's profile is read they stay hidden, so a business elsewhere never
+  // sees them flash up.
+  const country = ws.profile?.country;
+  const shows = (href: string) => {
+    const feature = featureForPath(href);
+    return !feature || (hydrated && hasFeature(country, feature));
+  };
   // Close the drawer after moving to another page. Only the path is watched: the layout passes a
   // new onClose on every render, and watching it closed the menu the moment it opened on phones.
   const close = useRef(onClose);
@@ -117,7 +126,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
             <div key={g.title} className="mb-6">
               <p className="mb-1 px-2 text-[0.68rem] font-semibold uppercase tracking-wider text-ink-faint">{g.title}</p>
               <ul className="space-y-0.5">
-                {g.items.map((it) => {
+                {g.items.filter((it) => shows(it.href)).map((it) => {
                   const active = path === it.href;
                   return (
                     <li key={it.href}>

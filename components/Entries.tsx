@@ -2,13 +2,15 @@
 import { AlertTriangle, Check, Info, Plus, Sparkles, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { EXAMPLES, parseLines, type Draft, type Parsed, type Structure } from "@/lib/entries/parse";
+import { EXAMPLES, EXAMPLES_WORLD, parseLines, type Draft, type Parsed, type Structure } from "@/lib/entries/parse";
 import type { ManualEntry, VoucherType } from "@/lib/entries/types";
 import { CHART, accountByCode } from "@/lib/ledger/accounts";
 import type { JournalLine } from "@/lib/ledger/journal";
 import { formatDate, todayIso } from "@/lib/format";
 import { formatMoney, fromMinor } from "@/lib/money";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
+import { hasFeature } from "@/lib/countries/features";
+import { packFor } from "@/lib/countries/packs";
 
 /**
  * Other money: everything that is not an invoice or a bill. The owner putting money in or taking
@@ -84,6 +86,9 @@ export default function Entries() {
   const country = profile?.country ?? "IN";
   const structure: Structure = profile?.structure ?? "proprietorship";
   const partners = profile?.partners ?? [];
+  // Hinglish, lakh, GST and TDS examples are for India; other countries get plain ones.
+  const india = hasFeature(profile?.country, "hinglish");
+  const pack = packFor(profile?.country);
   const today = todayIso();
   const m = (minor: number) => formatMoney(fromMinor(minor, currency), "en-IN");
   const saved = useMemo(() => (ready ? db.entries().slice().reverse() : []), [ws, ready]);
@@ -158,9 +163,10 @@ export default function Entries() {
       <header>
         <h1 className="font-display text-3xl">Other money</h1>
         <p className="mt-1 max-w-3xl text-ink-soft">
-          Anything that is not an invoice or a bill: money you put in or took out, loans and EMIs, fixed deposits,
-          GST and TDS paid, cash taken to the bank, and adjustments at year end. Say it in a sentence, in English or
-          Hinglish. You see exactly what it does to your books before anything is recorded.
+          {india
+            ? "Anything that is not an invoice or a bill: money you put in or took out, loans and EMIs, fixed deposits, GST and TDS paid, cash taken to the bank, and adjustments at year end. Say it in a sentence, in English or Hinglish."
+            : `Anything that is not an invoice or a bill: money you put in or took out, loans and repayments, deposits, ${pack.taxLabel === "Sales tax" || pack.taxLabel === "Tax" ? pack.taxLabel.toLowerCase() : pack.taxLabel} paid, cash taken to the bank, and adjustments at year end. Say it in a sentence.`}{" "}
+          You see exactly what it does to your books before anything is recorded.
         </p>
       </header>
 
@@ -185,7 +191,7 @@ export default function Entries() {
           <span className="sr-only">What happened</span>
           <textarea
             className="field min-h-[7rem] font-normal" value={text} onChange={(e) => setText(e.target.value)}
-            placeholder={"One per line, for example:\nPaid GST 42,300 for October\nTook 25k cash for home\nHDFC se 5 lakh ka loan liya"}
+            placeholder={india ? "One per line, for example:\nPaid GST 42,300 for October\nTook 25k cash for home\nHDFC se 5 lakh ka loan liya" : "One per line, for example:\nTook 2,500 cash for personal use\nBank charges 25\nLoan of 100,000 from the bank credited"}
             onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); read(); } }}
           />
         </label>
@@ -196,7 +202,7 @@ export default function Entries() {
           </button>
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {EXAMPLES.slice(0, 8).map((ex) => (
+          {(india ? EXAMPLES : EXAMPLES_WORLD).slice(0, 8).map((ex) => (
             <button key={ex} type="button" className="chip px-2.5 py-1 text-xs" onClick={() => setText((t) => (t.trim() ? `${t.trim()}\n${ex}` : ex))}>{ex}</button>
           ))}
         </div>

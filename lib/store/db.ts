@@ -1,4 +1,5 @@
 import type { ManualEntry } from "../entries/types";
+import { countryLocked } from "../countries/features";
 import type { DocumentData, DocumentKind } from "../documents/types";
 import { rememberFrom } from "../customers/customers";
 import { formatDate, todayIso } from "../format";
@@ -90,6 +91,11 @@ export class Store {
 
   saveProfile(profile: Profile) {
     const existing = this.read().profile;
+    // The country and home currency are fixed once documents exist (see countryLocked). The form
+    // already stops this; this is the backstop for any other caller.
+    if (existing && countryLocked(existing, this.documents().length)) {
+      profile = { ...profile, country: existing.country, currency: existing.currency };
+    }
     this.write({ ...this.read(), profile: { ...profile, updatedAt: new Date().toISOString(), version: (existing?.version ?? 0) + 1 } });
   }
 

@@ -1,5 +1,6 @@
 "use client";
 import { AlertTriangle, Download } from "lucide-react";
+import { hasFeature } from "@/lib/countries/features";
 import { useMemo, useState } from "react";
 import { makeZip } from "@/lib/files/zip";
 import { tallyExport, tallyFiles, type TallyInput } from "@/lib/reports/tally";
@@ -27,6 +28,8 @@ export default function TallyExport() {
   }, [ready, ws, when, span]);
 
   if (!ready || !built) return null;
+  // Tally is what Indian accountants use; elsewhere the Excel workbook in Accounts does this job.
+  if (!hasFeature(ws.profile?.country, "tally")) return null;
   const { input, result } = built;
   const c = result.counts;
   const total = c.sales + c.creditNotes + c.receipts + c.purchases + c.payments + c.journals + c.contras;

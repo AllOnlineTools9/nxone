@@ -132,3 +132,18 @@ describe("year-end income in advance", () => {
     expect("lines" in r && r.template).toBe("advance-received");
   });
 });
+
+describe("examples for businesses outside India", () => {
+  it("reads every one into a balanced entry", async () => {
+    const { EXAMPLES_WORLD } = await import("@/lib/entries/parse");
+    for (const ex of EXAMPLES_WORLD) {
+      const r = parseSentence(ex, { today: "2026-11-20", structure: "company" });
+      expect("lines" in r, ex).toBe(true);
+    }
+  });
+  it("reads VAT and sales tax payments", () => {
+    const vat = parseSentence("Paid VAT 1,800", ctx);
+    expect("lines" in vat && vat.template).toBe("gst-paid");
+    expect("lines" in vat && vat.readAs).toContain("VAT");
+  });
+});

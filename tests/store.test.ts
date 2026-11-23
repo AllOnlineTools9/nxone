@@ -103,3 +103,21 @@ describe("money summary", () => {
     expect(s.byClient[0]).toMatchObject({ name: "Initech", outstandingMinor: 200000, count: 1 });
   });
 });
+
+describe("the business's country", () => {
+  const profile = { name: "Brightline", country: "IN", currency: "INR" } as Parameters<Store["saveProfile"]>[0];
+  it("can change before any document exists", () => {
+    store.saveProfile(profile);
+    store.saveProfile({ ...profile, country: "US", currency: "USD" });
+    expect(store.read().profile?.country).toBe("US");
+  });
+  it("keeps its country and currency once a document exists, while other details still save", () => {
+    store.saveProfile(profile);
+    store.saveDocument(bill({}));
+    store.saveProfile({ ...profile, name: "Brightline Studio", country: "US", currency: "USD" });
+    const saved = store.read().profile!;
+    expect(saved.name).toBe("Brightline Studio");
+    expect(saved.country).toBe("IN");
+    expect(saved.currency).toBe("INR");
+  });
+});
