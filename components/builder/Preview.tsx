@@ -87,7 +87,7 @@ export default function Preview({ doc, totals }: { doc: DocumentData; totals: Do
             </div>
           ) : doc.placeOfSupply ? (
             <div className="text-right">
-              <Small>Place of supply</Small>
+              <Small>{pack.regionLabels?.printed ?? "Place of supply"}</Small>
               <p className="mt-1">{pack.regions?.find((r) => r.code === doc.placeOfSupply)?.name ?? doc.placeOfSupply}</p>
             </div>
           ) : null}

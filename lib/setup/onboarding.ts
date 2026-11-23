@@ -41,6 +41,14 @@ export function registrationChoices(country: string): Array<{ value: Registratio
   if (pack.taxSystem === "GST") out.push({ value: "gst", label: `Registered for ${pack.taxLabel}`, help: `You charge ${pack.taxLabel} and file returns` });
   if (pack.taxSystem === "VAT") out.push({ value: "vat", label: `Registered for ${pack.taxLabel}`, help: `You charge ${pack.taxLabel} and file returns` });
 
+  if (country.toUpperCase() === "US") {
+    out.push({ value: "sales-tax", label: "You collect sales tax", help: "You hold a sales tax permit in at least one state" });
+    out.push({ value: "income-tax", label: "You pay estimated tax", help: "Quarterly estimated tax and the yearly return" });
+    out.push({ value: "contractors", label: "You pay contractors", help: "1099-NEC forms each January" });
+    out.push({ value: "payroll", label: "You run payroll", help: "Form 941 each quarter, W-2s and Form 940 each January" });
+    return out;
+  }
+
   if (country.toUpperCase() === "IN") {
     out.push({ value: "tds", label: "You deduct TDS", help: "Tax deducted at source from suppliers or salaries" });
     out.push({ value: "payroll", label: "You run payroll", help: "With PF or ESI for employees" });

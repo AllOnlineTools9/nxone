@@ -71,6 +71,12 @@ export interface CountryPack {
    * legislature, where the state half of GST is charged as UTGST instead of SGST.
    */
   regions?: Array<{ code: string; name: string; kind?: "state" | "ut" }>;
+  /**
+   * What the two region fields are called, where the defaults ("Your state", "Place of supply")
+   * would read wrongly. In the US the tax follows where the customer receives the goods, so the
+   * second field is the ship-to state.
+   */
+  regionLabels?: { seller: string; supply: string; printed: string; help?: string };
   taxRules: TaxRule[];
   /** Honest statement of how complete this pack is. Shown in the UI. */
   support: SupportLevel;
@@ -80,6 +86,12 @@ export interface CountryPack {
    * See lib/countries/features.ts.
    */
   features?: string[];
+  /**
+   * The month the business's tax year starts: 4 for India's April-to-March financial year, 1 for
+   * the US calendar year. Reports, Books and Year end count "a year" from here. Unset means April,
+   * which is how the app has always counted.
+   */
+  yearStartMonth?: number;
   notes?: string;
 }
 

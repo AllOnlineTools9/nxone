@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { yearStartFor } from "@/lib/countries/year";
 import { formatDate, todayIso } from "@/lib/format";
 import { formatMoney, fromMinor } from "@/lib/money";
 import { trialBalance } from "@/lib/ledger/journal";
@@ -33,7 +34,9 @@ export default function Books() {
   if (!ready) return <div className="h-72 animate-pulse rounded-xl border border-line bg-white/60" aria-hidden="true" />;
 
   const currency = ws.profile?.currency ?? "INR";
-  const period: Period = choice === "month" ? monthPeriod(anchor) : choice === "quarter" ? quarterPeriod(anchor) : financialYear(anchor);
+  // April to March in India, the calendar year in the US.
+  const yearStart = yearStartFor(ws.profile?.country);
+  const period: Period = choice === "month" ? monthPeriod(anchor) : choice === "quarter" ? quarterPeriod(anchor, yearStart) : financialYear(anchor, yearStart);
   const ledger = ledgerFor(db.documents(), db.expenses(), currency, openingOf(ws.profile), { items: db.items() as StockItem[] }, { list: db.assets().map(toAssetForBooks) }, db.entries());
   const pl = profitAndLoss(ledger, currency, period.from, period.to);
   const bs = balanceSheet(ledger, currency, period.to);

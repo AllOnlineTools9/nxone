@@ -1,4 +1,5 @@
 import { owedOn } from "../documents/owed";
+import { taxRegion } from "../documents/regional";
 import { calculate } from "../documents/totals";
 import { fromMinor, type Money } from "../money";
 import type { SavedDocument } from "./types";
@@ -16,9 +17,13 @@ export interface Period { from: string; to: string; label: string }
 const pad = (n: number) => String(n).padStart(2, "0");
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-/** Indian financial years run April to March, which is what most of our users file against. */
+/**
+ * The business's year: April to March in India, the calendar year in the US. The start month
+ * comes from the country (yearStartFor); April is the default because it always was.
+ */
 export function financialYear(iso: string, startMonth = 4): Period {
   const [y, m] = iso.split("-").map(Number);
+  if (startMonth === 1) return { from: `${y}-01-01`, to: `${y}-12-31`, label: String(y) };
   const startYear = m >= startMonth ? y : y - 1;
   return {
     from: `${startYear}-${pad(startMonth)}-01`,
@@ -69,6 +74,12 @@ export interface PeriodReport {
   intraStateTaxable: Money;
   interStateTaxable: Money;
   exportTaxable: Money;
+  /**
+   * Sales and tax by the state they were taxed in (the ship-to state, or yours when none is set).
+   * In the US each state is its own return, and the sales into a state are also what its
+   * economic-nexus threshold counts, so this is the table a seller there works from.
+   */
+  byRegion: Array<{ region: string; count: number; sales: Money; tax: Money }>;
 }
 
 const SALES: SavedDocument["kind"][] = ["invoice", "proforma", "credit-note"];
@@ -81,6 +92,7 @@ export function reportFor(documents: SavedDocument[], period: Period, currency: 
   const rates = new Map<string, TaxRow>();
   const hsn = new Map<string, { code: string; rate: number; taxable: number; tax: number }>();
   const clients = new Map<string, { invoiced: number; tax: number; count: number; outstanding: number }>();
+  const regions = new Map<string, { count: number; sales: number; tax: number }>();
 
   let taxable = 0, tax = 0, gross = 0, received = 0, intra = 0, inter = 0, exported = 0;
 
@@ -112,6 +124,12 @@ export function reportFor(documents: SavedDocument[], period: Period, currency: 
       });
     }
 
+    if (!d.doc.export?.enabled) {
+      const region = taxRegion(d.doc) || "";
+      const g = regions.get(region) ?? { count: 0, sales: 0, tax: 0 };
+      regions.set(region, { count: g.count + 1, sales: g.sales + t.taxableTotal.minor, tax: g.tax + t.taxTotal.minor });
+    }
+
     const c = clients.get(d.clientName) ?? { invoiced: 0, tax: 0, count: 0, outstanding: 0 };
     clients.set(d.clientName, {
       invoiced: c.invoiced + t.total.minor,
@@ -132,6 +150,8 @@ export function reportFor(documents: SavedDocument[], period: Period, currency: 
     byHsn: [...hsn.values()].sort((a, b) => b.taxable - a.taxable).map((h) => ({ code: h.code, rate: h.rate, taxable: fromMinor(h.taxable, currency), tax: fromMinor(h.tax, currency) })),
     byClient: [...clients.entries()].map(([name, v]) => ({ name, invoiced: fromMinor(v.invoiced, currency), tax: fromMinor(v.tax, currency), count: v.count, outstandingMinor: v.outstanding }))
       .sort((a, b) => b.invoiced.minor - a.invoiced.minor),
+    byRegion: [...regions.entries()].map(([region, v]) => ({ region, count: v.count, sales: fromMinor(v.sales, currency), tax: fromMinor(v.tax, currency) }))
+      .sort((a, b) => b.sales.minor - a.sales.minor),
     intraStateTaxable: fromMinor(intra, currency),
     interStateTaxable: fromMinor(inter, currency),
     exportTaxable: fromMinor(exported, currency)

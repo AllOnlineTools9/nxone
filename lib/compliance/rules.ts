@@ -10,7 +10,7 @@
 export type Frequency = "monthly" | "quarterly" | "half-yearly" | "yearly";
 
 /** What a business has to be signed up to before an obligation applies to it. */
-export type Registration = "gst" | "vat" | "tds" | "payroll" | "income-tax" | "none";
+export type Registration = "gst" | "vat" | "tds" | "payroll" | "income-tax" | "sales-tax" | "contractors" | "none";
 
 export interface ObligationRule {
   id: string;
@@ -32,6 +32,14 @@ export interface ObligationRule {
   status: "verified" | "published" | "draft";
   /** For a yearly obligation, the month the period ends in. */
   periodEndMonth?: number;
+  /**
+   * Due on fixed days of the year rather than a set time after each period, such as US estimated
+   * tax (15 April, 15 June, 15 September, 15 January). "covers" names the period, with {year} for
+   * the year the date falls in and {prev} for the year before.
+   */
+  dates?: Array<{ month: number; day: number; covers: string }>;
+  /** A due date on a Saturday or Sunday moves to the Monday, as the IRS does. */
+  nextBusinessDay?: boolean;
 }
 
 export const OBLIGATIONS: ObligationRule[] = [
@@ -122,6 +130,68 @@ export const OBLIGATIONS: ObligationRule[] = [
     plain: "Your quarterly BAS and GST payment",
     frequency: "quarterly", dueDay: 28, monthsAfterPeriod: 1, requires: "gst",
     source: "Australian Taxation Office, BAS due dates", effectiveFrom: "2019-01-01", status: "published"
+  },
+  /* ---------- United States (federal) ---------- */
+  {
+    id: "us-estimated-tax", jurisdiction: "US", name: "Estimated tax (Form 1040-ES)",
+    plain: "Your quarterly payment towards this year's income and self-employment tax",
+    frequency: "yearly", dueDay: 15, monthsAfterPeriod: 0, requires: "income-tax",
+    appliesWhen: "Owners who expect to owe $1,000 or more for the year. The four periods are not equal quarters.",
+    dates: [
+      { month: 4, day: 15, covers: "January to March {year}" },
+      { month: 6, day: 15, covers: "April and May {year}" },
+      { month: 9, day: 15, covers: "June to August {year}" },
+      { month: 1, day: 15, covers: "September to December {prev}" }
+    ],
+    nextBusinessDay: true,
+    source: "IRS, Form 1040-ES", effectiveFrom: "2000-01-01", status: "published"
+  },
+  {
+    id: "us-1040", jurisdiction: "US", name: "Income tax return (Form 1040 with Schedule C)",
+    plain: "The yearly return for a sole proprietor or single-member LLC, and any tax still owed",
+    frequency: "yearly", dueDay: 15, monthsAfterPeriod: 0, requires: "income-tax",
+    appliesWhen: "Sole proprietors and single-member LLCs. C corporations file Form 1120 on the same date.",
+    dates: [{ month: 4, day: 15, covers: "Tax year {prev}" }], nextBusinessDay: true,
+    source: "IRS, Form 1040 and Form 1120 instructions", effectiveFrom: "2000-01-01", status: "published"
+  },
+  {
+    id: "us-1065-1120s", jurisdiction: "US", name: "Partnership or S corporation return (Form 1065 or 1120-S)",
+    plain: "The business's yearly return, and a Schedule K-1 for each partner or shareholder",
+    frequency: "yearly", dueDay: 15, monthsAfterPeriod: 0, requires: "income-tax",
+    appliesWhen: "Partnerships, multi-member LLCs and S corporations on the calendar year",
+    dates: [{ month: 3, day: 15, covers: "Tax year {prev}" }], nextBusinessDay: true,
+    source: "IRS, Form 1065 and Form 1120-S instructions", effectiveFrom: "2000-01-01", status: "published"
+  },
+  {
+    id: "us-1099-nec", jurisdiction: "US", name: "Form 1099-NEC",
+    plain: "A form to each contractor you paid, and a copy to the IRS",
+    frequency: "yearly", dueDay: 31, monthsAfterPeriod: 0, requires: "contractors",
+    appliesWhen: "Anyone you paid $600 or more in 2025, or $2,000 or more from 2026 payments onwards",
+    dates: [{ month: 1, day: 31, covers: "Payments in {prev}" }], nextBusinessDay: true,
+    source: "IRS, Form 1099-NEC instructions; One Big Beautiful Bill Act threshold", effectiveFrom: "2020-01-01", status: "published"
+  },
+  {
+    id: "us-941", jurisdiction: "US", name: "Form 941",
+    plain: "Your quarterly payroll return: income tax withheld, Social Security and Medicare",
+    frequency: "quarterly", dueDay: 31, monthsAfterPeriod: 1, requires: "payroll",
+    appliesWhen: "Last day of the month after each quarter. The tax itself is usually deposited monthly or twice a week.",
+    nextBusinessDay: true,
+    source: "IRS, Form 941 instructions", effectiveFrom: "2000-01-01", status: "published"
+  },
+  {
+    id: "us-w2-940", jurisdiction: "US", name: "W-2s and Form 940",
+    plain: "A W-2 to each employee and the Social Security Administration, and the yearly federal unemployment tax return",
+    frequency: "yearly", dueDay: 31, monthsAfterPeriod: 0, requires: "payroll",
+    dates: [{ month: 1, day: 31, covers: "Wages paid in {prev}" }], nextBusinessDay: true,
+    source: "IRS, Form W-2 and Form 940 instructions", effectiveFrom: "2000-01-01", status: "published"
+  },
+  {
+    id: "us-sales-tax", jurisdiction: "US", name: "State sales tax return",
+    plain: "The sales tax you collected, filed and paid to each state you are registered in",
+    frequency: "monthly", dueDay: 20, monthsAfterPeriod: 1, requires: "sales-tax",
+    appliesWhen: "Many states use the 20th of the month after, but each state sets its own date and may give you quarterly or yearly filing. Check the date on your permit.",
+    nextBusinessDay: true,
+    source: "State revenue departments", effectiveFrom: "2000-01-01", status: "draft"
   }
 ];
 

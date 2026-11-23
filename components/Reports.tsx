@@ -1,5 +1,8 @@
 "use client";
 import { Download } from "lucide-react";
+import { hasRegionalRates } from "@/lib/documents/regional";
+import { packFor } from "@/lib/countries/packs";
+import { yearStartFor } from "@/lib/countries/year";
 import { hasFeature } from "@/lib/countries/features";
 import { useMemo, useState } from "react";
 import { formatDate, todayIso } from "@/lib/format";
@@ -18,19 +21,26 @@ export default function Reports() {
   const [anchor, setAnchor] = useState(todayIso());
   const [custom, setCustom] = useState<{ from: string; to: string }>({ from: todayIso().slice(0, 8) + "01", to: todayIso() });
 
+  const country = ws.profile?.country ?? "IN";
+  // April to March in India, the calendar year in the US.
+  const yearStart = yearStartFor(country);
   const period: Period = useMemo(() => {
     if (choice === "month") return monthPeriod(anchor);
-    if (choice === "quarter") return quarterPeriod(anchor);
-    if (choice === "year") return financialYear(anchor);
-    return { from: custom.from, to: custom.to, label: `${formatDate(custom.from, "IN")} to ${formatDate(custom.to, "IN")}` };
-  }, [choice, anchor, custom]);
+    if (choice === "quarter") return quarterPeriod(anchor, yearStart);
+    if (choice === "year") return financialYear(anchor, yearStart);
+    return { from: custom.from, to: custom.to, label: `${formatDate(custom.from, country)} to ${formatDate(custom.to, country)}` };
+  }, [choice, anchor, custom, yearStart, country]);
 
   const currency = ws.profile?.currency ?? db.documents()[0]?.currency ?? "INR";
   // CGST, SGST and IGST only exist in India; elsewhere the table is just rate, value and tax.
   const gstSplit = hasFeature(ws.profile?.country, "gst-returns");
+  // Where each state sets its own rate (the US), the return is per state, so show sales by state.
+  const pack = packFor(country);
+  const regionName = (code: string) => (code ? pack.regions?.find((x) => x.code === code)?.name ?? code : "State not set");
   // recalculated on every render on purpose: it must follow any document you edit or mark paid
   const r = reportFor(db.documents(), period, currency);
-  const m = (v: { minor: number; currency: string }) => formatMoney(v, "en-IN");
+  const byState = hasRegionalRates(pack) && r.byRegion.length > 0;
+  const m = (v: { minor: number; currency: string }) => formatMoney(v, packFor(country).locale);
 
   const downloadCsv = () => {
     const csv = documentsCsv(db.documents(), period);
@@ -51,14 +61,14 @@ export default function Reports() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold sm:text-3xl">Reports</h1>
-          <p className="mt-1 text-ink-soft">{period.label}, from {formatDate(period.from, "IN")} to {formatDate(period.to, "IN")}</p>
+          <p className="mt-1 text-ink-soft">{period.label}, from {formatDate(period.from, country)} to {formatDate(period.to, country)}</p>
         </div>
         <button type="button" className="btn-ghost" onClick={downloadCsv} disabled={r.count === 0}><Download size={16} />Download CSV</button>
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex gap-1.5">
-          {([["month", "Month"], ["quarter", "Quarter"], ["year", "Financial year"], ["custom", "Custom"]] as Array<[Choice, string]>).map(([v, l]) => (
+          {([["month", "Month"], ["quarter", "Quarter"], ["year", yearStart === 1 ? "Year" : "Financial year"], ["custom", "Custom"]] as Array<[Choice, string]>).map(([v, l]) => (
             <button key={v} type="button" onClick={() => setChoice(v)} aria-pressed={choice === v}
               className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${choice === v ? "border-forest bg-forest text-white" : "border-line bg-white text-ink-soft hover:border-ink"}`}>{l}</button>
           ))}
@@ -115,6 +125,37 @@ export default function Reports() {
               </tbody>
             </table>
           </section>
+
+          {byState ? (
+            <section className="card overflow-hidden">
+              <h2 className="px-5 pt-5 font-display text-lg">Sales tax by state</h2>
+              <p className="px-5 pb-3 text-sm text-ink-soft">
+                Each state is its own return. Sales into a state also count towards the amount at which that state expects you to register and collect, so keep an eye on the ones growing.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[30rem] text-sm">
+                  <thead className="bg-paper text-left text-xs uppercase tracking-wider text-ink-faint">
+                    <tr>
+                      <th className="px-5 py-2.5 font-semibold">State</th>
+                      <th className="px-5 py-2.5 text-right font-semibold">Invoices</th>
+                      <th className="px-5 py-2.5 text-right font-semibold">Sales</th>
+                      <th className="px-5 py-2.5 text-right font-semibold">Sales tax</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {r.byRegion.map((row) => (
+                      <tr key={row.region || "none"} className="border-t border-line">
+                        <td className="px-5 py-2.5">{regionName(row.region)}</td>
+                        <td className="px-5 py-2.5 text-right tabular">{row.count}</td>
+                        <td className="px-5 py-2.5 text-right tabular">{m(row.sales)}</td>
+                        <td className="px-5 py-2.5 text-right tabular">{m(row.tax)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
 
           <div className="grid gap-6 lg:grid-cols-2">
             <section className="card p-5">

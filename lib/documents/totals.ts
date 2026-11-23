@@ -65,7 +65,9 @@ export function calculate(doc: DocumentData): DocumentTotals {
       tax,
       total: add(taxable, tax),
       rate,
-      label: rule?.label ?? (rate > 0 ? `${pack.taxLabel} ${rate}%` : "No tax"),
+      // A rule whose rate the seller types in ("enter your rate") is printed as the tax and the
+      // rate they entered, never as the instruction itself.
+      label: rule && rule.status !== "draft" ? rule.label : rate > 0 ? `${pack.taxLabel} ${rate}%` : "No tax",
       rule
     };
   });
@@ -125,7 +127,11 @@ export function calculate(doc: DocumentData): DocumentTotals {
   // honest notices about the rules themselves
   for (const row of taxRows) {
     const rule = row.ruleId ? ruleById(pack, row.ruleId) : undefined;
-    if (rule?.status === "draft") warnings.push(`${rule.label} is not a verified rate. Confirm it with ${rule.source}.`);
+    if (rule?.status === "draft") {
+      warnings.push(row.rate > 0
+        ? `${pack.taxLabel} at ${row.rate}% is a rate you entered. Check it against ${rule.source.charAt(0).toLowerCase()}${rule.source.slice(1)}.`
+        : `${rule.label.replace(/\s*\(enter it\)$/, "")} has no rate yet. Type it in on the line.`);
+    }
   }
   if (pack.taxSystem !== "NONE" && available.length === 0) warnings.push(`No ${pack.taxLabel} rules are configured for ${pack.name} on ${doc.issueDate}.`);
   if (isExport && pack.code === "IN") {
@@ -173,13 +179,16 @@ export function counterpartRuleId(country: string, isoDate: string, ruleId: stri
 }
 
 /** Suggested tax rule for a new line: the country's standard rate, matched to intra or inter region. */
-export function defaultTaxRuleId(country: string, isoDate: string, interRegion = false, composition = false): string | undefined {
+export function defaultTaxRuleId(country: string, isoDate: string, interRegion = false, composition = false, region?: string): string | undefined {
   // A composition dealer may not charge tax at all, so no rule is the correct answer rather
   // than a zero-rated one: a zero rate still presents as tax that was considered and came to
   // nothing, which is not what a bill of supply says.
   if (composition) return undefined;
   const pack = packFor(country);
   const rules = rulesOn(pack, isoDate);
+  // A country taxed state by state (the US) starts a line on that state's rate when it is known.
+  const regional = region ? rules.find((r) => r.jurisdiction === `${pack.code}-${region}` && r.category === "standard-region") : undefined;
+  if (regional) return regional.id;
   const wanted = interRegion ? "standard-inter" : "standard";
   return (rules.find((r) => r.category === wanted) ?? rules.find((r) => r.category === "standard") ?? rules[0])?.id;
 }

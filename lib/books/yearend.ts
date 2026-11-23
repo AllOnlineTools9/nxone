@@ -1,7 +1,7 @@
 import { balances, type JournalEntry } from "../ledger/journal";
 import { balanceSheet, profitAndLoss } from "../ledger/statements";
 import { fromMinor, type Money } from "../money";
-import { financialYearOf } from "../tds/sections";
+import { taxYearOf } from "../countries/year";
 import type { Expense, SavedDocument } from "../store/types";
 
 /**
@@ -35,8 +35,8 @@ export interface YearEnd {
   opening: Array<{ code: string; name: string; type: string; minor: number }>;
 }
 
-export function yearEnd(entries: JournalEntry[], currency: string, anyDateInYear: string): YearEnd {
-  const fy = financialYearOf(anyDateInYear);
+export function yearEnd(entries: JournalEntry[], currency: string, anyDateInYear: string, startMonth = 4): YearEnd {
+  const fy = taxYearOf(anyDateInYear, startMonth);
   const pl = profitAndLoss(entries, currency, fy.from, fy.to);
   const sheet = balanceSheet(entries, currency, fy.to, fy.from);
 
@@ -92,8 +92,10 @@ export function readyToClose(input: {
   assets?: Array<{ purchasedOn: string; disposedOn?: string }>;
   /** Whether a lock already covers this year. */
   lockedUpTo?: string;
+  /** The month the tax year starts, from the country. April when not given. */
+  startMonth?: number;
 }): ReadyToClose {
-  const fy = financialYearOf(input.anyDateInYear);
+  const fy = taxYearOf(input.anyDateInYear, input.startMonth ?? 4);
   const inYear = <T extends { issueDate?: string; date?: string }>(list: T[]) =>
     list.filter((row) => {
       const on = row.issueDate ?? row.date ?? "";
@@ -170,12 +172,12 @@ export function readyToClose(input: {
 }
 
 /** The years there is anything to close, newest first. */
-export function yearsWithActivity(documents: SavedDocument[], expenses: Expense[]): string[] {
+export function yearsWithActivity(documents: SavedDocument[], expenses: Expense[], startMonth = 4): string[] {
   const years = new Set<string>();
-  for (const d of documents) if (d.issueDate) years.add(financialYearOf(d.issueDate).label);
-  for (const e of expenses) if (e.date) years.add(financialYearOf(e.date).label);
+  for (const d of documents) if (d.issueDate) years.add(taxYearOf(d.issueDate, startMonth).label);
+  for (const e of expenses) if (e.date) years.add(taxYearOf(e.date, startMonth).label);
   return [...years].sort().reverse();
 }
 
 /** The first day of a financial year written as 2026-27. */
-export const yearStarting = (label: string): string => `${label.slice(0, 4)}-04-01`;
+export const yearStarting = (label: string, startMonth = 4): string => `${label.slice(0, 4)}-${String(startMonth).padStart(2, "0")}-01`;

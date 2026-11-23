@@ -115,10 +115,10 @@ export default function ProfileForm() {
       <section className="card p-5">
         <h2 className="font-display text-lg">Defaults on every document</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Area label="Payment details" value={form.paymentDetails || ""} onChange={(v) => set({ paymentDetails: v })} placeholder="Bank name, account number, IFSC or IBAN, UPI id" />
+          <Area label="Payment details" value={form.paymentDetails || ""} onChange={(v) => set({ paymentDetails: v })} placeholder={pack.code === "IN" ? "Bank name, account number, IFSC, UPI id" : pack.code === "US" ? "Bank name, account and routing number, or Zelle" : "Bank name, account number or IBAN"} />
           <Area label="Terms" value={form.defaultTerms || ""} onChange={(v) => set({ defaultTerms: v })} placeholder="Payment due within 14 days. Interest at 1.5% a month on overdue amounts." />
           <Field label="UPI id" value={form.upiId || ""} onChange={(v) => set({ upiId: v })} placeholder="acme@hdfcbank" />
-          <Field label="Payment link" value={form.paymentLink || ""} onChange={(v) => set({ paymentLink: v })} placeholder="https://rzp.io/l/your-page" />
+          <Field label="Payment link" value={form.paymentLink || ""} onChange={(v) => set({ paymentLink: v })} placeholder={pack.code === "IN" ? "https://rzp.io/l/your-page" : "https://your-payment-link"} />
         </div>
         <p className="mt-2 text-sm text-ink-soft">A UPI id puts a scannable code on your Indian invoices, with the amount and the invoice number already in it. A payment link suits cards and customers abroad.</p>
 

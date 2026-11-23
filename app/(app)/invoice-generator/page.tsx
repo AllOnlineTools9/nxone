@@ -12,7 +12,7 @@ export default function Page() {
       <AppSchema name="NXOne Invoice generator" path="/invoice-generator/" description={metadata.description} />
       <header className="max-w-3xl">
         <h1 className="text-2xl font-semibold sm:text-3xl">Invoice generator</h1>
-        <p className="mt-2 max-w-2xl text-ink-soft">Fill in the left, watch the right. Add your logo and bank details, pick the HSN or SAC code by typing what you sell, and download the PDF when it looks right.</p>
+        <p className="mt-2 max-w-2xl text-ink-soft">Fill in the left, watch the right. Add your logo and bank details, pick the tax for each line, and download the PDF when it looks right. In India the HSN or SAC code fills in as you type what you sell.</p>
       </header>
       <div className="mt-5"><Builder kind="invoice" /></div>
     </div>

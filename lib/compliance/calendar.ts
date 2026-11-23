@@ -58,6 +58,15 @@ function periodsEndingBetween(frequency: Frequency, fromIso: string, toIso: stri
   return out.filter((p) => p.end >= fromIso && p.end <= toIso);
 }
 
+/** A Saturday or Sunday moves to the Monday after. Public holidays are not counted. */
+function weekday(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  const day = d.getUTCDay();
+  if (day === 6) d.setUTCDate(d.getUTCDate() + 2);
+  else if (day === 0) d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 function dueDateFor(rule: ObligationRule, periodEnd: string): string {
   const [y, m] = periodEnd.split("-").map(Number);
   const target = new Date(Date.UTC(y, m - 1 + rule.monthsAfterPeriod, 1));
@@ -95,21 +104,31 @@ export function calendarFor(opts: {
 
   const deadlines: Deadline[] = [];
 
+  const push = (rule: ObligationRule, label: string, start: string, end: string, due: string, key = end) => {
+    const dueDate = rule.nextBusinessDay ? weekday(due) : due;
+    const daysAway = daysBetween(today, dueDate);
+    if (daysAway < -backDays || daysAway > aheadDays) return;
+    deadlines.push({
+      id: `${rule.id}:${key}`, rule, period: label, periodStart: start, periodEnd: end, dueDate, daysAway,
+      state: daysAway < 0 ? "overdue" : daysAway <= 14 ? "due-soon" : "upcoming"
+    });
+  };
+
   for (const rule of rules) {
+    // Fixed days of the year, such as US estimated tax.
+    if (rule.dates?.length) {
+      const year = Number(today.slice(0, 4));
+      for (const y of [year - 1, year, year + 1]) {
+        for (const d of rule.dates) {
+          const due = `${y}-${pad(d.month)}-${pad(d.day)}`;
+          const label = d.covers.replace("{year}", String(y)).replace("{prev}", String(y - 1));
+          push(rule, label, due, due, due);
+        }
+      }
+      continue;
+    }
     for (const period of periodsEndingBetween(rule.frequency, from, to, country.toUpperCase() === "IN" ? 4 : 1)) {
-      const dueDate = dueDateFor(rule, period.end);
-      const daysAway = daysBetween(today, dueDate);
-      if (daysAway < -backDays || daysAway > aheadDays) continue;
-      deadlines.push({
-        id: `${rule.id}:${period.end}`,
-        rule,
-        period: period.label,
-        periodStart: period.start,
-        periodEnd: period.end,
-        dueDate,
-        daysAway,
-        state: daysAway < 0 ? "overdue" : daysAway <= 14 ? "due-soon" : "upcoming"
-      });
+      push(rule, period.label, period.start, period.end, dueDateFor(rule, period.end));
     }
   }
 

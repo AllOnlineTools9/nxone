@@ -1,5 +1,6 @@
 "use client";
 import { owedOn } from "@/lib/documents/owed";
+import { packFor } from "@/lib/countries/packs";
 import { ChevronDown, ChevronRight, FilePlus2, Pencil, Search, Trash2, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -184,12 +185,14 @@ export default function Customers() {
                             <label className="label" htmlFor={`addr-${c.id}`}>Address</label>
                             <textarea id={`addr-${c.id}`} className="field" rows={2} value={draft.address ?? ""} onChange={(e) => setDraft({ ...draft, address: e.target.value })} />
                           </div>
-                          {country === "IN" ? (
+                          {country === "IN" || packFor(country).regions?.length ? (
                             <div>
                               <label className="label" htmlFor={`state-${c.id}`}>State</label>
                               <select id={`state-${c.id}`} className="field" value={draft.region ?? ""} onChange={(e) => setDraft({ ...draft, region: e.target.value || undefined })}>
                                 <option value="">Not set</option>
-                                {GST_STATES.map((st) => <option key={st.region} value={st.region}>{st.name}</option>)}
+                                {country === "IN"
+                                  ? GST_STATES.map((st) => <option key={st.region} value={st.region}>{st.name}</option>)
+                                  : (packFor(country).regions ?? []).map((st) => <option key={st.code} value={st.code}>{st.name}</option>)}
                               </select>
                             </div>
                           ) : null}

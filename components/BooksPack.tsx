@@ -1,5 +1,6 @@
 "use client";
 import { Check, Copy, Download, Mail, MessageCircle } from "lucide-react";
+import { yearStartFor } from "@/lib/countries/year";
 import { useMemo, useState } from "react";
 import { makeZip } from "@/lib/files/zip";
 import { packFileName, packFiles, packMessage, type PackInput } from "@/lib/reports/pack";
@@ -28,7 +29,8 @@ export default function BooksPack() {
   const input = useMemo<PackInput | undefined>(() => {
     if (!ready || !ws.profile) return undefined;
     const anchor = `${when}-15`;
-    const period = span === "month" ? monthPeriod(anchor) : span === "quarter" ? quarterPeriod(anchor) : financialYear(anchor);
+    const yearStart = yearStartFor(ws.profile.country);
+    const period = span === "month" ? monthPeriod(anchor) : span === "quarter" ? quarterPeriod(anchor, yearStart) : financialYear(anchor, yearStart);
     const currency = ws.profile.currency ?? "INR";
     return {
       businessName: ws.profile.name || "This business",

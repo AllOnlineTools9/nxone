@@ -128,7 +128,10 @@ export async function buildPdf(doc: DocumentData): Promise<Blob> {
   text(tpl.caps ? kind.partyLabel.toUpperCase() : kind.partyLabel, M, 7.5, bold, grey);
   const exp = doc.export?.enabled ? doc.export : undefined;
   if (exp?.buyerCountry) right(tpl.caps ? "COUNTRY OF SUPPLY" : "Country of supply", A4.w - M, 7.5, bold, grey);
-  else if (doc.placeOfSupply) right(tpl.caps ? "PLACE OF SUPPLY" : "Place of supply", A4.w - M, 7.5, bold, grey);
+  else if (doc.placeOfSupply) {
+    const printed = pack.regionLabels?.printed ?? "Place of supply";
+    right(tpl.caps ? printed.toUpperCase() : printed, A4.w - M, 7.5, bold, grey);
+  }
   space(13);
   text(doc.buyer.name || "Customer name", M, 10, bold);
   if (exp?.buyerCountry) right(exp.buyerCountry, A4.w - M, 9);

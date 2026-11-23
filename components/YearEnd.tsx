@@ -6,7 +6,7 @@ import { readyToClose, yearEnd, yearStarting, yearsWithActivity } from "@/lib/bo
 import { ledgerFor, toAssetForBooks } from "@/lib/ledger/posting";
 import { openingOf } from "@/lib/ledger/opening";
 import type { StockItem } from "@/lib/stock/ledger";
-import { financialYearOf } from "@/lib/tds/sections";
+import { taxYearOf, yearStartFor } from "@/lib/countries/year";
 import { formatDate, todayIso } from "@/lib/format";
 import { formatMoney, fromMinor } from "@/lib/money";
 import { store } from "@/lib/store/db";
@@ -26,7 +26,8 @@ export default function YearEnd() {
   const [chosen, setChosen] = useState<string | undefined>();
   const [closed, setClosed] = useState(false);
 
-  const years = useMemo(() => yearsWithActivity(db.documents(), db.expenses()), [ws]);
+  const startMonth = yearStartFor(ws.profile?.country);
+  const years = useMemo(() => yearsWithActivity(db.documents(), db.expenses(), startMonth), [ws, startMonth]);
 
   const entries = useMemo(() => ledgerFor(
     db.documents(), db.expenses(), ws.profile?.currency ?? "INR",
@@ -42,14 +43,15 @@ export default function YearEnd() {
   const date = (iso: string) => formatDate(iso, country);
 
   // The year just gone by default: the one somebody is most likely closing.
-  const thisYear = financialYearOf(todayIso()).label;
+  const thisYear = taxYearOf(todayIso(), startMonth).label;
   const label = chosen ?? years.find((y) => y !== thisYear) ?? years[0] ?? thisYear;
-  const anyDate = `${yearStarting(label).slice(0, 4)}-06-01`;
+  // A date safely inside the chosen year, whichever month it starts in.
+  const anyDate = addMonths(yearStarting(label, startMonth), 2);
 
-  const closing = yearEnd(entries, currency, anyDate);
+  const closing = yearEnd(entries, currency, anyDate, startMonth);
   const verdict = readyToClose({
     documents: db.documents(), expenses: db.expenses(), entries, currency,
-    anyDateInYear: anyDate, assets: db.assets(), lockedUpTo: ws.profile.lockedUpTo
+    anyDateInYear: anyDate, assets: db.assets(), lockedUpTo: ws.profile.lockedUpTo, startMonth
   });
 
   const close = () => {
@@ -147,7 +149,7 @@ export default function YearEnd() {
           amount, and it goes into the books dated {date(closing.to)}.
         </p>
         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-          {adjustments(date(closing.to)).map((a) => (
+          {adjustments(date(closing.to), new Date(`${closing.to}T00:00:00Z`).toLocaleString("en", { month: "long", timeZone: "UTC" })).map((a) => (
             <li key={a.title}>
               <Link href={a.href} className="block rounded-lg border border-line p-3 hover:border-ink-faint">
                 <span className="block text-sm font-medium">{a.title}</span>
@@ -194,10 +196,16 @@ export default function YearEnd() {
 }
 
 /** Year-end adjustments, each opening Other money with a sentence to finish. */
-function adjustments(onDate: string): Array<{ title: string; hint: string; href: string }> {
+function addMonths(iso: string, n: number): string {
+  const [y, m] = iso.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + n, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function adjustments(onDate: string, lastMonth: string): Array<{ title: string; hint: string; href: string }> {
   const to = (text: string) => `/entries/?text=${encodeURIComponent(text)}`;
   return [
-    { title: "Expenses owed but not paid", hint: "Rent, salary or electricity for the last month, paid after the year ends.", href: to(`Rent of ___ for March is outstanding on ${onDate}`) },
+    { title: "Expenses owed but not paid", hint: "Rent, salary or electricity for the last month, paid after the year ends.", href: to(`Rent of ___ for ${lastMonth} is outstanding on ${onDate}`) },
     { title: "Expenses paid in advance", hint: "Insurance or a subscription that covers part of next year.", href: to(`Insurance ___ is prepaid for next year on ${onDate}`) },
     { title: "Income earned, not yet received", hint: "Interest or a fee you have earned but not been paid.", href: to(`Interest of ___ earned but not yet received on ${onDate}`) },
     { title: "Income received in advance", hint: "Money taken this year for work you will do next year.", href: to(`Received ___ in advance for next year's work on ${onDate}`) },

@@ -2,16 +2,11 @@
 import { CalendarClock, Check } from "lucide-react";
 import { calendarFor } from "@/lib/compliance/calendar";
 import type { Registration } from "@/lib/compliance/rules";
+import { registrationChoices } from "@/lib/setup/onboarding";
 import { formatDate, todayIso } from "@/lib/format";
 import { store } from "@/lib/store/db";
 import { useHydrated, useWorkspace } from "@/lib/store/useStore";
 
-const LABELS: Array<[Registration, string, string]> = [
-  ["gst", "GST", "Registered for GST, so you file returns"],
-  ["vat", "VAT", "Registered for VAT"],
-  ["tds", "TDS", "You deduct tax at source from suppliers or salaries"],
-  ["payroll", "Payroll", "You run payroll with PF or ESI"]
-];
 
 /** The filing calendar, built from what the business is actually registered for. */
 export default function Compliance() {
@@ -32,7 +27,8 @@ export default function Compliance() {
     store.saveProfile({ ...profile, registrations: current.includes(r) ? current.filter((x) => x !== r) : [...current, r] });
   };
 
-  const relevant = country === "IN" ? LABELS.filter(([r]) => r !== "vat") : LABELS.filter(([r]) => r !== "gst" || country !== "IN");
+  // The same choices, in the country's own words, that setup asked about.
+  const relevant: Array<[Registration, string, string]> = registrationChoices(country).map((c) => [c.value, c.label, c.help]);
 
   return (
     <div className="space-y-8">

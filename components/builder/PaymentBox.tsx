@@ -57,7 +57,7 @@ export default function PaymentBox({ doc, update, totals, documentId }: {
         ) : null}
         <div>
           <label className="label" htmlFor="paylink">Payment link</label>
-          <input id="paylink" className="field" value={pay.paymentLink || ""} onChange={(e) => set({ paymentLink: e.target.value })} placeholder="https://rzp.io/l/your-page" />
+          <input id="paylink" className="field" value={pay.paymentLink || ""} onChange={(e) => set({ paymentLink: e.target.value })} placeholder={doc.country === "IN" ? "https://rzp.io/l/your-page" : "https://your-payment-link"} />
           {syncAvailable() && doc.kind === "invoice" ? (
             <button
               type="button" className="btn-quiet mt-2 text-sm"

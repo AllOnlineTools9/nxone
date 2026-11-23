@@ -1,4 +1,5 @@
 import { forecast } from "../analysis/cashflow";
+import { yearStartFor } from "../countries/year";
 import { payables } from "../analysis/payables";
 import { chaseList, customerStanding } from "../analysis/receivables";
 import { calendarFor, nextDeadline } from "../compliance/calendar";
@@ -47,7 +48,7 @@ export interface AskContext {
 
 const money = (v: Money) => formatMoney(v, "en-IN");
 
-function rangeFor(period: Period, today: string): ReportPeriod {
+function rangeFor(period: Period, today: string, startMonth = 4): ReportPeriod {
   const [y, m] = today.split("-").map(Number);
   const shift = (months: number) => {
     const d = new Date(Date.UTC(y, m - 1 + months, 1));
@@ -62,12 +63,12 @@ function rangeFor(period: Period, today: string): ReportPeriod {
   switch (period.kind) {
     case "this-month": return shift(0);
     case "last-month": return shift(-1);
-    case "this-quarter": return quarterPeriod(today);
-    case "this-year": return financialYear(today);
+    case "this-quarter": return quarterPeriod(today, startMonth);
+    case "this-year": return financialYear(today, startMonth);
     case "last-year": {
-      const fy = financialYear(today);
+      const fy = financialYear(today, startMonth);
       const previous = `${Number(fy.from.slice(0, 4)) - 1}-${fy.from.slice(5)}`;
-      return financialYear(previous);
+      return financialYear(previous, startMonth);
     }
     case "last-30": return back(30);
     case "last-90": return back(90);
@@ -78,7 +79,7 @@ function rangeFor(period: Period, today: string): ReportPeriod {
 export function ask(question: string, context: AskContext): Answer {
   const intent = parseQuestion(question);
   const { documents, expenses, today, currency, profile, entries } = context;
-  const range = rangeFor(intent.period, today);
+  const range = rangeFor(intent.period, today, yearStartFor(profile?.country));
   const opening = openingOf(profile);
   const ledger = ledgerFor(documents, expenses.filter((e) => !e.deletedAt).map(toExpenseInput), currency, opening, undefined, undefined, entries);
 

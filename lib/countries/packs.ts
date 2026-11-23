@@ -27,6 +27,7 @@ export const INDIA: CountryPack = {
   taxIdPattern: "^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$",
   invoiceTitle: "Tax Invoice",
   support: "supported",
+  yearStartMonth: 4,
   features: ["gst-returns", "gst-scheme", "input-credit", "tds", "advance-tax", "e-invoicing", "e-way-bills", "hsn", "payroll", "tally", "hinglish"],
   notes: "GST splits into CGST and SGST within a state and becomes IGST between states. Since 22 September 2025 the usual rates are 5% and 18%, with 40% on luxury and sin goods. The old 12% and 28% rates stay available for invoices dated before that change.",
   regions: [
@@ -95,6 +96,70 @@ export const UNITED_KINGDOM: CountryPack = {
   ]
 };
 
+/**
+ * The United States. Sales tax is set by each state, and most add county, city and district taxes
+ * on top, so the combined rate depends on the street address. The pack carries every state's own
+ * rate, dated, and lets the seller enter the combined rate where local tax applies. A rate service
+ * would give the exact combined rate per address; until one is connected, the honest default is
+ * the state rate plus a clear prompt to add local tax.
+ *
+ * California, Utah and Virginia charge a statewide local add-on everywhere (1.25%, 1.25% and 1%);
+ * it is included in their state rate here, as the Tax Foundation does, because no buyer escapes it.
+ */
+const US_STATES = [
+    { code: "AL", name: "Alabama" },
+    { code: "AK", name: "Alaska" },
+    { code: "AZ", name: "Arizona" },
+    { code: "AR", name: "Arkansas" },
+    { code: "CA", name: "California" },
+    { code: "CO", name: "Colorado" },
+    { code: "CT", name: "Connecticut" },
+    { code: "DE", name: "Delaware" },
+    { code: "DC", name: "District of Columbia" },
+    { code: "FL", name: "Florida" },
+    { code: "GA", name: "Georgia" },
+    { code: "HI", name: "Hawaii" },
+    { code: "ID", name: "Idaho" },
+    { code: "IL", name: "Illinois" },
+    { code: "IN", name: "Indiana" },
+    { code: "IA", name: "Iowa" },
+    { code: "KS", name: "Kansas" },
+    { code: "KY", name: "Kentucky" },
+    { code: "LA", name: "Louisiana" },
+    { code: "ME", name: "Maine" },
+    { code: "MD", name: "Maryland" },
+    { code: "MA", name: "Massachusetts" },
+    { code: "MI", name: "Michigan" },
+    { code: "MN", name: "Minnesota" },
+    { code: "MS", name: "Mississippi" },
+    { code: "MO", name: "Missouri" },
+    { code: "MT", name: "Montana" },
+    { code: "NE", name: "Nebraska" },
+    { code: "NV", name: "Nevada" },
+    { code: "NH", name: "New Hampshire" },
+    { code: "NJ", name: "New Jersey" },
+    { code: "NM", name: "New Mexico" },
+    { code: "NY", name: "New York" },
+    { code: "NC", name: "North Carolina" },
+    { code: "ND", name: "North Dakota" },
+    { code: "OH", name: "Ohio" },
+    { code: "OK", name: "Oklahoma" },
+    { code: "OR", name: "Oregon" },
+    { code: "PA", name: "Pennsylvania" },
+    { code: "RI", name: "Rhode Island" },
+    { code: "SC", name: "South Carolina" },
+    { code: "SD", name: "South Dakota" },
+    { code: "TN", name: "Tennessee" },
+    { code: "TX", name: "Texas" },
+    { code: "UT", name: "Utah" },
+    { code: "VT", name: "Vermont" },
+    { code: "VA", name: "Virginia" },
+    { code: "WA", name: "Washington" },
+    { code: "WV", name: "West Virginia" },
+    { code: "WI", name: "Wisconsin" },
+    { code: "WY", name: "Wyoming" }
+];
+
 export const UNITED_STATES: CountryPack = {
   code: "US",
   name: "United States",
@@ -105,17 +170,83 @@ export const UNITED_STATES: CountryPack = {
   taxSystem: "SALES_TAX",
   taxLabel: "Sales tax",
   taxIdLabel: "EIN",
+  // An EIN is nine digits, written 12-3456789. A sole proprietor may have none and use an SSN,
+  // which never belongs on an invoice, so the field stays optional.
+  taxIdPattern: "^\\d{2}-?\\d{7}$",
   invoiceTitle: "Invoice",
-  support: "partial",
-  notes: "Sales tax in the United States is set by states, counties and cities, and combined rates differ street by street. Enter the rate that applies to you rather than relying on a default.",
+  support: "supported",
+  // Most small US businesses file on the calendar year.
+  yearStartMonth: 1,
+  notes: "Each state sets its own sales tax rate and most add county and city tax on top. Pick the customer's state and the state rate fills in; if local tax applies where they receive the goods, choose the combined rate and enter it. Many services are not taxable, and a customer with a resale or exemption certificate pays none.",
+  regions: US_STATES,
+  regionLabels: {
+    seller: "Your state",
+    supply: "Customer's state (ship-to)",
+    printed: "Ship-to state",
+    help: "Sales tax usually follows where the customer receives the goods or service. The state rate leaves out county and city tax; to include it, choose \"Combined state and local rate\" on the line and enter the total."
+  },
   requiredFields: [
     ...commonFields,
     { key: "sellerTaxId", label: "EIN (optional)", required: false },
-    { key: "buyerAddress", label: "Customer address", required: false }
+    { key: "buyerAddress", label: "Customer address", required: false },
+    { key: "placeOfSupply", label: "Customer's state", required: false }
   ],
   taxRules: [
-    { id: "us-none", jurisdiction: "US", label: "No sales tax", rate: 0, category: "zero", effectiveFrom: "2000-01-01", source: "n/a", version: 1, status: "published" },
-    { id: "us-custom", jurisdiction: "US", label: "Sales tax (enter your rate)", rate: 0, category: "standard", effectiveFrom: "2000-01-01", source: "State and local tax authority", version: 1, status: "draft" }
+    { id: "us-custom", jurisdiction: "US", label: "Combined state and local rate (enter it)", rate: 0, category: "standard", effectiveFrom: "2000-01-01", source: "Your state's sales tax rate lookup for the delivery address", version: 1, status: "draft" },
+    { id: "us-none", jurisdiction: "US", label: "Not taxable 0%", rate: 0, category: "zero", effectiveFrom: "2000-01-01", source: "n/a", version: 1, status: "published" },
+    { id: "us-exempt", jurisdiction: "US", label: "Exempt customer or resale 0%", rate: 0, category: "exempt", effectiveFrom: "2000-01-01", source: "Keep the customer's resale or exemption certificate on file", version: 1, status: "published" },
+    { id: "us-st-al", jurisdiction: "US-AL", label: "Alabama 4% (state rate)", rate: 4, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-ak", jurisdiction: "US-AK", label: "Alaska: no state sales tax, but local sales tax may apply", rate: 0, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-az", jurisdiction: "US-AZ", label: "Arizona 5.6% (state rate)", rate: 5.6, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-ar", jurisdiction: "US-AR", label: "Arkansas 6.5% (state rate)", rate: 6.5, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-ca", jurisdiction: "US-CA", label: "California 7.25% statewide (state rate)", rate: 7.25, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-co", jurisdiction: "US-CO", label: "Colorado 2.9% (state rate)", rate: 2.9, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-ct", jurisdiction: "US-CT", label: "Connecticut 6.35% (state rate)", rate: 6.35, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-de", jurisdiction: "US-DE", label: "Delaware: no sales tax", rate: 0, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-dc", jurisdiction: "US-DC", label: "District of Columbia 6%", rate: 6, category: "standard-region", effectiveFrom: "2025-01-01", effectiveUntil: "2027-10-01", source: "DC Office of Tax and Revenue; the rise to 7% was moved from 1 Oct 2026 to 1 Oct 2027", version: 1, status: "published" },
+    { id: "us-st-dc-7", jurisdiction: "US-DC", label: "District of Columbia 7%", rate: 7, category: "standard-region", effectiveFrom: "2027-10-01", source: "DC Office of Tax and Revenue, FY2026 Budget Support Act", version: 2, status: "published" },
+    { id: "us-st-fl", jurisdiction: "US-FL", label: "Florida 6% (state rate)", rate: 6, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-ga", jurisdiction: "US-GA", label: "Georgia 4% (state rate)", rate: 4, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-hi", jurisdiction: "US-HI", label: "Hawaii general excise tax 4%", rate: 4, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-id", jurisdiction: "US-ID", label: "Idaho 6% (state rate)", rate: 6, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-il", jurisdiction: "US-IL", label: "Illinois 6.25% (state rate)", rate: 6.25, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-in", jurisdiction: "US-IN", label: "Indiana 7% (state rate)", rate: 7, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-ia", jurisdiction: "US-IA", label: "Iowa 6% (state rate)", rate: 6, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-ks", jurisdiction: "US-KS", label: "Kansas 6.5% (state rate)", rate: 6.5, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-ky", jurisdiction: "US-KY", label: "Kentucky 6% (state rate)", rate: 6, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-la", jurisdiction: "US-LA", label: "Louisiana 5% (state rate)", rate: 5, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-me", jurisdiction: "US-ME", label: "Maine 5.5% (state rate)", rate: 5.5, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-md", jurisdiction: "US-MD", label: "Maryland 6% (state rate)", rate: 6, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-ma", jurisdiction: "US-MA", label: "Massachusetts 6.25% (state rate)", rate: 6.25, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-mi", jurisdiction: "US-MI", label: "Michigan 6% (state rate)", rate: 6, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-mn", jurisdiction: "US-MN", label: "Minnesota 6.875% (state rate)", rate: 6.875, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-ms", jurisdiction: "US-MS", label: "Mississippi 7% (state rate)", rate: 7, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-mo", jurisdiction: "US-MO", label: "Missouri 4.225% (state rate)", rate: 4.225, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-mt", jurisdiction: "US-MT", label: "Montana: no sales tax", rate: 0, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-ne", jurisdiction: "US-NE", label: "Nebraska 5.5% (state rate)", rate: 5.5, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-nv", jurisdiction: "US-NV", label: "Nevada 6.85% (state rate)", rate: 6.85, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-nh", jurisdiction: "US-NH", label: "New Hampshire: no sales tax", rate: 0, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-nj", jurisdiction: "US-NJ", label: "New Jersey 6.625% (state rate)", rate: 6.625, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-nm", jurisdiction: "US-NM", label: "New Mexico 4.875% (state rate)", rate: 4.875, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-ny", jurisdiction: "US-NY", label: "New York 4% (state rate)", rate: 4, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-nc", jurisdiction: "US-NC", label: "North Carolina 4.75% (state rate)", rate: 4.75, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-nd", jurisdiction: "US-ND", label: "North Dakota 5% (state rate)", rate: 5, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-oh", jurisdiction: "US-OH", label: "Ohio 5.75% (state rate)", rate: 5.75, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-ok", jurisdiction: "US-OK", label: "Oklahoma 4.5% (state rate)", rate: 4.5, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-or", jurisdiction: "US-OR", label: "Oregon: no sales tax", rate: 0, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-pa", jurisdiction: "US-PA", label: "Pennsylvania 6% (state rate)", rate: 6, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-ri", jurisdiction: "US-RI", label: "Rhode Island 7% (state rate)", rate: 7, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-sc", jurisdiction: "US-SC", label: "South Carolina 6% (state rate)", rate: 6, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-sd", jurisdiction: "US-SD", label: "South Dakota 4.2% (state rate)", rate: 4.2, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-tn", jurisdiction: "US-TN", label: "Tennessee 7% (state rate)", rate: 7, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-tx", jurisdiction: "US-TX", label: "Texas 6.25% (state rate)", rate: 6.25, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-ut", jurisdiction: "US-UT", label: "Utah 6.1% statewide (state rate)", rate: 6.1, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-vt", jurisdiction: "US-VT", label: "Vermont 6% (state rate)", rate: 6, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-va", jurisdiction: "US-VA", label: "Virginia 5.3% statewide (state rate)", rate: 5.3, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-wa", jurisdiction: "US-WA", label: "Washington 6.5% (state rate)", rate: 6.5, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-wv", jurisdiction: "US-WV", label: "West Virginia 6% (state rate)", rate: 6, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-wi", jurisdiction: "US-WI", label: "Wisconsin 5% (state rate)", rate: 5, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" },
+    { id: "us-st-wy", jurisdiction: "US-WY", label: "Wyoming 4% (state rate)", rate: 4, category: "standard-region", effectiveFrom: "2025-01-01", source: "Tax Foundation, state rates as of 1 July 2026, and the state revenue department", version: 1, status: "published" }
   ]
 };
 

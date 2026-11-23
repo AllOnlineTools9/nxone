@@ -82,7 +82,13 @@ describe("document totals", () => {
   it("warns when a rate is not verified", () => {
     const t = calculate(doc({ country: "US", currency: "USD", seller: { name: "s" }, buyer: { name: "b" }, placeOfSupply: undefined, items: [{ id: "1", description: "x", quantity: 1, rate: 100, taxRuleId: "us-custom", taxRateOverride: 8.25 }] }));
     expect(toMajor(t.taxTotal)).toBe(8.25);
-    expect(t.warnings.join(" ")).toMatch(/not a verified rate/);
+    expect(t.warnings.join(" ")).toMatch(/Sales tax at 8.25% is a rate you entered/);
+    // printed as the tax and its rate, never as the "enter it" instruction
+    expect(t.taxRows[0].label).toBe("Sales tax 8.25%");
+  });
+  it("asks for a rate when an enter-your-rate line has none", () => {
+    const t = calculate(doc({ country: "US", currency: "USD", seller: { name: "s" }, buyer: { name: "b" }, placeOfSupply: undefined, items: [{ id: "1", description: "x", quantity: 1, rate: 100, taxRuleId: "us-custom" }] }));
+    expect(t.warnings.join(" ")).toMatch(/has no rate yet/);
   });
   it("rounds off and shows the balance due", () => {
     const t = calculate(doc({ roundOff: true, amountPaid: 5000, items: [{ id: "1", description: "x", quantity: 1, rate: 1000.4, taxRuleId: "in-gst-18" }] }));

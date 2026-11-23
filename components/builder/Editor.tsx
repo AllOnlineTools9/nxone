@@ -1,5 +1,6 @@
 "use client";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import { rulesToOffer, taxRegion } from "@/lib/documents/regional";
 import { PACKS, packFor } from "@/lib/countries/packs";
 import { hsnByCode, rateFor, ruleIdForRate } from "@/lib/countries/hsn";
 import SignatureBox from "./SignatureBox";
@@ -101,19 +102,21 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
           {pack.regions?.length ? (
             <>
               <div>
-                <label className="label" htmlFor="sellerRegion">Your state</label>
+                <label className="label" htmlFor="sellerRegion">{pack.regionLabels?.seller ?? "Your state"}</label>
                 <select id="sellerRegion" className="field" value={doc.seller.region || ""} onChange={(e) => update({ seller: { ...doc.seller, region: e.target.value } })}>
                   <option value="">Select</option>
                   {pack.regions.map((r) => <option key={r.code} value={r.code}>{r.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="label" htmlFor="pos">Place of supply</label>
+                <label className="label" htmlFor="pos">{pack.regionLabels?.supply ?? "Place of supply"}</label>
                 <select id="pos" className="field" value={doc.placeOfSupply || ""} onChange={(e) => update({ placeOfSupply: e.target.value })}>
                   <option value="">Select</option>
                   {pack.regions.map((r) => <option key={r.code} value={r.code}>{r.name}</option>)}
                 </select>
-                {doc.placeOfSupply && doc.seller.region ? (
+                {pack.regionLabels?.help ? (
+                  <p className="mt-1 text-xs text-ink-faint">{pack.regionLabels.help}</p>
+                ) : doc.placeOfSupply && doc.seller.region && pack.code === "IN" ? (
                   <p className="mt-1 text-xs text-ink-faint">{interRegion ? "Different state, so IGST applies." : `Same state, so CGST and ${totals.supply.stateTaxLabel} apply.`}</p>
                 ) : null}
               </div>
@@ -187,7 +190,7 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
           <Area group="seller" label="Address" value={doc.seller.address || ""} onChange={(v) => update({ seller: { ...doc.seller, address: v } })} />
           <div className="grid gap-4">
             <Field group="seller" label="Email" value={doc.seller.email || ""} onChange={(v) => update({ seller: { ...doc.seller, email: v } })} type="email" placeholder="billing@yourbusiness.com" />
-            <Field group="seller" label="Phone" value={doc.seller.phone || ""} onChange={(v) => update({ seller: { ...doc.seller, phone: v } })} placeholder="+91 98200 00000" />
+            <Field group="seller" label="Phone" value={doc.seller.phone || ""} onChange={(v) => update({ seller: { ...doc.seller, phone: v } })} placeholder={pack.code === "IN" ? "+91 98200 00000" : pack.code === "US" ? "(555) 010-0000" : "Phone number"} />
             <Field group="seller" label="Website" value={doc.seller.website || ""} onChange={(v) => update({ seller: { ...doc.seller, website: v } })} placeholder="yourbusiness.com" />
           </div>
           <div className="sm:col-span-2">
@@ -250,7 +253,7 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
                     <label className="label" htmlFor={`t-${item.id}`}>{pack.taxLabel}</label>
                     <select id={`t-${item.id}`} className="field" value={item.taxRuleId || ""} onChange={(e) => updateItem(item.id, { taxRuleId: e.target.value || undefined })}>
                       <option value="">No {pack.taxLabel.toLowerCase()}</option>
-                      {rules.filter((r) => !r.appliesWhen || r.appliesWhen === "always" || (interRegion ? r.appliesWhen === "inter-region" : r.appliesWhen === "intra-region")).map((r) => (
+                      {rulesToOffer(pack, rules, taxRegion(doc), item.taxRuleId).filter((r) => !r.appliesWhen || r.appliesWhen === "always" || (interRegion ? r.appliesWhen === "inter-region" : r.appliesWhen === "intra-region")).map((r) => (
                         <option key={r.id} value={r.id}>{r.label}</option>
                       ))}
                     </select>
@@ -259,7 +262,7 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
                     <span className="pb-2 text-sm tabular text-ink-soft">{line ? formatMoney(line.total, pack.locale) : ""}</span>
                   </div>
                   {item.taxRuleId && (rules.find((r) => r.id === item.taxRuleId)?.status === "draft") ? (
-                    <Num className="sm:col-span-3" label="Tax rate %" value={item.taxRateOverride ?? 0} onChange={(v) => updateItem(item.id, { taxRateOverride: v })} />
+                    <Num className="sm:col-span-3" label={pack.code === "US" ? "Combined rate %" : "Tax rate %"} value={item.taxRateOverride ?? 0} onChange={(v) => updateItem(item.id, { taxRateOverride: v })} />
                   ) : null}
                   {rateNote(item.code, item.rate) ? <p className="col-span-2 text-xs text-ink-soft sm:col-span-12">{rateNote(item.code, item.rate)}</p> : null}
                   {pack.code === "IN" ? (
@@ -311,7 +314,7 @@ export default function Editor({ doc, totals, update, updateItem, addItem, remov
             <input type="checkbox" checked={Boolean(doc.roundOff)} onChange={(e) => update({ roundOff: e.target.checked })} />
             Round the total to a whole {doc.currency}
           </label>
-          {kind.showPaymentDetails ? <Area label="Payment details" value={doc.paymentDetails || ""} onChange={(v) => update({ paymentDetails: v })} placeholder="Bank name, account number, IFSC or IBAN, UPI id" /> : null}
+          {kind.showPaymentDetails ? <Area label="Payment details" value={doc.paymentDetails || ""} onChange={(v) => update({ paymentDetails: v })} placeholder={pack.code === "IN" ? "Bank name, account number, IFSC, UPI id" : pack.code === "US" ? "Bank name, account and routing number, or Zelle" : "Bank name, account number or IBAN"} /> : null}
           <Area label="Notes" value={doc.notes || ""} onChange={(v) => update({ notes: v })} />
           <Area label="Terms" value={doc.terms || ""} onChange={(v) => update({ terms: v })} />
         </div>

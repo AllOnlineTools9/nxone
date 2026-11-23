@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PACKS, packFor } from "@/lib/countries/packs";
 import { calculate, counterpartRuleId, defaultTaxRuleId } from "@/lib/documents/totals";
+import { hasRegionalRates, taxRegion, withRegionalRates } from "@/lib/documents/regional";
 import type { DocumentData, DocumentKind, LineItem } from "@/lib/documents/types";
 import { addDays, guessCountry, todayIso } from "@/lib/format";
 import { kindConfig } from "@/lib/documents/kinds";
@@ -16,8 +17,8 @@ const KEY = "nxone.document.v1";
 /** Which saved document the current draft belongs to, so a refresh still updates rather than duplicates. */
 const LINK = "nxone.document.saved.v1";
 
-export function emptyLine(country: string, isoDate: string, interRegion = false, composition = false): LineItem {
-  return { id: Math.random().toString(36).slice(2, 9), description: "", quantity: 1, rate: 0, taxRuleId: defaultTaxRuleId(country, isoDate, interRegion, composition) };
+export function emptyLine(country: string, isoDate: string, interRegion = false, composition = false, region?: string): LineItem {
+  return { id: Math.random().toString(36).slice(2, 9), description: "", quantity: 1, rate: 0, taxRuleId: defaultTaxRuleId(country, isoDate, interRegion, composition, region) };
 }
 
 /**
@@ -52,7 +53,7 @@ export function blankDocument(kind: DocumentKind, country: string): DocumentData
     payment: cfg.showPaymentDetails ? { upiId: profile?.upiId, paymentLink: profile?.paymentLink, includeAmount: true } : undefined,
     buyer: { name: "", address: "", email: "", taxId: "", region: "" },
     placeOfSupply: "",
-    items: [emptyLine(useCountry, issueDate, false, profile?.gstScheme === "composition")],
+    items: [emptyLine(useCountry, issueDate, false, profile?.gstScheme === "composition", profile?.region)],
     taxInclusive: false,
     roundOff: pack.code === "IN",
     terms: profile?.defaultTerms || cfg.defaultTerms || "",
@@ -203,13 +204,15 @@ export function useDocument(kind: DocumentKind) {
       || ("seller" in patch && patch.seller?.region !== d.seller.region)
       || ("supplyType" in patch && patch.supplyType !== d.supplyType);
     if (!regionChanged) return next;
+    // A country taxed state by state: every line follows the invoice to the new state's rate.
+    if (hasRegionalRates(packFor(next.country))) return withRegionalRates(next);
     const mode = next.supplyType ?? "auto";
     if (mode === "auto" && (!next.placeOfSupply || !next.seller.region)) return next;
     const inter = mode === "auto" ? next.placeOfSupply !== next.seller.region : mode === "inter";
     return { ...next, items: next.items.map((i) => ({ ...i, taxRuleId: counterpartRuleId(next.country, next.issueDate, i.taxRuleId, inter) })) };
   }), []);
   const updateItem = useCallback((id: string, patch: Partial<LineItem>) => setDoc((d) => ({ ...d, items: d.items.map((i) => (i.id === id ? { ...i, ...patch } : i)) })), []);
-  const addItem = useCallback(() => setDoc((d) => ({ ...d, items: [...d.items, emptyLine(d.country, d.issueDate, Boolean(d.placeOfSupply && d.seller.region && d.placeOfSupply !== d.seller.region))] })), []);
+  const addItem = useCallback(() => setDoc((d) => ({ ...d, items: [...d.items, emptyLine(d.country, d.issueDate, Boolean(d.placeOfSupply && d.seller.region && d.placeOfSupply !== d.seller.region), d.composition, taxRegion(d))] })), []);
   const removeItem = useCallback((id: string) => setDoc((d) => ({ ...d, items: d.items.length > 1 ? d.items.filter((i) => i.id !== id) : d.items })), []);
   const moveItem = useCallback((id: string, dir: -1 | 1) => setDoc((d) => {
     const i = d.items.findIndex((x) => x.id === id);
@@ -273,7 +276,7 @@ export function useDocument(kind: DocumentKind) {
  * payment is due; on a quotation it is how long the price stands, which is a different promise.
  */
 export function withCustomer(doc: DocumentData, client: Client): DocumentData {
-  return {
+  return withRegionalRates({
     ...doc,
     buyer: {
       ...doc.buyer,
@@ -284,5 +287,5 @@ export function withCustomer(doc: DocumentData, client: Client): DocumentData {
     ...(client.termsDays !== undefined && takesPaymentTerms(doc.kind)
       ? { dueDate: dueDateFor(doc.issueDate, client.termsDays) }
       : {})
-  };
+  });
 }
